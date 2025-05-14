@@ -561,36 +561,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("Will exclude plants with zero quantity from the report");
       }
       
-      // Get all plant views with their inventory entries
-      const plantViews = await storage.getAllPlantViews();
+      // Get all plants from the plants table (instead of plant views)
+      const allPlants = await storage.getAllPlants();
       
-      // Create flattened entries for the report
+      // Filter out plants with zero quantity if requested
+      const filteredPlants = excludeZero 
+        ? allPlants.filter(plant => plant.quantity > 0)
+        : allPlants;
+      
+      // Map plants to the format needed for the report
       let flattenedEntries: Array<{
         name: string;
         scientificName: string;
         plantingYear: number;
         quantity: number;
-      }> = [];
-      
-      // Flatten the plant views into individual entries
-      plantViews.forEach(plantView => {
-        // Debug log for American Beech
-        if (plantView.name === 'American Beech') {
-          console.log(`American Beech inventory entries: ${JSON.stringify(plantView.inventoryEntries)}`);
-        }
-        
-        plantView.inventoryEntries.forEach(entry => {
-          // Filter out zero quantities if requested
-          if (!excludeZero || entry.quantity > 0) {
-            flattenedEntries.push({
-              name: plantView.name,
-              scientificName: plantView.scientificName,
-              plantingYear: entry.plantingYear,
-              quantity: entry.quantity
-            });
-          }
-        });
-      });
+      }> = filteredPlants.map(plant => ({
+        name: plant.name,
+        scientificName: plant.scientificName,
+        plantingYear: plant.plantingYear,
+        quantity: plant.quantity
+      }));
       
       // Log flattened entries count and some samples
       console.log(`Total flattened entries: ${flattenedEntries.length}`);
