@@ -548,11 +548,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const plants = await storage.getAllPlants();
       
-      // Create a new workbook and worksheet
+      // Helper function to ensure proper Unicode string handling
+      const normalize = (str: string | number | null | undefined): string => {
+        if (str === null || str === undefined) return '';
+        return String(str);
+      };
+      
+      // Create a new workbook and worksheet with enhanced Unicode handling
       const workbook = XLSX.utils.book_new();
       const worksheet = XLSX.utils.json_to_sheet(plants.map(plant => ({
-        Name: plant.name,
-        "Scientific Name": plant.scientificName,
+        Name: normalize(plant.name),
+        "Scientific Name": normalize(plant.scientificName),
         "Planting Year": plant.plantingYear,
         Quantity: plant.quantity
       })));
@@ -568,9 +574,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         compression: true
       });
       
-      // Set response headers
-      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      // Set response headers with proper charset for Unicode
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; charset=utf-8");
       res.setHeader("Content-Disposition", "attachment; filename=plant-inventory.xlsx");
+      res.setHeader("Content-Length", excelBuffer.length);
       
       // Send the file
       res.send(excelBuffer);
@@ -980,10 +987,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Prepare the result array
       const result: Array<Record<string, any>> = [];
       
+      // Helper function to ensure proper Unicode string handling
+      const normalize = (str: string | null | undefined): string => {
+        if (str === null || str === undefined) return '';
+        return String(str);
+      };
+      
       // Process each plant and its inventory entries based on filters
       plantViews.forEach(plant => {
+        // Normalize the plant name for proper comparison with Unicode characters
+        const plantName = normalize(plant.name).toLowerCase();
+        const filterName = normalize(filters.name).toLowerCase();
+        
         // Filter by plant name if specified
-        if (filters.name && !plant.name.toLowerCase().includes(filters.name.toLowerCase())) {
+        if (filters.name && !plantName.includes(filterName)) {
           return;
         }
         
@@ -994,8 +1011,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return;
           }
           
+          // Normalize location for proper Unicode comparison
+          const entryLocation = normalize(entry.location).toLowerCase();
+          const filterLocation = normalize(filters.location).toLowerCase();
+          
           // Filter by location if specified
-          if (filters.location && (!entry.location || !entry.location.toLowerCase().includes(filters.location.toLowerCase()))) {
+          if (filters.location && (!entry.location || !entryLocation.includes(filterLocation))) {
             return;
           }
           
@@ -1007,12 +1028,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Create a row with selected columns
           const row: Record<string, any> = {};
           
-          // Add selected columns to the row
+          // Add selected columns to the row with proper Unicode handling
           selectedColumns.forEach((column: string) => {
             if (column in plant) {
-              row[column] = plant[column as keyof typeof plant];
+              // Handle potential Unicode text in plant properties
+              const value = plant[column as keyof typeof plant];
+              row[column] = typeof value === 'string' ? normalize(value) : value;
             } else if (column in entry) {
-              row[column] = entry[column as keyof typeof entry];
+              // Handle potential Unicode text in entry properties
+              const value = entry[column as keyof typeof entry];
+              row[column] = typeof value === 'string' ? normalize(value) : value;
             }
           });
           
