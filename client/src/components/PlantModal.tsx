@@ -162,7 +162,7 @@ export default function PlantModal({ isOpen, onClose, plant }: PlantModalProps) 
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
-          <DialogTitle>{isEditMode ? "Edit Plant" : "Add New Plant"}</DialogTitle>
+          <DialogTitle>{isEditMode ? `Edit Plant: ${plant?.name}` : "Add New Plant"}</DialogTitle>
         </DialogHeader>
         
         <Tabs defaultValue="details" value={activeTab} onValueChange={setActiveTab}>
