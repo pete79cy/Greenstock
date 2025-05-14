@@ -481,6 +481,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       pdfDoc.registerFontkit(fontkit);
       const customFont = await pdfDoc.embedFont(customFontBytes);
       
+      // Helper function to truncate text if it's too long for the cell width
+      const truncateTextForCell = (text: string, maxWidth: number, fontSize: number): string => {
+        if (!text) return '';
+        
+        const textWidth = customFont.widthOfTextAtSize(text, fontSize);
+        if (textWidth <= maxWidth) return text;
+        
+        // If text is too long, truncate it with an ellipsis
+        const ellipsis = '...';
+        const ellipsisWidth = customFont.widthOfTextAtSize(ellipsis, fontSize);
+        const availableWidth = maxWidth - ellipsisWidth;
+        
+        // Find where to truncate
+        let truncatedText = '';
+        for (let i = text.length; i > 0; i--) {
+          const testText = text.substring(0, i);
+          if (customFont.widthOfTextAtSize(testText, fontSize) <= availableWidth) {
+            truncatedText = testText + ellipsis;
+            break;
+          }
+        }
+        
+        return truncatedText;
+      };
+      
       // Create a portrait page (A4)
       let page = pdfDoc.addPage([595, 842]); // A4 portrait dimensions in points
       const { width, height } = page.getSize();
@@ -513,7 +538,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tableStartY = titleY - 40;
       
       // Define column widths (adjusted for 5 columns)
-      const colWidths = [40, 150, 150, 70, 70]; 
+      // Increased width for "Name" and "Scientific Name" columns
+      const colWidths = [40, 170, 170, 60, 60]; 
       
       // Define headers - updated for new column requirements
       const headers = [
@@ -604,21 +630,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           currentY -= rowHeight;
         }
         
-        // Draw row data - now including scientificName as requested
-        currentX = startX;
+        // Prepare and truncate row data
+        const fontSize = 10;
+        const cellPadding = 5;
+        
+        // Apply text truncation for each cell
         const rowData = [
-          (index + 1).toString(),
-          plant.name,
-          plant.scientificName || '',
-          plant.plantingYear.toString(),
-          plant.quantity.toString()
+          (index + 1).toString(), // Serial number, rarely needs truncation
+          truncateTextForCell(plant.name || '', colWidths[1] - cellPadding * 2, fontSize),
+          truncateTextForCell(plant.scientificName || '', colWidths[2] - cellPadding * 2, fontSize),
+          truncateTextForCell(plant.plantingYear.toString(), colWidths[3] - cellPadding * 2, fontSize),
+          truncateTextForCell(plant.quantity.toString(), colWidths[4] - cellPadding * 2, fontSize)
         ];
         
+        // Draw row data with the truncated text
+        currentX = startX;
         rowData.forEach((text, cellIndex) => {
-          page.drawText(text || '', { // Handle null/undefined values
-            x: currentX + 5,
+          page.drawText(text, {
+            x: currentX + cellPadding,
             y: currentY - 15,
-            size: 10,
+            size: fontSize,
             font: customFont,
             color: rgb(0, 0, 0)
           });
