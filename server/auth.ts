@@ -92,42 +92,12 @@ export function isAuthenticated(req: Request, res: Response, next: NextFunction)
 
 // Register authentication routes
 export function registerAuthRoutes(app: any) {
-  // Register new user
+  // Register new user - Closed to new registrations
   app.post("/api/auth/register", async (req: Request, res: Response) => {
-    try {
-      const userData = req.body;
-      
-      // Validate user data
-      const validatedData = insertUserSchema.safeParse(userData);
-      if (!validatedData.success) {
-        return res.status(400).json({ 
-          message: fromZodError(validatedData.error).message 
-        });
-      }
-
-      // Check if username already exists
-      const existingUser = await storage.getUserByUsername(userData.username);
-      if (existingUser) {
-        return res.status(400).json({ message: "Username already taken" });
-      }
-      
-      // Hash password
-      const hashedPassword = await hashPassword(userData.password);
-      
-      // Create user
-      const newUser = await storage.createUser({
-        ...userData,
-        password: hashedPassword,
-      });
-      
-      // Remove password from response
-      const { password, ...userWithoutPassword } = newUser;
-      
-      res.status(201).json(userWithoutPassword);
-    } catch (error) {
-      console.error("Registration error:", error);
-      res.status(500).json({ message: "Registration failed" });
-    }
+    // Registration has been closed per admin requirement
+    return res.status(403).json({ 
+      message: "Registration is currently closed. Please contact the administrator for access." 
+    });
   });
   
   // Login

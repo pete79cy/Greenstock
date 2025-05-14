@@ -43,11 +43,11 @@ function Router() {
           </div>
         )}
       </Route>
+      
+      {/* Registration route removed - only admin user pete_cy is allowed */}
       <Route path="/register">
         {() => (
-          <div className="min-h-screen bg-background">
-            <Register />
-          </div>
+          <Redirect to="/login" />
         )}
       </Route>
       
