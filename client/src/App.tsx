@@ -59,6 +59,18 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   return <Component />;
 }
 
+// Simple HOC to wrap protected components with Layout
+function ProtectedWithLayout(Component: React.ComponentType) {
+  return function WrappedComponent() {
+    console.log("ProtectedWithLayout rendering for:", Component.name);
+    return (
+      <Layout>
+        <ProtectedRoute component={Component} />
+      </Layout>
+    );
+  };
+}
+
 function Router() {
   return (
     <Switch>
@@ -77,22 +89,19 @@ function Router() {
         )}
       </Route>
       
-      {/* Protected routes */}
-      <Route path="/">
-        {() => (
-          <Layout>
-            <Switch>
-              <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
-              <Route path="/inventory">
-                {() => {
-                  console.log("Inventory route activated");
-                  return <ProtectedRoute component={Inventory} />;
-                }}
-              </Route>
-              <Route component={NotFound} />
-            </Switch>
-          </Layout>
-        )}
+      {/* Protected routes with Layout */}
+      <Route path="/" component={ProtectedWithLayout(Dashboard)} />
+      <Route path="/inventory" component={ProtectedWithLayout(Inventory)} />
+      
+      {/* Catch-all route for 404 */}
+      <Route path="/:path*">
+        {(params) => {
+          // Skip the 404 for login and register paths
+          if (params.path?.includes('login') || params.path?.includes('register')) {
+            return null;
+          }
+          return <NotFound />;
+        }}
       </Route>
     </Switch>
   );
