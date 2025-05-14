@@ -1,5 +1,4 @@
-import { plants, type Plant, type InsertPlant, type UpdatePlant } from "@shared/schema";
-import { users, type User, type InsertUser } from "@shared/schema";
+import { plants, type Plant, type InsertPlant, type UpdatePlant, users, type User, type InsertUser } from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
 

@@ -93,8 +93,8 @@ export default function InventoryTable({
 
   // Calculate the stock level color based on quantity
   const getStockLevelColor = (quantity: number) => {
-    if (quantity < 10) return "bg-yellow-500"; // Low stock
-    return "bg-green-500"; // Good stock
+    if (quantity < 10) return "!bg-yellow-500"; // Low stock
+    return "!bg-green-500"; // Good stock
   };
 
   if (isLoading) {
@@ -188,8 +188,7 @@ export default function InventoryTable({
                     <div className="w-24">
                       <Progress 
                         value={Math.min(plant.quantity, 100)} 
-                        className="h-2 bg-gray-200" 
-                        indicatorClassName={getStockLevelColor(plant.quantity)}
+                        className={`h-2 bg-gray-200 ${getStockLevelColor(plant.quantity)}`}
                       />
                     </div>
                   </div>
