@@ -331,19 +331,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Plant not found" });
       }
       
-      // If the planting year is different from the current one, create a new entry
-      // For now, we'll just update the existing plant's data
-      // In a real-world scenario with proper inventory tracking, you might want to
-      // create a separate inventory entry for each planting year
+      // Check if a plant with the same name and scientific name but different planting year already exists
+      const parsedPlantingYear = parseInt(plantingYear);
+      const plantWithSameYearExists = await db.select()
+        .from(plants)
+        .where(sql`name = ${currentPlant.name} AND scientific_name = ${currentPlant.scientificName} AND planting_year = ${parsedPlantingYear}`)
+        .limit(1);
       
-      // Update the plant with the new quantity and planting year
-      const updatedPlant = await storage.updatePlant({
-        id: currentPlant.id,
-        name: currentPlant.name,
-        scientificName: currentPlant.scientificName,
-        quantity: currentPlant.quantity + parseInt(quantityToAdd),
-        plantingYear: parseInt(plantingYear)
-      });
+      let updatedPlant;
+      
+      if (plantWithSameYearExists.length > 0) {
+        // If the same plant with the same planting year exists, update its quantity
+        const existingPlantWithYear = plantWithSameYearExists[0];
+        updatedPlant = await storage.updatePlant({
+          id: existingPlantWithYear.id,
+          name: existingPlantWithYear.name,
+          scientificName: existingPlantWithYear.scientificName,
+          quantity: existingPlantWithYear.quantity + parseInt(quantityToAdd),
+          plantingYear: parsedPlantingYear
+        });
+        
+        console.log(`Updated existing plant entry for ${currentPlant.name} from ${parsedPlantingYear} with additional quantity ${quantityToAdd}`);
+      } else {
+        // If no entry with this planting year exists, create a new plant entry
+        updatedPlant = await storage.createPlant({
+          name: currentPlant.name,
+          scientificName: currentPlant.scientificName,
+          quantity: parseInt(quantityToAdd),
+          plantingYear: parsedPlantingYear
+        });
+        
+        console.log(`Created new plant entry for ${currentPlant.name} from ${parsedPlantingYear} with quantity ${quantityToAdd}`);
+      }
       
       if (!updatedPlant) {
         return res.status(500).json({ message: "Failed to update plant quantity" });
