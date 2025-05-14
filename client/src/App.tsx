@@ -8,6 +8,7 @@ import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
 import Inventory from "@/pages/Inventory";
 import Reports from "@/pages/Reports";
+import Settings from "@/pages/Settings";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Layout from "@/components/Layout";
@@ -94,6 +95,7 @@ function Router() {
       <Route path="/" component={ProtectedWithLayout(Dashboard)} />
       <Route path="/inventory" component={ProtectedWithLayout(Inventory)} />
       <Route path="/reports" component={ProtectedWithLayout(Reports)} />
+      <Route path="/settings" component={ProtectedWithLayout(Settings)} />
       
       {/* Catch-all route for 404 */}
       <Route path="/:rest*">
