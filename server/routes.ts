@@ -265,7 +265,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/plants/:id/add-stock", async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
-      const { quantityToAdd } = req.body;
+      const { quantityToAdd, plantingYear } = req.body;
       
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid ID format" });
@@ -275,16 +275,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Quantity to add must be a positive number" });
       }
       
+      if (!plantingYear || isNaN(parseInt(plantingYear))) {
+        return res.status(400).json({ message: "Valid planting year is required" });
+      }
+      
       // Get the current plant
       const currentPlant = await storage.getPlant(id);
       if (!currentPlant) {
         return res.status(404).json({ message: "Plant not found" });
       }
       
-      // Update the plant with the new quantity
+      // If the planting year is different from the current one, create a new entry
+      // For now, we'll just update the existing plant's data
+      // In a real-world scenario with proper inventory tracking, you might want to
+      // create a separate inventory entry for each planting year
+      
+      // Update the plant with the new quantity and planting year
       const updatedPlant = await storage.updatePlant({
         id: currentPlant.id,
-        quantity: currentPlant.quantity + parseInt(quantityToAdd)
+        quantity: currentPlant.quantity + parseInt(quantityToAdd),
+        plantingYear: parseInt(plantingYear)
       });
       
       if (!updatedPlant) {
