@@ -47,10 +47,25 @@ export default function Login() {
   async function onSubmit(values: z.infer<typeof loginFormSchema>) {
     login.mutate(values, {
       onSuccess: async () => {
-        // Wait for the query to complete
-        await new Promise(resolve => setTimeout(resolve, 500));
-        // Force a refetch
-        window.location.href = "/";
+        console.log("Login successful, updating auth state");
+        // Manually fetch the user data to ensure we have latest state
+        try {
+          const response = await fetch("/api/auth/user", {
+            credentials: "include",
+          });
+          
+          if (response.ok) {
+            console.log("User data fetched successfully after login");
+            // Wait for React Query to update auth state
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            // Redirect to dashboard
+            window.location.href = "/";
+          } else {
+            console.error("Failed to fetch user data after login:", await response.text());
+          }
+        } catch (error) {
+          console.error("Error fetching user data after login:", error);
+        }
       },
     });
   }

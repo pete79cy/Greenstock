@@ -24,8 +24,12 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   
   // If not authenticated, redirect to login
   if (!user) {
-    console.log("User not authenticated, redirecting to login");
-    window.location.href = "/login";
+    console.log("User not authenticated, redirecting to login", { isLoading, user });
+    
+    // Add a small delay before redirect to avoid race conditions
+    if (!isLoading) {
+      window.location.href = "/login";
+    }
     return null;
   }
   

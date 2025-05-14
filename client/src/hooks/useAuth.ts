@@ -11,10 +11,11 @@ export function useAuth() {
   const { data: user, isLoading, isError, error } = useQuery<User | null>({
     queryKey: ["/api/auth/user"],
     retry: false,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 0, // Always refetch on mount to ensure we have the latest
     gcTime: 1000 * 60 * 60,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
+    refetchInterval: 10000, // Poll every 10 seconds to keep session active
   });
 
   // Login
@@ -23,11 +24,19 @@ export function useAuth() {
       return apiRequest("POST", "/api/auth/login", credentials);
     },
     onSuccess: () => {
+      // Force an immediate refetch of the user data
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      queryClient.prefetchQuery({
+        queryKey: ["/api/auth/user"],
+        staleTime: 0,
+      });
+      
       toast({
         title: "Success",
         description: "You have been logged in successfully.",
       });
+      
+      console.log("Login mutation successful, auth query invalidated");
     },
     onError: (error) => {
       toast({
