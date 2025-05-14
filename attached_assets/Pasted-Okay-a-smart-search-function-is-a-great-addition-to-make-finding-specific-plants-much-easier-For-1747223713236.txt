@@ -1,0 +1,246 @@
+Okay, a "smart search" function is a great addition to make finding specific plants much easier! For your plant inventory, this means you'll be able to type a query, and the system will look for matches in both the plant names and their scientific names, handling partial matches too.
+Here’s how we can implement this:
+ * Create a Debounce Hook: This will prevent the system from searching on every single keystroke, waiting instead until you pause typing. This is more efficient.
+ * Develop a Backend API Endpoint: This endpoint will take your search query and use it to filter plants from the database. It will search across name and scientificName fields.
+ * Integrate Search on the Frontend: We'll add a search input field to your main inventory page, and connect it to the new backend endpoint using the debounce hook.
+Let's start by creating the debounce hook.
+<lov-code>
+<lov-thinking>
+Plan:
+ * Create src/hooks/useDebounce.ts.
+ * Create/Update API route src/pages/api/plants/index.ts for fetching and searching plants.
+ * Update src/pages/Index.tsx to use the search input, debounce hook, and updated API call.
+   </lov-thinking>
+Step 1: Create the useDebounce Hook
+This hook will take a value and a delay, and only return the updated value after the specified delay has passed without further changes.
+<lov-write file_path="src/hooks/useDebounce.ts">
+import { useState, useEffect } from 'react';
+/**
+ * Custom hook to debounce a value.
+ * @param value The value to debounce.
+ * @param delay The debounce delay in milliseconds.
+ * @returns The debounced value.
+   */
+   function useDebounce<T>(value: T, delay: number): T {
+   // State and setters for debounced value
+   const [debouncedValue, setDebouncedValue] = useState<T>(value);
+useEffect(
+() => {
+// Update debounced value after delay
+const handler = setTimeout(() => {
+console.log(Debouncing: setting value to ${value} after ${delay}ms);
+setDebouncedValue(value);
+}, delay);
+  // Cancel the timeout if value changes (also on delay change or unmount)
+  // This is how we prevent debounced value from updating if value is changed ...
+  // .. within the delay period. Timeout gets cleared and restarted.
+  return () => {
+    clearTimeout(handler);
+  };
+},
+[value, delay] // Only re-call effect if value or delay changes
+
+);
+return debouncedValue;
+}
+export default useDebounce;
+</lov-write>
+Step 2: Create/Update the API Endpoint for Fetching and Searching Plants
+This API route will handle fetching all plants and filtering them based on a search query.
+<lov-write file_path="src/pages/api/plants/index.ts">
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { db } from '@/server/db'; // Adjust path if your db setup is elsewhere
+import { plantsTable } from '@/server/db/schema'; // Adjust path to your schema
+import { sql, ilike, or, asc } from 'drizzle-orm';
+export interface Plant {
+id: number;
+name: string;
+scientificName?: string | null;
+plantingYear?: number | null;
+quantity: number;
+createdAt: Date;
+updatedAt: Date;
+}
+export default async function handler(
+req: NextApiRequest,
+res: NextApiResponse<Plant[] | { message: string; error?: any }>
+) {
+if (req.method === 'GET') {
+const { search } = req.query;
+console.log(API: Received GET /api/plants with search query: '${search}');
+try {
+  let query = db.select().from(plantsTable).orderBy(asc(plantsTable.name));
+
+  if (search && typeof search === 'string' && search.trim() !== '') {
+    const searchTerm = `%${search.trim()}%`;
+    console.log(`API: Applying search filter with term: '${searchTerm}'`);
+    // Apply search filter to name and scientificName
+    // Ensure plantsTable.scientificName is a text type column that can be used with ilike
+    // If scientificName can be null, handle it appropriately in your schema or query
+    query = query.where(
+      or(
+        ilike(plantsTable.name, searchTerm),
+        plantsTable.scientificName ? ilike(plantsTable.scientificName, searchTerm) : sql`FALSE`
+      )
+    );
+  }
+  
+  const result = await query;
+  console.log(`API: Found ${result.length} plants.`);
+  return res.status(200).json(result);
+
+} catch (error: any) {
+  console.error('API: Error fetching plants:', error);
+  return res.status(500).json({ message: 'Failed to fetch plants', error: error.message });
+}
+
+} else {
+console.log(API: Method ${req.method} not allowed for /api/plants);
+res.setHeader('Allow', ['GET']);
+return res.status(405).end(Method ${req.method} Not Allowed);
+}
+}
+</lov-write>
+Step 3: Update the Frontend (Index.tsx) to Include Search Functionality
+We'll add a search input and use the useDebounce hook to trigger the search.
+<lov-write file_path="src/pages/Index.tsx">
+import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Input } from "@/components/ui/input"; // Assuming shadcn/ui Input
+import { Button } from "@/components/ui/button"; // Assuming shadcn/ui Button
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { toast } from "@/hooks/use-toast";
+import useDebounce from '@/hooks/useDebounce'; // Import the debounce hook
+import type { Plant } from './api/plants'; // Import the Plant type
+// Helper function to fetch plants from our new API
+const fetchPlants = async (searchTerm: string = ""): Promise<Plant[]> => {
+console.log(Workspaceing plants with search term: "${searchTerm}");
+const response = await fetch(/api/plants?search=${encodeURIComponent(searchTerm)});
+if (!response.ok) {
+const errorData = await response.json().catch(() => ({ message: "Unknown error" }));
+console.error("Failed to fetch plants:", errorData);
+throw new Error(errorData.message || 'Network response was not ok');
+}
+const data = await response.json();
+console.log("Plants fetched successfully:", data);
+return data;
+};
+const Index = () => {
+const queryClient = useQueryClient();
+const [searchTerm, setSearchTerm] = useState('');
+const debouncedSearchTerm = useDebounce(searchTerm, 500); // 500ms delay
+const { data: plants, isLoading, error, refetch } = useQuery<Plant[], Error>({
+queryKey: ['plants', debouncedSearchTerm], // Include debouncedSearchTerm in queryKey
+queryFn: () => fetchPlants(debouncedSearchTerm),
+enabled: true, // Keep enabled, will refetch when debouncedSearchTerm changes
+});
+useEffect(() => {
+console.log("Search term changed or component mounted, debounced term:", debouncedSearchTerm);
+// The query will automatically refetch when debouncedSearchTerm changes thanks to it being in the queryKey.
+}, [debouncedSearchTerm]);
+const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+setSearchTerm(event.target.value);
+};
+// Placeholder for other functions like add, edit, delete, import, export
+const handleImportExcel = () => {
+// This would typically open a file dialog and then POST to /api/plants/import
+console.log("Import Excel placeholder");
+toast({ title: "Import", description: "Excel import functionality to be connected." });
+};
+const handleExportExcel = () => {
+console.log("Export Excel placeholder");
+toast({ title: "Export", description: "Excel export functionality to be implemented." });
+};
+const handleExportPDF = () => {
+console.log("Export PDF placeholder");
+toast({ title: "Export", description: "PDF export functionality to be implemented." });
+};
+if (error) {
+toast({ variant: "destructive", title: "Error", description: Could not load plants: ${error.message} });
+console.error("Error in useQuery:", error);
+}
+return (
+<div className="container mx-auto p-4 md:p-8 bg-[#F5F7F5] min-h-screen">
+<header className="mb-8">
+<h1 className="text-4xl font-bold text-[#2E7D32] text-center">GreenStock Manager</h1>
+<p className="text-center text-lg text-[#333333] mt-2">Smart Plant Inventory Management</p>
+</header>
+  <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+    <Input
+      type="search"
+      placeholder="Search by name or scientific name..."
+      value={searchTerm}
+      onChange={handleSearchChange}
+      className="max-w-sm text-base border-gray-300 focus:ring-[#4CAF50] focus:border-[#4CAF50]"
+    />
+    <div className="flex gap-2 flex-wrap justify-center">
+      <Button onClick={handleImportExcel} className="bg-[#4CAF50] hover:bg-[#388E3C] text-white">
+        Import Excel
+      </Button>
+      <Button onClick={handleExportExcel} className="bg-[#2E7D32] hover:bg-[#1B5E20] text-white">
+        Export Excel
+      </Button>
+      <Button onClick={handleExportPDF} className="bg-[#81C784] hover:bg-[#66BB6A] text-black">
+        Export PDF
+      </Button>
+    </div>
+  </div>
+
+  {isLoading && <p className="text-center text-[#333333]">Loading plant inventory...</p>}
+  {error && <p className="text-center text-red-600">Error loading data. Please try again.</p>}
+  
+  {!isLoading && !error && plants && (
+    <div className="overflow-x-auto bg-white shadow-md rounded-lg">
+      <Table>
+        <TableHeader className="bg-[#E8F5E9]">
+          <TableRow>
+            <TableHead className="text-[#2E7D32] font-semibold">Name</TableHead>
+            <TableHead className="text-[#2E7D32] font-semibold">Scientific Name</TableHead>
+            <TableHead className="text-[#2E7D32] font-semibold text-right">Planting Year</TableHead>
+            <TableHead className="text-[#2E7D32] font-semibold text-right">Quantity</TableHead>
+            <TableHead className="text-[#2E7D32] font-semibold">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {plants.length > 0 ? plants.map((plant) => (
+            <TableRow key={plant.id} className="hover:bg-[#F5F7F5]">
+              <TableCell className="text-[#333333]">{plant.name}</TableCell>
+              <TableCell className="text-[#333333]">{plant.scientificName || 'N/A'}</TableCell>
+              <TableCell className="text-[#333333] text-right">{plant.plantingYear || 'N/A'}</TableCell>
+              <TableCell className="text-[#333333] text-right">{plant.quantity}</TableCell>
+              <TableCell>
+                {/* Placeholder for Edit/Delete buttons */}
+                <Button variant="outline" size="sm" className="mr-2 border-[#81C784] text-[#2E7D32] hover:bg-[#E8F5E9]">Edit</Button>
+                <Button variant="destructive" size="sm" className="bg-red-500 hover:bg-red-700">Delete</Button>
+              </TableCell>
+            </TableRow>
+          )) : (
+            <TableRow>
+              <TableCell colSpan={5} className="text-center text-gray-500 py-8">
+                No plants found matching your search criteria.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  )}
+   {!isLoading && !error && !plants && (
+     <p className="text-center text-gray-500 py-8">No plants available in the inventory.</p>
+   )}
+</div>
+
+);
+};
+export default Index;
+</lov-write>
+A quick summary of changes in Index.tsx:
+ * Added an Input field for search.
+ * Imported and used the useDebounce hook to delay search execution.
+ * The WorkspacePlants function now accepts a searchTerm and passes it to the /api/plants endpoint.
+ * useQuery's queryKey now includes debouncedSearchTerm, so React Query will automatically refetch data when this debounced term changes.
+ * The UI will now dynamically update based on the search results.
+ * Included a more user-friendly message when no plants match the search.
+Make sure that your database (@/server/db) and schema (@/server/db/schema with plantsTable) are correctly set up and accessible from the API route. The Plant type in Index.tsx should also match the structure returned by your API.
+</lov-code>
+Now you have a smart search function! Users can type in the search box, and after a short pause, the plant list will update to show plants matching their query in either the name or scientific name. This should make navigating your inventory much more efficient.
