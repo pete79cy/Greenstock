@@ -6,7 +6,7 @@ import {
   type PlantView
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, asc, desc } from "drizzle-orm";
+import { eq, and, asc, desc, sql } from "drizzle-orm";
 
 // Modify the interface with CRUD methods for plants
 export interface IStorage {
@@ -335,11 +335,11 @@ export class DatabaseStorage implements IStorage {
         );
       `);
       
-      if (plantBaseExists.rows[0].exists) {
+      if (plantBaseExists.rows[0].exists === true) {
         // Use the new schema
         const basesCount = await db.execute(sql`SELECT COUNT(*) FROM plant_base;`);
         
-        if (parseInt(basesCount.rows[0].count) === 0) {
+        if (Number(basesCount.rows[0].count) === 0) {
           // Seed using the new schema
           const initialPlants = [
             {
