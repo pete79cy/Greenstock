@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
 import Inventory from "@/pages/Inventory";
+import Reports from "@/pages/Reports";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Layout from "@/components/Layout";
@@ -92,6 +93,7 @@ function Router() {
       {/* Protected routes with Layout */}
       <Route path="/" component={ProtectedWithLayout(Dashboard)} />
       <Route path="/inventory" component={ProtectedWithLayout(Inventory)} />
+      <Route path="/reports" component={ProtectedWithLayout(Reports)} />
       
       {/* Catch-all route for 404 */}
       <Route path="/:rest*">
