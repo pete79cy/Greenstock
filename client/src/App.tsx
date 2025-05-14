@@ -94,10 +94,11 @@ function Router() {
       <Route path="/inventory" component={ProtectedWithLayout(Inventory)} />
       
       {/* Catch-all route for 404 */}
-      <Route path="/:path*">
+      <Route path="/:rest*">
         {(params) => {
           // Skip the 404 for login and register paths
-          if (params.path?.includes('login') || params.path?.includes('register')) {
+          const path = params["rest*"] || "";
+          if (path.includes('login') || path.includes('register')) {
             return null;
           }
           return <NotFound />;
