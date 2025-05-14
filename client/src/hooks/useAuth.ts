@@ -8,10 +8,13 @@ export function useAuth() {
   const queryClient = useQueryClient();
 
   // Get current user
-  const { data: user, isLoading, isError, error } = useQuery<User>({
+  const { data: user, isLoading, isError, error } = useQuery<User | null>({
     queryKey: ["/api/auth/user"],
     retry: false,
     staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 60,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   // Login

@@ -34,8 +34,20 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 function Router() {
   return (
     <Switch>
-      <Route path="/login" component={Login} />
-      <Route path="/register" component={Register} />
+      <Route path="/login">
+        {() => (
+          <div className="min-h-screen bg-background">
+            <Login />
+          </div>
+        )}
+      </Route>
+      <Route path="/register">
+        {() => (
+          <div className="min-h-screen bg-background">
+            <Register />
+          </div>
+        )}
+      </Route>
       
       {/* Protected routes */}
       <Route path="/">
