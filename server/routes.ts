@@ -12,6 +12,7 @@ import path from "path";
 import { PDFDocument, rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { configureSession, registerAuthRoutes, isAuthenticated } from "./auth";
+import cors from "cors";
 
 // Define a type for the request with file
 interface MulterRequest extends Request {
@@ -27,6 +28,34 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Configure CORS for handling cross-origin requests in production
+  app.use(cors({
+    origin: function(origin, callback) {
+      // Allow requests with no origin (like mobile apps, curl, or postman requests)
+      if (!origin) return callback(null, true);
+      // Allow all domains in dev and specific domains in production
+      if (process.env.NODE_ENV === 'development') {
+        return callback(null, true);
+      }
+      // In production, allow requests from Replit domains or your custom domains
+      const allowedDomains = [
+        /\.replit\.app$/,
+        /\.repl\.co$/,
+        // Add any other domains you might deploy to
+      ];
+      
+      const allowed = allowedDomains.some(domain => domain.test(origin));
+      if (allowed) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'), false);
+      }
+    },
+    credentials: true, // Important for cookies/auth sessions
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+  }));
+  
   // Configure session and authentication
   configureSession(app);
   registerAuthRoutes(app);
