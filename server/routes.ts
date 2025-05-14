@@ -293,6 +293,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update the plant with the new quantity and planting year
       const updatedPlant = await storage.updatePlant({
         id: currentPlant.id,
+        name: currentPlant.name,
+        scientificName: currentPlant.scientificName,
         quantity: currentPlant.quantity + parseInt(quantityToAdd),
         plantingYear: parseInt(plantingYear)
       });
