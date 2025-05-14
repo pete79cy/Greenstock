@@ -97,7 +97,21 @@ export default function CustomReportForm() {
         
         // Generate a filename with current date
         const date = new Date().toISOString().split('T')[0];
-        XLSX.writeFile(workbook, `plant_inventory_custom_report_${date}.xlsx`);
+        
+        // Use UTF-8 handling during file generation to preserve Greek characters
+        XLSX.writeFile(workbook, `plant_inventory_custom_report_${date}.xlsx`, {
+          bookType: "xlsx",
+          type: "binary",
+          compression: true
+        });
+        
+        // Alternative CSV export with UTF-8 BOM if needed:
+        // const csvContent = XLSX.utils.sheet_to_csv(worksheet);
+        // const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
+        // const link = document.createElement('a');
+        // link.href = URL.createObjectURL(blob);
+        // link.download = `plant_inventory_custom_report_${date}.csv`;
+        // link.click();
       } else {
         // Generate PDF
         const doc = new jsPDF();

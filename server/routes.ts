@@ -560,8 +560,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add the worksheet to the workbook
       XLSX.utils.book_append_sheet(workbook, worksheet, "Plant Inventory");
       
-      // Generate Excel file buffer
-      const excelBuffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+      // Generate Excel file buffer with UTF-8 encoding for proper Greek character support
+      const excelBuffer = XLSX.write(workbook, { 
+        type: "buffer", 
+        bookType: "xlsx",
+        bookSST: true, // Use shared string table for better Unicode handling
+        compression: true
+      });
       
       // Set response headers
       res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
@@ -976,6 +981,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         excludeZeroQuantity
       })}`);
       
+      // Ensure proper UTF-8 encoding for responses
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
       res.json(result);
     } catch (error) {
       console.error("Error generating custom report:", error);
