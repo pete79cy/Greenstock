@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -33,6 +34,7 @@ const loginFormSchema = z.object({
 export default function Login() {
   const [, setLocation] = useLocation();
   const { login } = useAuth();
+  const { toast } = useToast();
   
   // Initialize form
   const form = useForm<z.infer<typeof loginFormSchema>>({
@@ -45,29 +47,37 @@ export default function Login() {
 
   // Handle form submission
   async function onSubmit(values: z.infer<typeof loginFormSchema>) {
-    login.mutate(values, {
-      onSuccess: async () => {
-        console.log("Login successful, updating auth state");
-        // Manually fetch the user data to ensure we have latest state
-        try {
-          const response = await fetch("/api/auth/user", {
-            credentials: "include",
+    try {
+      console.log("Attempting to log in...");
+      
+      login.mutate(values, {
+        onSuccess: () => {
+          toast({
+            title: "Login Successful",
+            description: "You have been logged in successfully.",
           });
           
-          if (response.ok) {
-            console.log("User data fetched successfully after login");
-            // Wait for React Query to update auth state
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            // Redirect to dashboard
+          // Add a slight delay before redirect to ensure session is established
+          setTimeout(() => {
             window.location.href = "/";
-          } else {
-            console.error("Failed to fetch user data after login:", await response.text());
-          }
-        } catch (error) {
-          console.error("Error fetching user data after login:", error);
+          }, 500);
+        },
+        onError: (error) => {
+          toast({
+            title: "Login Failed",
+            description: error.message || "Failed to log in. Please try again.",
+            variant: "destructive",
+          });
         }
-      },
-    });
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      toast({
+        title: "Login Failed",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+        variant: "destructive",
+      });
+    }
   }
 
   return (
