@@ -505,7 +505,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate cultivation declaration report (Greek format)
   app.get("/api/plants/export/cultivation-declaration", async (req: Request, res: Response) => {
     try {
-      console.log("Initiating Cultivation Declaration Report generation with custom font...");
+      console.log("Initiating Cultivation Declaration Report generation (sorted by name and planting year) with custom font...");
       
       // Check if we should exclude plants with zero quantity
       const excludeZero = req.query.excludeZero === 'true';
@@ -513,7 +513,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("Will exclude plants with zero quantity from the report");
       }
       
-      // Get all plants and sort alphabetically by name
+      // Get all plants 
       let plants = await storage.getAllPlants();
       
       // Filter out plants with zero quantity if requested
@@ -521,7 +521,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         plants = plants.filter(plant => plant.quantity > 0);
       }
       
-      const sortedPlants = [...plants].sort((a, b) => a.name.localeCompare(b.name));
+      // Sort plants: primary sort by name, secondary sort by planting year
+      const sortedPlants = [...plants].sort((a, b) => {
+        // First sort by name alphabetically
+        const nameComparison = a.name.localeCompare(b.name);
+        
+        // If names are the same, sort by planting year (oldest first)
+        if (nameComparison === 0) {
+          return a.plantingYear - b.plantingYear;
+        }
+        
+        // Otherwise, sort by name
+        return nameComparison;
+      });
       
       // --- Load Custom Font ---
       // Construct the path to the font file
@@ -731,8 +743,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Add footer with note
       const footerText = excludeZero 
-        ? "Σημείωση: Κατάσταση Καλλιεργούμενων Φυτών (Αλφαβητικά, χωρίς τα φυτά με μηδενική ποσότητα)" 
-        : "Σημείωση: Κατάσταση Καλλιεργούμενων Φυτών (Αλφαβητικά)";
+        ? "Σημείωση: Κατάσταση Καλλιεργούμενων Φυτών (Αλφαβητικά και ανά έτος φύτευσης, χωρίς τα φυτά με μηδενική ποσότητα)" 
+        : "Σημείωση: Κατάσταση Καλλιεργούμενων Φυτών (Αλφαβητικά και ανά έτος φύτευσης)";
       
       page.drawText(footerText, {
         x: 50,
@@ -754,7 +766,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Send the PDF as a buffer
       res.send(Buffer.from(pdfBytes));
-      console.log("Cultivation Declaration Report PDF with custom font sent successfully");
+      console.log("Cultivation Declaration Report PDF (sorted by name and planting year) sent successfully");
     } catch (error) {
       console.error("Error generating cultivation declaration PDF:", error);
       res.status(500).json({ message: "Failed to generate cultivation declaration report", error: (error as Error).message });
