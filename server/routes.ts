@@ -1,4 +1,4 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import multer from "multer";
@@ -11,6 +11,7 @@ import * as fs from "fs";
 import path from "path";
 import { PDFDocument, rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
+import { configureSession, registerAuthRoutes, isAuthenticated } from "./auth";
 
 // Define a type for the request with file
 interface MulterRequest extends Request {
@@ -26,8 +27,11 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Configure session and authentication
+  configureSession(app);
+  registerAuthRoutes(app);
   // Backup plants as JSON
-  app.get("/api/backup", async (req: Request, res: Response) => {
+  app.get("/api/backup", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const plants = await storage.getAllPlants();
       
@@ -48,7 +52,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Restore plants from JSON
-  app.post("/api/restore", upload.single("backupFile"), async (req: MulterRequest, res: Response) => {
+  app.post("/api/restore", isAuthenticated, upload.single("backupFile"), async (req: MulterRequest, res: Response) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No backup file uploaded" });
@@ -157,7 +161,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all plants with optional search
-  app.get("/api/plants", async (req: Request, res: Response) => {
+  app.get("/api/plants", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const searchQuery = req.query.search as string | undefined;
       
@@ -183,7 +187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get plant by ID
-  app.get("/api/plants/:id", async (req: Request, res: Response) => {
+  app.get("/api/plants/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const plant = await storage.getPlant(id);
