@@ -561,13 +561,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("Will exclude plants with zero quantity from the report");
       }
       
-      // Get all plants from the plants table (instead of plant views)
+      // Get all plants from the plants table
       const allPlants = await storage.getAllPlants();
       
       // Filter out plants with zero quantity if requested
       const filteredPlants = excludeZero 
         ? allPlants.filter(plant => plant.quantity > 0)
         : allPlants;
+        
+      // Add support for example multiple years if needed for demo/testing
+      // Comment this section out if not needed in production
+      /*
+      const demoMultiYearPlants = [];
+      const plantsToClone = filteredPlants.filter(p => p.quantity > 50).slice(0, 3);
+      
+      // Create clone entries with different years for demo
+      for (const plant of plantsToClone) {
+        // Add current year
+        demoMultiYearPlants.push({
+          ...plant,
+          quantity: Math.floor(plant.quantity * 0.4)
+        });
+        
+        // Add previous year
+        demoMultiYearPlants.push({
+          ...plant,
+          plantingYear: plant.plantingYear - 1,
+          quantity: Math.floor(plant.quantity * 0.6)
+        });
+      }
+      
+      // Add demo plants to filtered plants
+      filteredPlants.push(...demoMultiYearPlants);
+      */
       
       // Map plants to the format needed for the report
       let flattenedEntries: Array<{

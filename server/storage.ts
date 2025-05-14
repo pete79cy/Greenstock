@@ -67,7 +67,7 @@ export class DatabaseStorage implements IStorage {
 
   // Legacy Plant methods (keep for backward compatibility during migration)
   async getAllPlants(): Promise<Plant[]> {
-    return await db.select().from(plants);
+    return await db.select().from(plants).orderBy(asc(plants.name), asc(plants.plantingYear));
   }
 
   async getPlant(id: number): Promise<Plant | undefined> {
