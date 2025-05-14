@@ -1,0 +1,212 @@
+Okay, I understand. The previous report format was too complex and didn't quite match what you need for this specific declaration.
+
+You want a simpler PDF report with:
+
+1.  **Header Text**: "ΔΗΛΩΣΗ ΚΑΛΛΙΕΡΓΕΙΑΣ ΓΙΑ ΤΟ 2025" (Declaration of Cultivation for 2025).
+2.  **Table Columns**:
+      * Α/Α (Serial Number)
+      * Name (Plant Name)
+      * Scientific name
+      * Year (Planting Year)
+      * Quantity
+
+And the data should still be in **alphabetical order by Plant Name**.
+
+This is much clearer and more focused on the data you currently manage in the system. We can definitely adjust the PDF generation for this. We'll use the same custom font approach (`NotoSansGreek-Regular.ttf` in `public/fonts/`) to ensure the Greek header displays correctly.
+
+Here's how I'll modify the API endpoint `src/pages/api/reports/cultivation-declaration.ts`:
+
+\<lov-code\>
+\<lov-thinking\>
+The user wants a much simpler PDF report structure.
+
+1.  **Header**: A specific Greek title: "ΔΗΛΩΣΗ ΚΑΛΛΙΕΡΓΕΙΑΣ ΓΙΑ ΤΟ 2025".
+2.  **Columns**:
+      * Α/Α (Serial Number)
+      * Name (Plant Name from the system)
+      * Scientific name (Scientific Name from the system)
+      * Year (Planting Year from the system)
+      * Quantity (Quantity from the system)
+3.  **Sorting**: Alphabetical by Plant Name (this is already in place).
+4.  **Font**: Continue using the custom Greek font.
+
+I will modify the existing API route `src/pages/api/reports/cultivation-declaration.ts`.
+The changes will involve:
+
+  * Updating the main title drawn on the PDF.
+  * Changing the `headers` array to reflect the new, simpler column structure.
+  * Adjusting the `rowData` mapping to pull the correct data for these columns (`plant.name`, `plant.scientificName`, `plant.plantingYear`, `plant.quantity`).
+  * Recalculating column widths for the new layout.
+  * Removing any notes about missing data if all requested columns are now populated from the system.
+
+\</lov-thinking\>
+
+I'll update the PDF generation logic in `src/pages/api/reports/cultivation-declaration.ts` to match your new requirements. We will keep using the custom Greek font for proper character display.
+
+**Reminder**: Please ensure you have the `NotoSansGreek-Regular.ttf` (or your chosen Greek-supporting `.ttf` font) in the `public/fonts/` directory.
+
+\<lov-write file\_path="src/pages/api/reports/cultivation-declaration.ts"\>
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { db } from '@/server/db'; // Adjust path to your db setup
+import { plantsTable } from '@/server/db/schema'; // Adjust path to your schema
+import { asc } from 'drizzle-orm';
+import { PDFDocument, rgb, PageSizes } from 'pdf-lib';
+import fs from 'fs'; // Node.js File System module
+import path from 'path'; // Node.js Path module
+
+// Helper function to draw text and handle undefined
+const drawTextSafe = (page: any, text: any, x: number, y: number, font: any, size: number, color = rgb(0, 0, 0)) =\> {
+const safeText = text === undefined || text === null ? '' : String(text);
+page.drawText(safeText, { x, y, font, size, color });
+};
+
+export default async function handler(
+req: NextApiRequest,
+res: NextApiResponse
+) {
+if (req.method === 'GET') {
+console.log("API: Initiating MODIFIED Cultivation Declaration Report generation...");
+try {
+const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansGreek-Regular.ttf');
+let customFontBytes;
+try {
+customFontBytes = fs.readFileSync(fontPath);
+} catch (fontError: any) {
+console.error(`API: Failed to load font file at ${fontPath}. Error: ${fontError.message}`);
+return res.status(500).json({
+message: 'Failed to load font for PDF generation. Ensure font file is in public/fonts/.',
+error: `Font file not found: ${fontPath}.`
+});
+}
+
+```
+  const plantsData = await db.select().from(plantsTable).orderBy(asc(plantsTable.name));
+  console.log(`API: Fetched ${plantsData.length} plants for the modified report.`);
+
+  const pdfDoc = await PDFDocument.create();
+  const customFont = await pdfDoc.embedFont(customFontBytes);
+  
+  const page = pdfDoc.addPage(PageSizes.A4); // Changed to Portrait, can adjust if needed
+  const { width, height } = page.getSize();
+  
+  const fontSize = 10; // Slightly larger font for simpler table
+  const headerFontSize = 11;
+  const titleFontSize = 16;
+  const margin = 40; // Increased margin slightly
+  let yPosition = height - margin - 30;
+
+  // Report Title
+  const reportTitle = "ΔΗΛΩΣΗ ΚΑΛΛΙΕΡΓΕΙΑΣ ΓΙΑ ΤΟ 2025";
+  const titleWidth = customFont.widthOfTextAtSize(reportTitle, titleFontSize);
+  page.drawText(reportTitle, {
+    x: (width - titleWidth) / 2, // Centered title
+    y: yPosition,
+    font: customFont,
+    size: titleFontSize,
+    color: rgb(0, 0, 0),
+  });
+  yPosition -= (titleFontSize + 20); // Space after title
+
+  // Table Headers
+  const headers = [
+    { text: 'Α/Α', width: 40 },
+    { text: 'Name', width: 150 }, // Plant Name
+    { text: 'Scientific Name', width: 150 },
+    { text: 'Year', width: 70 }, // Planting Year
+    { text: 'Quantity', width: 70 },
+  ];
+
+  let currentX = margin;
+  const headerY = yPosition;
+  const rowHeight = 20; // Increased row height
+
+  // Draw line above headers
+  page.drawLine({ start: { x: margin, y: headerY + 5 }, end: { x: width - margin, y: headerY + 5 }, thickness: 1, color: rgb(0,0,0) });
+  
+  headers.forEach(header => {
+    drawTextSafe(page, header.text, currentX + 5, headerY - headerFontSize + 2, customFont, headerFontSize, rgb(0,0,0));
+    currentX += header.width;
+  });
+  // Draw line below headers
+  page.drawLine({ start: { x: margin, y: headerY - rowHeight + 7 }, end: { x: width - margin, y: headerY - rowHeight + 7 }, thickness: 1, color: rgb(0,0,0) });
+
+  yPosition -= rowHeight;
+
+  // Table Rows
+  plantsData.forEach((plant, index) => {
+    if (yPosition < margin + rowHeight) { // New page if not enough space
+      page.drawLine({start: {x: margin, y: yPosition + 7}, end: {x: width-margin, y: yPosition + 7}, thickness: 0.5, color: rgb(0.7,0.7,0.7) }); // Line at bottom of previous page
+      page = pdfDoc.addPage(PageSizes.A4);
+      yPosition = height - margin - rowHeight - 10; // Reset Y for new page, leave space for headers if re-drawing
+      
+      // Re-draw headers on new page
+      let newPageCurrentX = margin;
+      const newPageHeaderY = yPosition;
+      page.drawLine({ start: { x: margin, y: newPageHeaderY + 5 }, end: { x: width - margin, y: newPageHeaderY + 5 }, thickness: 1, color: rgb(0,0,0) });
+      headers.forEach(header => {
+        drawTextSafe(page, header.text, newPageCurrentX + 5, newPageHeaderY - headerFontSize + 2, customFont, headerFontSize, rgb(0,0,0));
+        newPageCurrentX += header.width;
+      });
+      page.drawLine({ start: { x: margin, y: newPageHeaderY - rowHeight + 7 }, end: { x: width - margin, y: newPageHeaderY - rowHeight + 7 }, thickness: 1, color: rgb(0,0,0) });
+      yPosition -= rowHeight;
+    }
+
+    currentX = margin;
+    const rowData = [
+      { text: (index + 1).toString(), width: headers[0].width },
+      { text: plant.name, width: headers[1].width },
+      { text: plant.scientificName || '', width: headers[2].width },
+      { text: plant.plantingYear?.toString() || '', width: headers[3].width },
+      { text: plant.quantity.toString(), width: headers[4].width },
+    ];
+
+    rowData.forEach(data => {
+      drawTextSafe(page, data.text, currentX + 5, yPosition - fontSize + 2 , customFont, fontSize);
+      currentX += data.width;
+    });
+    // Draw line below each row
+    page.drawLine({start: {x: margin, y: yPosition - rowHeight + 7}, end: {x: width-margin, y: yPosition -rowHeight + 7}, thickness: 0.5, color: rgb(0.7,0.7,0.7)});
+    yPosition -= rowHeight;
+  });
+
+  const pdfBytes = await pdfDoc.save();
+  const timestamp = new Date().toISOString().replace(/:/g, '-').slice(0, 19);
+  const filename = `declaration-cultivation-2025-${timestamp}.pdf`; // Updated filename
+
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.status(200).send(Buffer.from(pdfBytes));
+  console.log("API: MODIFIED Cultivation Declaration Report PDF sent successfully.");
+
+} catch (error: any) {
+  console.error('API: Error generating MODIFIED PDF report:', error);
+  res.status(500).json({ message: 'Failed to generate PDF report', error: error.message });
+}
+```
+
+} else {
+res.setHeader('Allow', ['GET']);
+res.status(405).end(`Method ${req.method} Not Allowed`);
+}
+}
+\</lov-write\>
+Key changes in `src/pages/api/reports/cultivation-declaration.ts`:
+
+  * **Report Title**: Changed to "ΔΗΛΩΣΗ ΚΑΛΛΙΕΡΓΕΙΑΣ ΓΙΑ ΤΟ 2025" and centered.
+  * **Page Orientation**: Switched to `PageSizes.A4` (portrait). You can change it back to `PageSizes.A4_Landscape` if the new columns still feel too cramped.
+  * **Columns**: The `headers` array and `rowData` mapping have been updated to:
+      * Α/Α
+      * Name (from `plant.name`)
+      * Scientific Name (from `plant.scientificName`)
+      * Year (from `plant.plantingYear`)
+      * Quantity (from `plant.quantity`)
+  * **Styling**: Slightly adjusted font sizes, margins, and added lines for better table readability. Headers are now re-drawn on new pages.
+  * **Removed Note**: The note about missing data has been removed as the new requested columns are all available from your system.
+  * **Filename**: Updated the downloaded PDF filename to reflect the new report title.
+
+This revised version should produce a PDF that aligns closely with your requested format.
+\</lov-code\>
+
+I've updated the PDF generation logic to match your new, simpler report specifications. The PDF will now have the header "ΔΗΛΩΣΗ ΚΑΛΛΙΕΡΓΕΙΑΣ ΓΙΑ ΤΟ 2025" and the table will include columns for A/A, Name, Scientific Name, Year, and Quantity, with the data sorted alphabetically by plant name.
+
+Please ensure your Greek-supporting font file (e.g., `NotoSansGreek-Regular.ttf`) is still in the `public/fonts/` directory. Try generating the report again, and it should reflect these changes.

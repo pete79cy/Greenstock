@@ -481,105 +481,149 @@ export async function registerRoutes(app: Express): Promise<Server> {
       pdfDoc.registerFontkit(fontkit);
       const customFont = await pdfDoc.embedFont(customFontBytes);
       
-      // Create a landscape page
-      const page = pdfDoc.addPage([842, 595]); // A4 landscape dimensions in points
+      // Create a portrait page (A4)
+      const page = pdfDoc.addPage([595, 842]); // A4 portrait dimensions in points
       const { width, height } = page.getSize();
       
-      // Add report title
-      page.drawText("ΔΗΛΩΣΗ ΚΑΛΛΙΕΡΓΕΙΑΣ", {
-        x: 50,
-        y: height - 50,
-        size: 18,
-        font: customFont
+      // Set up dimensions and positions
+      const margin = 40;
+      const startX = margin;
+      const startY = height - margin;
+      const tableWidth = width - 2 * margin;
+      const rowHeight = 25;
+      
+      // Draw title
+      const title = "ΔΗΛΩΣΗ ΚΑΛΛΙΕΡΓΕΙΑΣ ΓΙΑ ΤΟ 2025";
+      const titleWidth = customFont.widthOfTextAtSize(title, 16);
+      const titleX = startX + (tableWidth - titleWidth) / 2; // Center title
+      const titleY = startY - 30;
+      
+      page.drawText(title, {
+        x: titleX,
+        y: titleY,
+        size: 16,
+        font: customFont,
+        color: rgb(0, 0, 0)
       });
       
-      // Add date
-      page.drawText(`Ημερομηνία: ${new Date().toLocaleDateString()}`, {
-        x: 50,
-        y: height - 80,
-        size: 12,
-        font: customFont
-      });
+      // Set up table metrics
+      const tableStartY = titleY - 40;
       
-      // Create table layout
-      const startY = height - 120;
-      const rowHeight = 30;
-      const colWidths = [40, 250, 100, 150]; // Column widths
-      const tableWidth = colWidths.reduce((sum, width) => sum + width, 0);
-      const startX = (width - tableWidth) / 2;
+      // Define column widths (adjusted for 5 columns)
+      const colWidths = [40, 150, 150, 70, 70]; 
       
-      // Draw table headers with the custom font
+      // Define headers - updated for new column requirements
       const headers = [
-        "A/A",
-        "Είδος Καλλιέργειας",
-        "Έτος Φύτευσης",
-        "Συνολ. Αρ. Δέντρων"
+        "Α/Α",
+        "Name",
+        "Scientific Name",
+        "Year",
+        "Quantity"
       ];
       
-      // Draw header background
-      page.drawRectangle({
-        x: startX,
-        y: startY - rowHeight,
-        width: tableWidth,
-        height: rowHeight,
-        color: rgb(0.18, 0.49, 0.2) // Green color
+      // Draw header line
+      page.drawLine({
+        start: { x: startX, y: tableStartY + 5 },
+        end: { x: width - margin, y: tableStartY + 5 },
+        thickness: 1,
+        color: rgb(0, 0, 0)
       });
       
       // Draw header text
       let currentX = startX;
+      let currentY = tableStartY;
+      
       headers.forEach((header, index) => {
         page.drawText(header, {
-          x: currentX + 10,
-          y: startY - rowHeight/2 - 6, // Centered vertically
-          size: 12,
+          x: currentX + 5,
+          y: currentY - 15,
+          size: 11,
           font: customFont,
-          color: rgb(1, 1, 1) // White text
+          color: rgb(0, 0, 0)
         });
         currentX += colWidths[index];
       });
       
-      // Draw table data rows
-      let currentY = startY - rowHeight;
+      // Draw line below headers
+      page.drawLine({
+        start: { x: startX, y: currentY - rowHeight + 7 },
+        end: { x: width - margin, y: currentY - rowHeight + 7 },
+        thickness: 1,
+        color: rgb(0, 0, 0)
+      });
       
+      currentY -= rowHeight;
+      
+      // Draw rows
       sortedPlants.forEach((plant, index) => {
-        // Check if we need a new page
-        if (currentY < 50) {
-          // Add new page and reset position
-          const newPage = pdfDoc.addPage([842, 595]);
-          currentY = height - 50;
+        // Check if we need a new page (not enough space for a row)
+        if (currentY < margin + rowHeight) {
+          // Add a new page
+          page = pdfDoc.addPage([595, 842]);
+          currentY = height - margin - rowHeight - 10;
           
-          // Draw headers on new page (could be implemented if needed)
+          // Redraw headers on new page
+          let newPageX = startX;
+          const newPageHeaderY = currentY;
+          
+          // Draw header line on new page
+          page.drawLine({
+            start: { x: startX, y: newPageHeaderY + 5 },
+            end: { x: width - margin, y: newPageHeaderY + 5 },
+            thickness: 1,
+            color: rgb(0, 0, 0)
+          });
+          
+          // Draw headers on new page
+          headers.forEach((header, idx) => {
+            page.drawText(header, {
+              x: newPageX + 5,
+              y: newPageHeaderY - 15,
+              size: 11,
+              font: customFont,
+              color: rgb(0, 0, 0)
+            });
+            newPageX += colWidths[idx];
+          });
+          
+          // Draw line below headers on new page
+          page.drawLine({
+            start: { x: startX, y: newPageHeaderY - rowHeight + 7 },
+            end: { x: width - margin, y: newPageHeaderY - rowHeight + 7 },
+            thickness: 1,
+            color: rgb(0, 0, 0)
+          });
+          
+          currentY -= rowHeight;
         }
         
-        // Draw row background (alternating colors)
-        page.drawRectangle({
-          x: startX,
-          y: currentY - rowHeight,
-          width: tableWidth,
-          height: rowHeight,
-          color: index % 2 === 0 
-            ? rgb(0.95, 0.95, 0.95) // Light gray
-            : rgb(1, 1, 1)          // White
-        });
-        
-        // Draw cell data
+        // Draw row data - now including scientificName as requested
         currentX = startX;
         const rowData = [
           (index + 1).toString(),
           plant.name,
+          plant.scientificName || '',
           plant.plantingYear.toString(),
           plant.quantity.toString()
         ];
         
         rowData.forEach((text, cellIndex) => {
-          page.drawText(text, {
-            x: currentX + 10,
-            y: currentY - rowHeight/2 - 6, // Centered vertically
+          page.drawText(text || '', { // Handle null/undefined values
+            x: currentX + 5,
+            y: currentY - 15,
             size: 10,
             font: customFont,
-            color: rgb(0, 0, 0) // Black text
+            color: rgb(0, 0, 0)
           });
           currentX += colWidths[cellIndex];
+        });
+        
+        // Draw line below row
+        page.drawLine({
+          start: { x: startX, y: currentY - rowHeight + 7 },
+          end: { x: width - margin, y: currentY - rowHeight + 7 },
+          thickness: 0.5,
+          color: rgb(0.7, 0.7, 0.7)
         });
         
         currentY -= rowHeight;
@@ -591,15 +635,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         y: 30,
         size: 10,
         font: customFont,
-        color: rgb(0.5, 0.5, 0.5) // Gray color
+        color: rgb(0.5, 0.5, 0.5)
       });
       
       // Finalize PDF and send
       const pdfBytes = await pdfDoc.save();
       
-      // Set response headers
+      // Set response headers with timestamp for unique filename
+      const timestamp = new Date().toISOString().replace(/:/g, '-').slice(0, 19);
+      const filename = `declaration-cultivation-2025-${timestamp}.pdf`;
+      
       res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", "attachment; filename=cultivation-declaration.pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
       
       // Send the PDF as a buffer
       res.send(Buffer.from(pdfBytes));
