@@ -482,8 +482,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const customFont = await pdfDoc.embedFont(customFontBytes);
       
       // Create a portrait page (A4)
-      const page = pdfDoc.addPage([595, 842]); // A4 portrait dimensions in points
+      let page = pdfDoc.addPage([595, 842]); // A4 portrait dimensions in points
       const { width, height } = page.getSize();
+      // These will be updated when we add new pages
+      let currentWidth = width;
+      let currentHeight = height;
       
       // Set up dimensions and positions
       const margin = 40;
@@ -560,7 +563,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (currentY < margin + rowHeight) {
           // Add a new page
           page = pdfDoc.addPage([595, 842]);
-          currentY = height - margin - rowHeight - 10;
+          // Get dimensions of the new page
+          const { width: pageWidth, height: pageHeight } = page.getSize();
+          currentWidth = pageWidth; // Update current width
+          currentHeight = pageHeight; // Update current height
+          currentY = currentHeight - margin - rowHeight - 10;
           
           // Redraw headers on new page
           let newPageX = startX;
@@ -569,7 +576,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Draw header line on new page
           page.drawLine({
             start: { x: startX, y: newPageHeaderY + 5 },
-            end: { x: width - margin, y: newPageHeaderY + 5 },
+            end: { x: currentWidth - margin, y: newPageHeaderY + 5 },
             thickness: 1,
             color: rgb(0, 0, 0)
           });
@@ -589,7 +596,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Draw line below headers on new page
           page.drawLine({
             start: { x: startX, y: newPageHeaderY - rowHeight + 7 },
-            end: { x: width - margin, y: newPageHeaderY - rowHeight + 7 },
+            end: { x: currentWidth - margin, y: newPageHeaderY - rowHeight + 7 },
             thickness: 1,
             color: rgb(0, 0, 0)
           });
@@ -621,7 +628,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Draw line below row
         page.drawLine({
           start: { x: startX, y: currentY - rowHeight + 7 },
-          end: { x: width - margin, y: currentY - rowHeight + 7 },
+          end: { x: currentWidth - margin, y: currentY - rowHeight + 7 },
           thickness: 0.5,
           color: rgb(0.7, 0.7, 0.7)
         });
