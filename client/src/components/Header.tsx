@@ -59,7 +59,12 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <div className="flex items-center space-x-2 cursor-pointer">
-                <span className="hidden md:block text-sm">{user?.firstName || user?.username}</span>
+                <div className="hidden md:flex flex-col items-end">
+                  <span className="text-sm font-medium">{user?.firstName || user?.username}</span>
+                  {user?.role === 'admin' && (
+                    <span className="text-xs text-primary">Administrator</span>
+                  )}
+                </div>
                 <Avatar className="bg-primary text-primary-foreground">
                   <AvatarFallback>{getUserInitials()}</AvatarFallback>
                 </Avatar>

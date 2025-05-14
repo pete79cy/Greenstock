@@ -46,8 +46,11 @@ export default function Login() {
   // Handle form submission
   async function onSubmit(values: z.infer<typeof loginFormSchema>) {
     login.mutate(values, {
-      onSuccess: () => {
-        setLocation("/");
+      onSuccess: async () => {
+        // Wait for the query to complete
+        await new Promise(resolve => setTimeout(resolve, 500));
+        // Force a refetch
+        window.location.href = "/";
       },
     });
   }

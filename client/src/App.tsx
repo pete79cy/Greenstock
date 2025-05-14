@@ -14,7 +14,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 // Protected route component
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
   
   // While checking authentication status, we can return a loading state or null
@@ -23,8 +23,10 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   }
   
   // If not authenticated, redirect to login
-  if (!isAuthenticated) {
-    return <Redirect to="/login" />;
+  if (!user) {
+    console.log("User not authenticated, redirecting to login");
+    window.location.href = "/login";
+    return null;
   }
   
   // If authenticated, render the component
