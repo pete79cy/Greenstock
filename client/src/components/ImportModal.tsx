@@ -200,11 +200,22 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
               <p>Your Excel file should have the following columns:</p>
             </div>
             <ul className="list-disc pl-10 text-muted-foreground space-y-1">
-              <li>Plant Name</li>
-              <li>Scientific Name</li>
-              <li>Planting Year</li>
-              <li>Quantity</li>
+              <li><strong>Name</strong> (required) - Common name of the plant</li>
+              <li><strong>Scientific Name</strong> - Botanical classification</li>
+              <li><strong>Planting Year</strong> - When planted (number only)</li>
+              <li><strong>Quantity</strong> - Amount in inventory (number only)</li>
             </ul>
+            
+            <div className="mt-3 bg-amber-50 p-3 rounded border border-amber-200">
+              <h4 className="font-medium text-amber-800 mb-1">Tips for successful imports:</h4>
+              <ul className="list-disc pl-5 text-xs text-amber-700 space-y-1">
+                <li>Make sure your Excel file has a <strong>header row</strong> with column names</li>
+                <li>Column names can be in any case (e.g., "NAME", "name", "Name")</li>
+                <li>Every row must have at least a plant name to be imported</li>
+                <li>To get a properly formatted template, use the "Export to Excel" feature first</li>
+                <li>Large files (1000+ rows) may take longer to process</li>
+              </ul>
+            </div>
           </div>
         </div>
         

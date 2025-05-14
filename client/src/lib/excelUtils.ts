@@ -26,8 +26,15 @@ export async function readExcelFile(file: File): Promise<any[]> {
         // Log information to help debug the structure
         console.log("Excel rows found:", jsonData.length);
         if (jsonData.length > 0) {
-          console.log("Excel first row:", jsonData[0]);
-          console.log("Excel column names:", Object.keys(jsonData[0]));
+          const firstRow = jsonData[0];
+          console.log("Excel first row:", firstRow);
+          
+          // Safely log column names if they exist
+          if (firstRow && typeof firstRow === 'object' && firstRow !== null) {
+            console.log("Excel column names:", Object.keys(firstRow as object));
+          } else {
+            console.log("Excel first row is not an object with keys");
+          }
         }
         
         resolve(jsonData);
