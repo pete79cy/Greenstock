@@ -4,7 +4,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/hooks/useAuth";
-import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -34,7 +33,6 @@ const loginFormSchema = z.object({
 export default function Login() {
   const [, setLocation] = useLocation();
   const { login } = useAuth();
-  const queryClient = useQueryClient();
   
   // Initialize form
   const form = useForm<z.infer<typeof loginFormSchema>>({
@@ -49,34 +47,16 @@ export default function Login() {
   async function onSubmit(values: z.infer<typeof loginFormSchema>) {
     login.mutate(values, {
       onSuccess: async () => {
-        try {
-          // Wait for the query to complete and clear cache
-          await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-          
-          // Log action for debugging
-          console.log("Login successful, redirecting to dashboard");
-          
-          // Add a small delay to ensure rerendering after query invalidation
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Force a redirect to the dashboard
-          window.location.href = "/";
-        } catch (error) {
-          console.error("Error during login redirect:", error);
-        }
+        // Wait for the query to complete
+        await new Promise(resolve => setTimeout(resolve, 500));
+        // Force a refetch
+        window.location.href = "/";
       },
     });
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen">
-      <div className="w-full max-w-xs mb-8">
-        <img 
-          src={new URL('../assets/pakkoutis-logo.png', import.meta.url).href}
-          alt="Andreas Pakkoutis & Sons Ltd" 
-          className="w-full h-auto"
-        />
-      </div>
+    <div className="flex items-center justify-center min-h-screen">
       <div className="w-full max-w-md p-4">
         <Card className="border-primary/20">
           <CardHeader className="space-y-1">
