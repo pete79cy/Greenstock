@@ -1,0 +1,657 @@
+That's a great idea for improving workflow\! Adding a button to quickly go to an "add inventory" function for each plant will definitely make managing stock levels much easier.
+
+Based on your screenshot and request, here's how we can implement this:
+
+1.  **New "Add Stock" Button**: In each plant's row in your inventory list (next to the existing Edit and Delete buttons), we'll add a new button, perhaps with a "plus" icon.
+2.  **"Add Stock" Modal/Dialog**: Clicking this new button will open a pop-up window (a modal or dialog) specific to that plant.
+3.  **Update Quantity**: In this pop-up, you'll be able to enter the quantity of stock you want to add. Submitting this will update the plant's total quantity in the database.
+4.  **Backend Support**: We'll need a dedicated API endpoint to handle this stock addition securely and efficiently.
+
+This approach keeps you on the main inventory page while allowing quick stock updates, which should be very convenient.
+
+Let's start by creating the new API endpoint and then the dialog component for adding stock.
+
+\<lov-code\>
+\<lov-thinking\>
+The user wants an "Add Stock" button per plant item, which opens a modal/dialog to quickly add to that plant's inventory.
+
+**Plan:**
+
+1.  **Backend API Endpoint (`src/pages/api/plants/[id]/add-stock.ts` - New File):**
+
+      * This will be a `POST` endpoint.
+      * It will take `plantId` from the path and `quantityToAdd` from the request body.
+      * It will fetch the plant, calculate the new quantity (`currentQuantity + quantityToAdd`), and update the plant in the database using Drizzle.
+      * It needs to handle cases like `quantityToAdd` not being a positive number.
+
+2.  **"Add Stock" Dialog Component (`src/components/dialogs/AddStockDialog.tsx` - New File):**
+
+      * This component will use `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogDescription`, `DialogFooter`, `Input`, `Label`, `Button` from `shadcn/ui`.
+      * Props:
+          * `plant: Plant` (to display name and current quantity, and get ID)
+          * `isOpen: boolean`
+          * `onOpenChange: (isOpen: boolean) => void` (to control dialog visibility)
+          * `onStockUpdated: () => void` (to trigger refetching of plant list)
+      * Internal state for `quantityToAdd` input.
+      * Form submission handler:
+          * Validates `quantityToAdd` (must be a positive number).
+          * Makes a `POST` request to the new API endpoint.
+          * On success, calls `onStockUpdated()` and `onOpenChange(false)`.
+          * Shows toast notifications for success/error.
+
+3.  **Frontend Update (`src/pages/Index.tsx`):**
+
+      * Import the new `AddStockDialog` component.
+      * Add state variables to manage which plant is selected for adding stock and the dialog's visibility:
+          * `const [selectedPlantForStock, setSelectedPlantForStock] = useState<Plant | null>(null);`
+          * `const [isAddStockDialogOpen, setIsAddStockDialogOpen] = useState(false);`
+      * In the plant table row, add a new button (e.g., with a `PlusCircle` icon from `lucide-react`) next to the "Edit" button.
+      * The `onClick` handler for this new button will:
+          * Set `setSelectedPlantForStock(plant)`.
+          * Set `setIsAddStockDialogOpen(true)`.
+      * Render the `<AddStockDialog />` component, passing the necessary props.
+      * The `onStockUpdated` prop passed to the dialog will call `queryClient.invalidateQueries({ queryKey: ['plants'] })`.
+
+This approach will create a clean and user-friendly way to manage stock additions.
+\</lov-thinking\>
+
+**Step 1: Create Backend API Endpoint for Adding Stock**
+This new API route will handle updating the quantity for a specific plant.
+
+\<lov-write file\_path="src/pages/api/plants/[id]/add-stock.ts"\>
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { db } from '@/server/db'; // Adjust to your DB setup path
+import { plantsTable } from '@/server/db/schema'; // Adjust to your schema path
+import { eq, sql } from 'drizzle-orm';
+
+export default async function handler(
+req: NextApiRequest,
+res: NextApiResponse
+) {
+if (req.method \!== 'POST') {
+res.setHeader('Allow', ['POST']);
+return res.status(405).end(`Method ${req.method} Not Allowed`);
+}
+
+const plantId = req.query.id as string;
+const { quantityToAdd } = req.body;
+
+console.log(`API: Attempting to add stock for plant ID: ${plantId}, quantity to add: ${quantityToAdd}`);
+
+if (\!plantId || quantityToAdd === undefined) {
+console.log("API: Missing plantId or quantityToAdd");
+return res.status(400).json({ message: 'Plant ID and quantity to add are required.' });
+}
+
+const id = parseInt(plantId, 10);
+const amount = parseInt(quantityToAdd, 10);
+
+if (isNaN(id)) {
+console.log(`API: Invalid plant ID format: ${plantId}`);
+return res.status(400).json({ message: 'Invalid Plant ID format.' });
+}
+
+if (isNaN(amount) || amount \<= 0) {
+console.log(`API: Invalid quantity to add: ${quantityToAdd}. Must be a positive number.`);
+return res.status(400).json({ message: 'Quantity to add must be a positive number.' });
+}
+
+try {
+// It's generally safer to fetch the current quantity first, then update,
+// or use a direct SQL increment if your DB supports it atomically and Drizzle allows it easily.
+// For simplicity here, we'll use a SQL expression to increment.
+// Note: Ensure your 'quantity' column can handle this operation (e.g., not have constraints violated).
+
+```
+const result = await db.update(plantsTable)
+  .set({ quantity: sql`${plantsTable.quantity} + ${amount}` })
+  .where(eq(plantsTable.id, id))
+  .returning({ updatedId: plantsTable.id, newQuantity: plantsTable.quantity });
+
+if (result.length === 0) {
+  console.log(`API: Plant with ID ${id} not found for stock update.`);
+  return res.status(404).json({ message: `Plant with ID ${id} not found.` });
+}
+
+const updatedPlant = result[0];
+console.log(`API: Stock added successfully for plant ID ${updatedPlant.updatedId}. New quantity: ${updatedPlant.newQuantity}`);
+return res.status(200).json({ 
+  message: 'Stock added successfully', 
+  plantId: updatedPlant.updatedId, 
+  newQuantity: updatedPlant.newQuantity 
+});
+```
+
+} catch (error: any) {
+console.error(`API: Error adding stock for plant ID ${id}:`, error);
+return res.status(500).json({ message: 'Failed to add stock.', error: error.message });
+}
+}
+\</lov-write\>
+
+**Step 2: Create the "Add Stock" Dialog Component**
+This component will be a reusable dialog for inputting the quantity to add.
+
+\<lov-write file\_path="src/components/dialogs/AddStockDialog.tsx"\>
+import { useState, useEffect } from 'react';
+import { Button } from "@/components/ui/button";
+import {
+Dialog,
+DialogContent,
+DialogDescription,
+DialogFooter,
+DialogHeader,
+DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "@/hooks/use-toast";
+import type { Plant } from '@/pages/api/plants'; // Adjust import path as needed
+
+interface AddStockDialogProps {
+plant: Plant | null;
+isOpen: boolean;
+onOpenChange: (isOpen: boolean) =\> void;
+onStockUpdated: () =\> void; // Callback to refresh data
+}
+
+export function AddStockDialog({ plant, isOpen, onOpenChange, onStockUpdated }: AddStockDialogProps) {
+const [quantityToAdd, setQuantityToAdd] = useState\<string\>('');
+const [isSubmitting, setIsSubmitting] = useState(false);
+
+// Reset quantity when dialog opens for a new plant or reopens
+useEffect(() =\> {
+if (isOpen) {
+setQuantityToAdd(''); // Reset input
+}
+}, [isOpen, plant]);
+
+const handleSubmit = async (e: React.FormEvent) =\> {
+e.preventDefault();
+if (\!plant || \!quantityToAdd) return;
+
+```
+const amount = parseInt(quantityToAdd, 10);
+if (isNaN(amount) || amount <= 0) {
+  toast({
+    variant: "destructive",
+    title: "Invalid Quantity",
+    description: "Please enter a positive number for the quantity to add.",
+  });
+  return;
+}
+
+setIsSubmitting(true);
+console.log(`Submitting add stock for plant: ${plant.name}, quantity: ${amount}`);
+
+try {
+  const response = await fetch(`/api/plants/${plant.id}/add-stock`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ quantityToAdd: amount }),
+  });
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.message || 'Failed to add stock.');
+  }
+
+  toast({
+    title: "Stock Updated!",
+    description: `${amount} unit(s) added to ${plant.name}. New quantity: ${result.newQuantity}.`,
+  });
+  onStockUpdated(); // Trigger data refresh
+  onOpenChange(false); // Close dialog
+} catch (error: any) {
+  console.error("Error adding stock:", error);
+  toast({
+    variant: "destructive",
+    title: "Error Adding Stock",
+    description: error.message || "An unexpected error occurred.",
+  });
+} finally {
+  setIsSubmitting(false);
+}
+```
+
+};
+
+if (\!plant) return null;
+
+return (
+\<Dialog open={isOpen} onOpenChange={onOpenChange}\>
+\<DialogContent className="sm:max-w-[425px]"\>
+\<DialogHeader\>
+\<DialogTitle\>Add Stock for: {plant.name}\</DialogTitle\>
+\<DialogDescription\>
+Current quantity: {plant.quantity}. Enter the amount you want to add.
+\</DialogDescription\>
+\</DialogHeader\>
+\<form onSubmit={handleSubmit}\>
+\<div className="grid gap-4 py-4"\>
+\<div className="grid grid-cols-4 items-center gap-4"\>
+\<Label htmlFor="quantityToAdd" className="text-right"\>
+Quantity to Add
+\</Label\>
+\<Input
+id="quantityToAdd"
+type="number"
+value={quantityToAdd}
+onChange={(e) =\> setQuantityToAdd(e.target.value)}
+className="col-span-3"
+min="1"
+required
+/\>
+\</div\>
+\</div\>
+\<DialogFooter\>
+\<Button type="button" variant="outline" onClick={() =\> onOpenChange(false)} disabled={isSubmitting}\>
+Cancel
+\</Button\>
+\<Button type="submit" disabled={isSubmitting} className="bg-[\#2E7D32] hover:bg-[\#1B5E20]"\>
+{isSubmitting ? "Adding..." : "Add Stock"}
+\</Button\>
+\</DialogFooter\>
+\</form\>
+\</DialogContent\>
+\</Dialog\>
+);
+}
+\</lov-write\>
+
+**Step 3: Update Frontend (`src/pages/Index.tsx`) to Use the Dialog**
+We'll add the button to each row and manage the dialog's state.
+
+\<lov-write file\_path="src/pages/Index.tsx"\>
+// ... (keep existing imports: useState, useEffect, useRef, useQuery, useQueryClient, Button, Table etc.)
+import { useState, useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { toast } from "@/hooks/use-toast";
+import useDebounce from '@/hooks/useDebounce';
+import type { Plant } from './api/plants';
+import {
+AlertDialog,
+AlertDialogAction,
+AlertDialogCancel,
+AlertDialogContent,
+AlertDialogDescription,
+AlertDialogFooter,
+AlertDialogHeader,
+AlertDialogTitle,
+AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Download, PlusCircle, Edit, Trash2 } from 'lucide-react'; // Added icons
+import { AddStockDialog } from '@/components/dialogs/AddStockDialog'; // Import the new dialog
+
+const fetchPlants = async (searchTerm: string = ""): Promise\<Plant[]\> =\> {
+// ... (keep existing fetchPlants function)
+console.log(`Workspaceing plants with search term: "${searchTerm}"`);
+const response = await fetch(`/api/plants?search=${encodeURIComponent(searchTerm)}`);
+if (\!response.ok) {
+const errorData = await response.json().catch(() =\> ({ message: "Unknown error" }));
+console.error("Failed to fetch plants:", errorData);
+throw new Error(errorData.message || 'Network response was not ok');
+}
+const data = await response.json();
+console.log("Plants fetched successfully:", data);
+return data;
+};
+
+const Index = () =\> {
+const queryClient = useQueryClient();
+const [searchTerm, setSearchTerm] = useState('');
+const debouncedSearchTerm = useDebounce(searchTerm, 500);
+const [isRestoring, setIsRestoring] = useState(false);
+const fileInputRef = useRef\<HTMLInputElement\>(null);
+const [excludeZeroQuantity, setExcludeZeroQuantity] = useState(false);
+
+const [selectedPlantForStock, setSelectedPlantForStock] = useState\<Plant | null\>(null);
+const [isAddStockDialogOpen, setIsAddStockDialogOpen] = useState(false);
+
+const { data: plants, isLoading, error, refetch } = useQuery\<Plant[], Error\>({
+queryKey: ['plants', debouncedSearchTerm],
+queryFn: () =\> fetchPlants(debouncedSearchTerm),
+});
+
+useEffect(() =\> {
+// console.log("Search term changed or component mounted, debounced term:", debouncedSearchTerm);
+}, [debouncedSearchTerm]);
+
+const handleSearchChange = (event: React.ChangeEvent\<HTMLInputElement\>) =\> {
+setSearchTerm(event.target.value);
+};
+
+const openAddStockDialog = (plant: Plant) =\> {
+console.log("Opening add stock dialog for:", plant.name);
+setSelectedPlantForStock(plant);
+setIsAddStockDialogOpen(true);
+};
+
+const handleStockUpdated = () =\> {
+console.log("Stock updated, refetching plants list.");
+queryClient.invalidateQueries({ queryKey: ['plants'] });
+};
+
+// ... (keep existing handleBackupData, handleRestoreData, handleGenerateCultivationReport, etc.)
+const handleBackupData = async () =\> {
+console.log("Attempting to backup data...");
+try {
+const response = await fetch('/api/backup/create');
+if (\!response.ok) {
+const errorData = await response.json().catch(() =\> ({ message: "Backup failed" }));
+throw new Error(errorData.message || 'Backup request failed');
+}
+const blob = await response.blob();
+const url = window.URL.createObjectURL(blob);
+const a = document.createElement('a');
+const contentDisposition = response.headers.get('Content-Disposition');
+let filename = 'plant-inventory-backup.json';
+if (contentDisposition) {
+const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+if (filenameMatch && filenameMatch.length \> 1) {
+filename = filenameMatch[1];
+}
+}
+a.href = url;
+a.download = filename;
+document.body.appendChild(a);
+a.click();
+a.remove();
+window.URL.revokeObjectURL(url);
+toast({ title: "Backup Successful", description: `Data backed up to ${filename}` });
+} catch (err: any) {
+console.error("Backup failed:", err);
+toast({ variant: "destructive", title: "Backup Failed", description: err.message });
+}
+};
+
+const handleRestoreData = async (event: React.ChangeEvent\<HTMLInputElement\>) =\> {
+const file = event.target.files?.[0];
+if (\!file) {
+toast({ variant: "destructive", title: "Restore Error", description: "No file selected." });
+return;
+}
+setIsRestoring(true);
+const formData = new FormData();
+formData.append('backupFile', file);
+try {
+const response = await fetch('/api/backup/restore', {
+method: 'POST',
+body: formData,
+});
+const result = await response.json();
+if (\!response.ok) {
+throw new Error(result.message || 'Restore request failed');
+}
+toast({ title: "Restore Successful", description: `${result.restoredCount || 0} plants restored. Refreshing data.` });
+queryClient.invalidateQueries({ queryKey: ['plants'] });
+} catch (err: any) {
+console.error("Restore failed:", err);
+toast({ variant: "destructive", title: "Restore Failed", description: err.message });
+} finally {
+setIsRestoring(false);
+if (fileInputRef.current) {
+fileInputRef.current.value = "";
+}
+}
+};
+
+const handleGenerateCultivationReport = async (event?: React.MouseEvent\<HTMLButtonElement\>) =\> {
+if (event) {
+event.preventDefault();
+}
+console.log(`handleGenerateCultivationReport called. Exclude zero quantity: ${excludeZeroQuantity}`);
+toast({ title: "Generating Report", description: "Please wait..." });
+try {
+const response = await fetch(`/api/reports/cultivation-declaration?excludeZero=${excludeZeroQuantity}`);
+if (\!response.ok) {
+let errorDetail = 'Report generation request failed';
+try {
+const errorData = await response.json();
+errorDetail = errorData.message || errorDetail;
+} catch (jsonError) {
+errorDetail = response.statusText || errorDetail;
+}
+throw new Error(errorDetail);
+}
+const blob = await response.blob();
+const url = window.URL.createObjectURL(blob);
+const a = document.createElement('a');
+const contentDisposition = response.headers.get('Content-Disposition');
+let filename = 'cultivation-report.pdf';
+if (contentDisposition) {
+const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+if (filenameMatch && filenameMatch.length \> 1) {
+filename = filenameMatch[1];
+}
+}
+a.href = url;
+a.download = filename;
+document.body.appendChild(a);
+a.click();
+document.body.removeChild(a);
+window.URL.revokeObjectURL(url);
+toast({ title: "Report Generated", description: `Report downloaded as ${filename}` });
+} catch (err: any) {
+console.error("Report generation failed:", err);
+toast({ variant: "destructive", title: "Report Failed", description: err.message });
+}
+};
+
+const handleImportExcel = () =\> {
+console.log("Import Excel placeholder");
+toast({ title: "Import", description: "Excel import functionality to be connected." });
+};
+const handleExportExcel = () =\> {
+console.log("Export Excel placeholder");
+toast({ title: "Export", description: "Excel export functionality to be implemented." });
+};
+const handleExportPDF = () =\> {
+console.log("Export PDF placeholder clicked.");
+toast({ title: "Export", description: "Simple PDF export functionality to be implemented." });
+};
+
+if (error && \!isLoading) {
+toast({ variant: "destructive", title: "Error", description: `Could not load plants: ${error.message}` });
+}
+
+return (
+\<div className="container mx-auto p-4 md:p-8 bg-[\#F5F7F5] min-h-screen"\>
+\<header className="mb-8"\>
+\<h1 className="text-4xl font-bold text-[\#2E7D32] text-center"\>GreenStock Manager\</h1\>
+\<p className="text-center text-lg text-[\#333333] mt-2"\>Smart Plant Inventory Management\</p\>
+\</header\>
+
+```
+  <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+    <Input
+      type="search"
+      placeholder="Search by name or scientific name..."
+      value={searchTerm}
+      onChange={handleSearchChange}
+      className="max-w-sm text-base border-gray-300 focus:ring-[#4CAF50] focus:border-[#4CAF50]"
+    />
+    <div className="flex gap-2 flex-wrap justify-center">
+      <Button onClick={handleImportExcel} className="bg-[#4CAF50] hover:bg-[#388E3C] text-white">
+        Import Excel
+      </Button>
+    </div>
+  </div>
+  
+  <div className="mb-6 p-4 border border-gray-300 rounded-lg bg-white shadow">
+    {/* ... keep existing Data Exports & Reports section ... */}
+    <h2 className="text-xl font-semibold text-[#2E7D32] mb-3">Data Exports & Reports</h2>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col sm:flex-row flex-wrap gap-4 items-center">
+        <Button onClick={handleExportExcel} className="bg-[#2E7D32] hover:bg-[#1B5E20] text-white">
+          Export Inventory (Excel)
+        </Button>
+        <Button onClick={(e) => handleExportPDF()} className="bg-[#81C784] hover:bg-[#66BB6A] text-black">
+          Export Inventory (Simple PDF)
+        </Button>
+        <Button 
+          onClick={(e) => handleGenerateCultivationReport(e)}
+          className="bg-teal-600 hover:bg-teal-700 text-white flex items-center gap-2"
+        >
+          <Download size={18} /> ΔΗΛΩΣΗ ΚΑΛΛΙΕΡΓΕΙΑΣ (PDF)
+        </Button>
+      </div>
+      <div className="flex items-center space-x-2 mt-3 sm:mt-0 sm:ml-4">
+        <Checkbox
+          id="excludeZero"
+          checked={excludeZeroQuantity}
+          onCheckedChange={(checked) => setExcludeZeroQuantity(Boolean(checked))}
+          className="border-gray-400 data-[state=checked]:bg-[#2E7D32]"
+        />
+        <Label htmlFor="excludeZero" className="text-sm font-medium text-[#333333]">
+          Exclude plants with zero quantity from ΔΗΛΩΣΗ ΚΑΛΛΙΕΡΓΕΙΑΣ
+        </Label>
+      </div>
+    </div>
+  </div>
+
+  <div className="mb-6 p-4 border border-gray-300 rounded-lg bg-white shadow">
+    {/* ... keep existing Backup & Restore section ... */}
+    <h2 className="text-xl font-semibold text-[#2E7D32] mb-3">Backup & Restore</h2>
+    <div className="flex flex-col sm:flex-row gap-4 items-center">
+      <Button onClick={handleBackupData} className="bg-blue-600 hover:bg-blue-700 text-white">
+        Backup Plant Data (JSON)
+      </Button>
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button variant="outline" className="border-orange-500 text-orange-600 hover:bg-orange-50">
+            Restore Plant Data (JSON)
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action will **delete all current plant data** and replace it with data from the backup file. 
+              This cannot be undone. Please ensure you have selected the correct backup file.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => fileInputRef.current?.click()} 
+              className="bg-orange-500 hover:bg-orange-600"
+              disabled={isRestoring}
+            >
+              {isRestoring ? "Restoring..." : "Choose File & Restore"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <input 
+        type="file" 
+        accept=".json" 
+        onChange={handleRestoreData} 
+        className="hidden" 
+        ref={fileInputRef}
+        disabled={isRestoring}
+      />
+    </div>
+    {isRestoring && <p className="mt-2 text-orange-600">Restoring data, please wait...</p>}
+  </div>
+
+  {isLoading && <p className="text-center text-[#333333]">Loading plant inventory...</p>}
+  {error && <p className="text-center text-red-600">Error loading data. Please try again.</p>}
+  
+  {!isLoading && !error && plants && (
+    <div className="overflow-x-auto bg-white shadow-md rounded-lg">
+      <Table>
+        <TableHeader className="bg-[#E8F5E9]">
+          <TableRow>
+            <TableHead className="text-[#2E7D32] font-semibold">Name</TableHead>
+            <TableHead className="text-[#2E7D32] font-semibold">Scientific Name</TableHead>
+            <TableHead className="text-[#2E7D32] font-semibold text-right">Planting Year</TableHead>
+            <TableHead className="text-[#2E7D32] font-semibold text-right">Quantity</TableHead>
+            <TableHead className="text-[#2E7D32] font-semibold">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {plants.length > 0 ? plants.map((plant) => (
+            <TableRow key={plant.id} className="hover:bg-[#F5F7F5]">
+              <TableCell className="text-[#333333]">{plant.name}</TableCell>
+              <TableCell className="text-[#333333]">{plant.scientificName || 'N/A'}</TableCell>
+              <TableCell className="text-[#333333] text-right">{plant.plantingYear || 'N/A'}</TableCell>
+              <TableCell className="text-[#333333] text-right">{plant.quantity}</TableCell>
+              <TableCell className="flex items-center space-x-1"> {/* Use flex for horizontal alignment */}
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="border-blue-500 text-blue-600 hover:bg-blue-50 h-8 w-8"
+                  onClick={() => openAddStockDialog(plant)} // Open add stock dialog
+                  title="Add Stock"
+                >
+                  <PlusCircle size={16} />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="border-[#81C784] text-[#2E7D32] hover:bg-[#E8F5E9] h-8 w-8"
+                  title="Edit Plant"
+                  // onClick={() => handleEditPlant(plant)} // Placeholder for edit
+                >
+                  <Edit size={16} />
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  size="icon" 
+                  className="bg-red-500 hover:bg-red-700 h-8 w-8"
+                  title="Delete Plant"
+                  // onClick={() => handleDeletePlant(plant.id)} // Placeholder for delete
+                >
+                  <Trash2 size={16} />
+                </Button>
+              </TableCell>
+            </TableRow>
+          )) : (
+            <TableRow>
+              <TableCell colSpan={5} className="text-center text-gray-500 py-8">
+                No plants found matching your search criteria or inventory is empty.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  )}
+  <AddStockDialog 
+    plant={selectedPlantForStock}
+    isOpen={isAddStockDialogOpen}
+    onOpenChange={setIsAddStockDialogOpen}
+    onStockUpdated={handleStockUpdated}
+  />
+   {!isLoading && !error && !plants && (
+     <p className="text-center text-gray-500 py-8">No plants available in the inventory.</p>
+   )}
+</div>
+```
+
+);
+};
+
+export default Index;
+\</lov-write\>
+I've added the "Add Stock" button (with a plus circle icon) to each plant row. Clicking it will open a dialog where you can easily input the quantity of stock to add for that specific plant. The backend API and the dialog component are set up to handle this update and refresh your inventory list automatically.
+\</lov-code\>
+
+I've set up the new "Add Stock" functionality\!
+
+Here's what's new:
+
+1.  **"Add Stock" Button**: You'll now see a new button with a "plus circle" icon ( \<PlusCircle /\> ) in the "Actions" column for each plant in your inventory list, right next to the existing "Edit" and "Delete" buttons.
+2.  **Add Stock Dialog**: Clicking this new button will open a dialog specifically for that plant. It will show the plant's name and current quantity. You can then enter the amount of stock you want to add.
+3.  **Update & Refresh**: After you confirm, the system will update the plant's quantity in the database, and your inventory list on the page will automatically refresh to show the new total.
+
+This should make it much quicker to update stock levels directly from your main inventory view\! Try it out.
