@@ -522,7 +522,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         y: startY - rowHeight,
         width: tableWidth,
         height: rowHeight,
-        color: { red: 0.18, green: 0.49, blue: 0.2 } // Green color
+        color: rgb(0.18, 0.49, 0.2) // Green color
       });
       
       // Draw header text
@@ -533,7 +533,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           y: startY - rowHeight/2 - 6, // Centered vertically
           size: 12,
           font: customFont,
-          color: { red: 1, green: 1, blue: 1 } // White text
+          color: rgb(1, 1, 1) // White text
         });
         currentX += colWidths[index];
       });
@@ -558,8 +558,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           width: tableWidth,
           height: rowHeight,
           color: index % 2 === 0 
-            ? { red: 0.95, green: 0.95, blue: 0.95 } // Light gray
-            : { red: 1, green: 1, blue: 1 }          // White
+            ? rgb(0.95, 0.95, 0.95) // Light gray
+            : rgb(1, 1, 1)          // White
         });
         
         // Draw cell data
@@ -577,7 +577,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             y: currentY - rowHeight/2 - 6, // Centered vertically
             size: 10,
             font: customFont,
-            color: { r: 0, g: 0, b: 0 } // Black text
+            color: rgb(0, 0, 0) // Black text
           });
           currentX += colWidths[cellIndex];
         });
@@ -591,7 +591,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         y: 30,
         size: 10,
         font: customFont,
-        color: { r: 0.5, g: 0.5, b: 0.5 } // Gray color
+        color: rgb(0.5, 0.5, 0.5) // Gray color
       });
       
       // Finalize PDF and send
