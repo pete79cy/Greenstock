@@ -9,7 +9,8 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as fs from "fs";
 import path from "path";
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, rgb } from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
 
 // Define a type for the request with file
 interface MulterRequest extends Request {
@@ -476,6 +477,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create PDF document with custom embedded font
       const pdfDoc = await PDFDocument.create();
+      // Register fontkit with PDFDocument
+      pdfDoc.registerFontkit(fontkit);
       const customFont = await pdfDoc.embedFont(customFontBytes);
       
       // Create a landscape page
@@ -519,7 +522,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         y: startY - rowHeight,
         width: tableWidth,
         height: rowHeight,
-        color: { r: 0.18, g: 0.49, b: 0.2 } // Green color
+        color: { red: 0.18, green: 0.49, blue: 0.2 } // Green color
       });
       
       // Draw header text
@@ -530,7 +533,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           y: startY - rowHeight/2 - 6, // Centered vertically
           size: 12,
           font: customFont,
-          color: { r: 1, g: 1, b: 1 } // White text
+          color: { red: 1, green: 1, blue: 1 } // White text
         });
         currentX += colWidths[index];
       });
@@ -555,8 +558,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           width: tableWidth,
           height: rowHeight,
           color: index % 2 === 0 
-            ? { r: 0.95, g: 0.95, b: 0.95 } // Light gray
-            : { r: 1, g: 1, b: 1 }          // White
+            ? { red: 0.95, green: 0.95, blue: 0.95 } // Light gray
+            : { red: 1, green: 1, blue: 1 }          // White
         });
         
         // Draw cell data
