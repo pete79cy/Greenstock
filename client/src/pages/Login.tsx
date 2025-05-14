@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/hooks/useAuth";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -33,6 +34,7 @@ const loginFormSchema = z.object({
 export default function Login() {
   const [, setLocation] = useLocation();
   const { login } = useAuth();
+  const queryClient = useQueryClient();
   
   // Initialize form
   const form = useForm<z.infer<typeof loginFormSchema>>({
@@ -47,10 +49,21 @@ export default function Login() {
   async function onSubmit(values: z.infer<typeof loginFormSchema>) {
     login.mutate(values, {
       onSuccess: async () => {
-        // Wait for the query to complete
-        await new Promise(resolve => setTimeout(resolve, 500));
-        // Force a refetch
-        window.location.href = "/";
+        try {
+          // Wait for the query to complete and clear cache
+          await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+          
+          // Log action for debugging
+          console.log("Login successful, redirecting to dashboard");
+          
+          // Add a small delay to ensure rerendering after query invalidation
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Force a redirect to the dashboard
+          window.location.href = "/";
+        } catch (error) {
+          console.error("Error during login redirect:", error);
+        }
       },
     });
   }
