@@ -7,6 +7,9 @@ import { insertPlantSchema, updatePlantSchema } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import * as fs from "fs";
+import path from "path";
+import { PDFDocument } from "pdf-lib";
 
 // Define a type for the request with file
 interface MulterRequest extends Request {
@@ -451,56 +454,156 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate cultivation declaration report (Greek format)
   app.get("/api/plants/export/cultivation-declaration", async (req: Request, res: Response) => {
     try {
+      console.log("Initiating Cultivation Declaration Report generation with custom font...");
+      
       // Get all plants and sort alphabetically by name
       const plants = await storage.getAllPlants();
       const sortedPlants = [...plants].sort((a, b) => a.name.localeCompare(b.name));
       
-      // Create a new PDF document
-      const doc = new jsPDF() as any;
+      // --- Load Custom Font ---
+      // Construct the path to the font file
+      const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansGreek-Regular.ttf');
+      let customFontBytes: Buffer;
+      
+      try {
+        customFontBytes = fs.readFileSync(fontPath);
+        console.log("Successfully loaded custom font NotoSansGreek-Regular.ttf");
+      } catch (fontError: any) {
+        console.error(`Failed to load font file at ${fontPath}. Error: ${fontError.message}`);
+        console.error("Please ensure 'NotoSansGreek-Regular.ttf' is placed in the 'public/fonts/' directory.");
+        throw new Error(`Font file not found or unreadable at ${fontPath}`);
+      }
+      
+      // Create PDF document with custom embedded font
+      const pdfDoc = await PDFDocument.create();
+      const customFont = await pdfDoc.embedFont(customFontBytes);
+      
+      // Create a landscape page
+      const page = pdfDoc.addPage([842, 595]); // A4 landscape dimensions in points
+      const { width, height } = page.getSize();
       
       // Add report title
-      doc.setFontSize(18);
-      doc.text("ΔΗΛΩΣΗ ΚΑΛΛΙΕΡΓΕΙΑΣ", 14, 22);
+      page.drawText("ΔΗΛΩΣΗ ΚΑΛΛΙΕΡΓΕΙΑΣ", {
+        x: 50,
+        y: height - 50,
+        size: 18,
+        font: customFont
+      });
       
       // Add date
-      doc.setFontSize(12);
-      doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
+      page.drawText(`Ημερομηνία: ${new Date().toLocaleDateString()}`, {
+        x: 50,
+        y: height - 80,
+        size: 12,
+        font: customFont
+      });
       
-      // Create table data
-      const tableColumn = [
+      // Create table layout
+      const startY = height - 120;
+      const rowHeight = 30;
+      const colWidths = [40, 250, 100, 150]; // Column widths
+      const tableWidth = colWidths.reduce((sum, width) => sum + width, 0);
+      const startX = (width - tableWidth) / 2;
+      
+      // Draw table headers with the custom font
+      const headers = [
         "A/A",
         "Είδος Καλλιέργειας",
         "Έτος Φύτευσης",
         "Συνολ. Αρ. Δέντρων"
       ];
       
-      const tableRows = sortedPlants.map((plant, index) => [
-        (index + 1).toString(),
-        plant.name,
-        plant.plantingYear.toString(),
-        plant.quantity.toString()
-      ]);
-      
-      // Add table to document
-      autoTable(doc, {
-        head: [tableColumn],
-        body: tableRows,
-        startY: 40,
-        theme: 'grid',
-        styles: { fontSize: 10 },
-        headStyles: { fillColor: [46, 125, 50] }
+      // Draw header background
+      page.drawRectangle({
+        x: startX,
+        y: startY - rowHeight,
+        width: tableWidth,
+        height: rowHeight,
+        color: { r: 0.18, g: 0.49, b: 0.2 } // Green color
       });
+      
+      // Draw header text
+      let currentX = startX;
+      headers.forEach((header, index) => {
+        page.drawText(header, {
+          x: currentX + 10,
+          y: startY - rowHeight/2 - 6, // Centered vertically
+          size: 12,
+          font: customFont,
+          color: { r: 1, g: 1, b: 1 } // White text
+        });
+        currentX += colWidths[index];
+      });
+      
+      // Draw table data rows
+      let currentY = startY - rowHeight;
+      
+      sortedPlants.forEach((plant, index) => {
+        // Check if we need a new page
+        if (currentY < 50) {
+          // Add new page and reset position
+          const newPage = pdfDoc.addPage([842, 595]);
+          currentY = height - 50;
+          
+          // Draw headers on new page (could be implemented if needed)
+        }
+        
+        // Draw row background (alternating colors)
+        page.drawRectangle({
+          x: startX,
+          y: currentY - rowHeight,
+          width: tableWidth,
+          height: rowHeight,
+          color: index % 2 === 0 
+            ? { r: 0.95, g: 0.95, b: 0.95 } // Light gray
+            : { r: 1, g: 1, b: 1 }          // White
+        });
+        
+        // Draw cell data
+        currentX = startX;
+        const rowData = [
+          (index + 1).toString(),
+          plant.name,
+          plant.plantingYear.toString(),
+          plant.quantity.toString()
+        ];
+        
+        rowData.forEach((text, cellIndex) => {
+          page.drawText(text, {
+            x: currentX + 10,
+            y: currentY - rowHeight/2 - 6, // Centered vertically
+            size: 10,
+            font: customFont,
+            color: { r: 0, g: 0, b: 0 } // Black text
+          });
+          currentX += colWidths[cellIndex];
+        });
+        
+        currentY -= rowHeight;
+      });
+      
+      // Add footer with note
+      page.drawText("Σημείωση: Κατάσταση Καλλιεργούμενων Φυτών (Αλφαβητικά)", {
+        x: 50,
+        y: 30,
+        size: 10,
+        font: customFont,
+        color: { r: 0.5, g: 0.5, b: 0.5 } // Gray color
+      });
+      
+      // Finalize PDF and send
+      const pdfBytes = await pdfDoc.save();
       
       // Set response headers
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", "attachment; filename=cultivation-declaration.pdf");
       
       // Send the PDF as a buffer
-      const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
-      res.send(pdfBuffer);
+      res.send(Buffer.from(pdfBytes));
+      console.log("Cultivation Declaration Report PDF with custom font sent successfully");
     } catch (error) {
       console.error("Error generating cultivation declaration PDF:", error);
-      res.status(500).json({ message: "Failed to generate cultivation declaration report" });
+      res.status(500).json({ message: "Failed to generate cultivation declaration report", error: (error as Error).message });
     }
   });
 

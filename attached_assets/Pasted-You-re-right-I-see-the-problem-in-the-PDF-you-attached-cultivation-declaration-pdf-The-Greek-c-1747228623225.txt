@@ -1,0 +1,221 @@
+You're right, I see the problem in the PDF you attached (`cultivation-declaration.pdf`). The Greek column headers and any Greek text within the data fields are not rendering correctly; they're appearing as garbled characters (like " ¿ $\\tilde{s}\\pm nn^{1}-\\hat{A}^{3}\\mu^{1}\\pm\\hat{A}$" instead of "Είδος Καλλιέργειας").
+
+This is a classic font and character encoding issue when generating PDFs. The standard fonts (like Helvetica, Times Roman) that `pdf-lib` and many other PDF libraries embed by default have limited or no support for non-Latin character sets like Greek.
+
+To fix this, we need to:
+
+1.  **Find a Font with Greek Support**: We need a TrueType Font (`.ttf`) or OpenType Font (`.otf`) file that includes Greek characters. A good open-source option is "Noto Sans Greek" or "DejaVu Sans".
+2.  **Embed the Font in the PDF**: The `pdf-lib` library allows you to embed custom fonts. We'll need to:
+      * Load the font file data (e.g., by reading it from your project's assets or a public directory).
+      * Embed it into the PDF document using `pdfDoc.embedFont()`.
+      * Use this embedded font when drawing text for headers and data.
+
+**Implementation Steps:**
+
+1.  **Add Font File to Project**:
+      * I'll need to assume you can add a `.ttf` font file to your project, for example, in a `public/fonts/` directory. I'll use a hypothetical path like `public/fonts/NotoSansGreek-Regular.ttf`. You'll need to source this font file (e.g., from Google Fonts) and place it there.
+2.  **Modify the API Endpoint (`src/pages/api/reports/cultivation-declaration.ts`)**:
+      * Read the font file using Node.js `fs` module.
+      * Embed this font and use it for all text rendering.
+
+This will involve changes only to the backend API route that generates the PDF.
+
+Let's proceed with updating the PDF generation logic.
+
+\<lov-code\>
+\<lov-thinking\>
+The problem is that the standard PDF fonts (like Helvetica) used by `pdf-lib` do not contain glyphs for Greek characters, leading to the mojibake seen in the user's PDF.
+
+To fix this:
+
+1.  A suitable `.ttf` or `.otf` font file with Greek character support needs to be available to the server-side API route. I will assume the user can place a font file, for example, `NotoSansGreek-Regular.ttf`, into a `public/fonts/` directory in their project. Google's Noto Fonts are a good candidate.
+2.  The API route `src/pages/api/reports/cultivation-declaration.ts` needs to be modified:
+      * Import Node.js `fs` (for reading the font file) and `path` (for constructing the file path).
+      * Read the font file into a buffer.
+      * Embed this font using `pdfDoc.embedFont(fontBuffer)`.
+      * Use this custom embedded font for all `page.drawText()` calls, especially for the Greek headers and any potentially Greek data.
+
+I will write the code assuming `public/fonts/NotoSansGreek-Regular.ttf` exists. If it doesn't, the user will need to add it, or the code will fail at runtime when trying to read the font file. I should add a note about this requirement.
+\</lov-thinking\>
+
+You are absolutely correct\! The PDF you've shown has issues displaying the Greek characters, which appear garbled. This happens because the standard fonts we used previously (like Helvetica) don't include the necessary Greek letter shapes.
+
+To fix this, we need to embed a font that specifically supports Greek characters into the PDF document. A good, freely available option is the "Noto Sans" family from Google, specifically "Noto Sans Greek".
+
+Here's how we'll update the PDF generation:
+
+1.  **Font File**: You'll need to download a Greek-supporting font file (like `NotoSansGreek-Regular.ttf`) and place it in your project, for example, in a `public/fonts/` directory. You can find Noto fonts on Google Fonts.
+2.  **Update PDF Generation Code**: I'll modify the API endpoint to load this custom font file and use it when writing text in the PDF.
+
+**Important Prerequisite:**
+Please make sure you have a `.ttf` font file that supports Greek (e.g., `NotoSansGreek-Regular.ttf`) placed in a `public/fonts/` directory in your project. The code below will assume this path. If the font file is not there, the PDF generation will fail.
+
+\<lov-write file\_path="src/pages/api/reports/cultivation-declaration.ts"\>
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { db } from '@/server/db'; // Adjust path to your db setup
+import { plantsTable } from '@/server/db/schema'; // Adjust path to your schema
+import { asc } from 'drizzle-orm';
+import { PDFDocument, rgb, PageSizes } from 'pdf-lib';
+import fs from 'fs'; // Node.js File System module
+import path from 'path'; // Node.js Path module
+
+// Helper function to draw text and handle undefined
+const drawTextSafe = (page: any, text: any, x: number, y: number, font: any, size: number, color = rgb(0, 0, 0)) =\> {
+const safeText = text === undefined || text === null ? '' : String(text);
+page.drawText(safeText, { x, y, font, size, color });
+};
+
+export default async function handler(
+req: NextApiRequest,
+res: NextApiResponse
+) {
+if (req.method === 'GET') {
+console.log("API: Initiating Cultivation Declaration Report generation with custom font...");
+try {
+// --- Load Custom Font ---
+// Construct the path to the font file located in the public directory
+const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansGreek-Regular.ttf');
+let customFontBytes;
+try {
+customFontBytes = fs.readFileSync(fontPath);
+console.log("API: Successfully loaded custom font NotoSansGreek-Regular.ttf");
+} catch (fontError: any) {
+console.error(`API: Failed to load font file at ${fontPath}. Error: ${fontError.message}`);
+console.error("API: Please ensure 'NotoSansGreek-Regular.ttf' (or a similar Greek-supporting .ttf font) is placed in the 'public/fonts/' directory.");
+return res.status(500).json({
+message: 'Failed to load font for PDF generation. Please check server logs and ensure font file is available.',
+error: `Font file not found or unreadable at ${fontPath}.`
+});
+}
+
+```
+  const plantsData = await db.select().from(plantsTable).orderBy(asc(plantsTable.name));
+  console.log(`API: Fetched ${plantsData.length} plants for the report.`);
+
+  const pdfDoc = await PDFDocument.create();
+  // Embed the custom font
+  const customFont = await pdfDoc.embedFont(customFontBytes);
+  
+  const page = pdfDoc.addPage(PageSizes.A4_Landscape);
+  const { width, height } = page.getSize();
+  
+  const fontSize = 8;
+  const headerFontSize = 9;
+  const margin = 30;
+  let yPosition = height - margin - 20;
+
+  page.drawText('Κατάσταση Καλλιεργούμενων Φυτών (Αλφαβητικά)', {
+    x: margin,
+    y: yPosition,
+    font: customFont, // Use custom font
+    size: 14,
+    color: rgb(0, 0, 0),
+  });
+  yPosition -= 30;
+  
+  page.drawText('Σημείωση: Ορισμένες στήλες (π.χ. Τοποθεσία, Στοιχεία Τεμαχίου) παραμένουν κενές καθώς τα δεδομένα δεν είναι διαθέσιμα στο σύστημα.', {
+    x: margin,
+    y: yPosition,
+    font: customFont, // Use custom font
+    size: 7,
+    color: rgb(0.5, 0.5, 0.5)
+  });
+  yPosition -= 15;
+
+  const headers = [
+    { text: 'A/A', width: 30 },
+    { text: 'Τοποθεσία', width: 70 },
+    { text: 'Φύλλο Σχέδιο', width: 60 },
+    { text: 'Αρ. τεμαχίου', width: 60 },
+    { text: 'Ιδιοκτησιακό Καθεστώς', width: 70 },
+    { text: 'Αποδεικτικό Έγγραφο', width: 70 },
+    { text: 'Είδος Καλλιέργειας', width: 100 }, // This is a Greek header
+    { text: 'Έκταση (δεκάρια)', width: 60 },   // This is a Greek header
+    { text: 'Έτος Φύτευσης', width: 60 },      // This is a Greek header
+    { text: 'Συνολ. Αρ. Δέντρων/Θάμνων', width: 70 }, // This is a Greek header
+  ];
+
+  let currentX = margin;
+  const headerY = yPosition;
+  const rowHeight = 15;
+
+  page.drawLine({ start: { x: margin, y: headerY + 5 }, end: { x: width - margin, y: headerY + 5 }, thickness: 0.5, color: rgb(0,0,0) });
+  headers.forEach(header => {
+    drawTextSafe(page, header.text, currentX + 2, headerY - headerFontSize + 2, customFont, headerFontSize, rgb(0,0,0)); // Use custom font
+    currentX += header.width;
+  });
+  page.drawLine({ start: { x: margin, y: headerY - rowHeight + 5 }, end: { x: width - margin, y: headerY - rowHeight + 5 }, thickness: 0.5, color: rgb(0,0,0) });
+  yPosition -= rowHeight;
+
+  plantsData.forEach((plant, index) => {
+    if (yPosition < margin + rowHeight) {
+      page.drawLine({start: {x: margin, y: yPosition + 5}, end: {x: width-margin, y: yPosition + 5}, thickness: 0.5});
+      page = pdfDoc.addPage(PageSizes.A4_Landscape);
+      yPosition = height - margin - rowHeight;
+      // Consider re-drawing headers on the new page if needed
+    }
+
+    currentX = margin;
+    const rowData = [
+      { text: (index + 1).toString(), width: headers[0].width },
+      { text: '', width: headers[1].width },
+      { text: '', width: headers[2].width },
+      { text: '', width: headers[3].width },
+      { text: '', width: headers[4].width },
+      { text: '', width: headers[5].width },
+      { text: plant.name, width: headers[6].width }, // Plant name (could be Greek)
+      { text: '', width: headers[7].width },
+      { text: plant.plantingYear?.toString() || '', width: headers[8].width },
+      { text: plant.quantity.toString(), width: headers[9].width },
+    ];
+
+    rowData.forEach(data => {
+      drawTextSafe(page, data.text, currentX + 2, yPosition - fontSize + 2 , customFont, fontSize); // Use custom font
+      currentX += data.width;
+    });
+    page.drawLine({start: {x: margin, y: yPosition - rowHeight + 7}, end: {x: width-margin, y: yPosition -rowHeight + 7}, thickness: 0.2, color: rgb(0.7,0.7,0.7)});
+    yPosition -= rowHeight;
+  });
+
+  const pdfBytes = await pdfDoc.save();
+  const timestamp = new Date().toISOString().replace(/:/g, '-').slice(0, 19);
+  const filename = `cultivation-report-greek-${timestamp}.pdf`;
+
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.status(200).send(Buffer.from(pdfBytes));
+  console.log("API: Cultivation Declaration Report PDF with custom font sent successfully.");
+
+} catch (error: any) {
+  console.error('API: Error generating PDF report with custom font:', error);
+  res.status(500).json({ message: 'Failed to generate PDF report', error: error.message });
+}
+```
+
+} else {
+res.setHeader('Allow', ['GET']);
+res.status(405).end(`Method ${req.method} Not Allowed`);
+}
+}
+\</lov-write\>
+Key changes in `src/pages/api/reports/cultivation-declaration.ts`:
+
+  * It now imports `fs` and `path` from Node.js.
+  * It attempts to read a font file named `NotoSansGreek-Regular.ttf` from `public/fonts/`.
+  * This font is then embedded into the PDF document using `pdfDoc.embedFont(customFontBytes)`.
+  * All `drawTextSafe` and `page.drawText` calls now use this `customFont` object.
+  * Added error handling in case the font file cannot be loaded, with a console message guiding you to place the font file correctly.
+
+After this change, and **once you've placed the `NotoSansGreek-Regular.ttf` (or a similar Greek-supporting `.ttf` font) in the `public/fonts/` directory of your project**, the generated PDF should correctly display all Greek characters in both the headers and the data.
+\</lov-code\>
+
+I've updated the PDF generation code to load and use a custom font that supports Greek characters.
+
+**Crucial Next Step for You:**
+You'll need to:
+
+1.  Download a Greek-supporting `.ttf` font. A good option is "Noto Sans Greek Regular". You can find it on Google Fonts.
+2.  Create a `fonts` directory inside your `public` directory (if it doesn't already exist).
+3.  Place the downloaded `.ttf` file (e.g., `NotoSansGreek-Regular.ttf`) into this `public/fonts/` directory.
+
+Once the font file is in place, try generating the "Cultivation Declaration Report" again. The Greek text should now appear correctly\! If the font file is missing, the PDF generation will fail, and you'll see an error in the server logs pointing to this.
