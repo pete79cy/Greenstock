@@ -162,8 +162,17 @@ export default function InventoryTable({
                     variant="ghost" 
                     size="icon" 
                     onClick={() => {
-                      setSelectedPlant(plant);
-                      setIsAddStockModalOpen(true);
+                      try {
+                        setSelectedPlant(plant);
+                        setIsAddStockModalOpen(true);
+                      } catch (error) {
+                        console.error("Error opening add stock modal:", error);
+                        toast({
+                          title: "Error",
+                          description: "Could not open Add Stock modal. Please try again.",
+                          variant: "destructive",
+                        });
+                      }
                     }}
                     className="h-8 w-8 text-green-600"
                     title="Add Stock"
@@ -295,8 +304,17 @@ export default function InventoryTable({
                         variant="ghost" 
                         size="icon" 
                         onClick={() => {
-                          setSelectedPlant(plant);
-                          setIsAddStockModalOpen(true);
+                          try {
+                            setSelectedPlant(plant);
+                            setIsAddStockModalOpen(true);
+                          } catch (error) {
+                            console.error("Error opening add stock modal:", error);
+                            toast({
+                              title: "Error",
+                              description: "Could not open Add Stock modal. Please try again.",
+                              variant: "destructive",
+                            });
+                          }
                         }}
                         className="text-green-600 hover:text-green-800 hover:bg-green-50"
                         title="Add Stock"

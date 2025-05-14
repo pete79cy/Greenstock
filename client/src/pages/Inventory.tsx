@@ -39,31 +39,45 @@ export default function Inventory() {
   const { data: plants = [], isLoading, isError } = useQuery<Plant[]>({
     queryKey: ["/api/plants", debouncedSearchTerm],
     queryFn: async () => {
-      const response = await fetch(`/api/plants${debouncedSearchTerm ? `?search=${encodeURIComponent(debouncedSearchTerm)}` : ''}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch plants');
+      try {
+        console.log("Fetching plants data...");
+        const response = await fetch(`/api/plants${debouncedSearchTerm ? `?search=${encodeURIComponent(debouncedSearchTerm)}` : ''}`);
+        if (!response.ok) {
+          console.error("Error fetching plants:", response.status, response.statusText);
+          throw new Error('Failed to fetch plants');
+        }
+        const data = await response.json();
+        console.log("Plants data received:", data.length, "plants");
+        return data;
+      } catch (error) {
+        console.error("Error in plants query:", error);
+        throw error;
       }
-      return response.json();
     },
   });
 
   // Function to filter plants based on filters (year and quantity)
   // Search filtering is now done on the server side
   const filteredPlants = plants.filter((plant) => {
-    // Apply year filter
-    const matchesYear = yearFilter === "all" || plant.plantingYear.toString() === yearFilter;
-    
-    // Apply quantity filter
-    let matchesQuantity = true;
-    if (quantityFilter === "low") {
-      matchesQuantity = plant.quantity < 10;
-    } else if (quantityFilter === "medium") {
-      matchesQuantity = plant.quantity >= 10 && plant.quantity <= 50;
-    } else if (quantityFilter === "high") {
-      matchesQuantity = plant.quantity > 50;
+    try {
+      // Apply year filter
+      const matchesYear = yearFilter === "all" || plant.plantingYear?.toString() === yearFilter;
+      
+      // Apply quantity filter
+      let matchesQuantity = true;
+      if (quantityFilter === "low") {
+        matchesQuantity = plant.quantity < 10;
+      } else if (quantityFilter === "medium") {
+        matchesQuantity = plant.quantity >= 10 && plant.quantity <= 50;
+      } else if (quantityFilter === "high") {
+        matchesQuantity = plant.quantity > 50;
+      }
+      
+      return matchesYear && matchesQuantity;
+    } catch (error) {
+      console.error("Error filtering plant:", error, plant);
+      return false;
     }
-    
-    return matchesYear && matchesQuantity;
   });
 
   const handleAddPlant = () => {

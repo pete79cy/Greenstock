@@ -47,9 +47,19 @@ export function AddStockModal({ isOpen, onOpenChange, plant }: AddStockModalProp
     if (!open) {
       setQuantityToAdd("");
       setPlantingYear("");
-    } else if (plant) {
+    } else if (plant && plant.plantingYear) {
       // Default to the plant's current planting year
-      setPlantingYear(plant.plantingYear.toString());
+      try {
+        setPlantingYear(plant.plantingYear.toString());
+      } catch (error) {
+        console.error("Error setting default planting year:", error);
+        // Set to current year as fallback
+        const currentYear = new Date().getFullYear();
+        setPlantingYear(currentYear.toString());
+      }
+    } else if (yearOptions.length > 0) {
+      // Fallback to current year
+      setPlantingYear(yearOptions[0].toString());
     }
     onOpenChange(open);
   };
@@ -116,9 +126,9 @@ export function AddStockModal({ isOpen, onOpenChange, plant }: AddStockModalProp
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Add Stock: {plant.name}</DialogTitle>
+          <DialogTitle>Add Stock: {plant?.name || "Plant"}</DialogTitle>
           <DialogDescription>
-            Current quantity: {plant.quantity}. Enter the details for stock addition.
+            Current quantity: {plant?.quantity || 0}. Enter the details for stock addition.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
