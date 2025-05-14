@@ -920,7 +920,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Custom report API endpoint
   app.post("/api/reports/custom", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const { filters, selectedColumns } = req.body;
+      const { filters, selectedColumns, excludeZeroQuantity = false } = req.body;
       
       // Get all plant views for detailed data
       const plantViews = await storage.getAllPlantViews();
@@ -947,6 +947,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return;
           }
           
+          // Skip entries with zero quantity if excludeZeroQuantity is true
+          if (excludeZeroQuantity && entry.quantity <= 0) {
+            return;
+          }
+          
           // Create a row with selected columns
           const row: Record<string, any> = {};
           
@@ -962,6 +967,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           result.push(row);
         });
       });
+      
+      // Log info about the generated report
+      console.log(`Generated custom report with ${result.length} entries. Filters applied: ${JSON.stringify({
+        name: filters.name || 'none',
+        plantingYear: filters.plantingYear || 'none',
+        location: filters.location || 'none',
+        excludeZeroQuantity
+      })}`);
       
       res.json(result);
     } catch (error) {

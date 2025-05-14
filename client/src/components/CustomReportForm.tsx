@@ -5,7 +5,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 import { useToast } from "@/hooks/use-toast";
+import { Download, FileText, File } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const columns = [
   { label: "Plant Name", value: "name" },
@@ -26,6 +30,8 @@ export default function CustomReportForm() {
     plantingYear: "",
     location: "",
   });
+  const [excludeZeroQuantity, setExcludeZeroQuantity] = useState(false);
+  const [exportFormat, setExportFormat] = useState<string>("excel");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleColumnToggle = (value: string) => {
@@ -62,6 +68,7 @@ export default function CustomReportForm() {
         body: JSON.stringify({
           filters,
           selectedColumns,
+          excludeZeroQuantity
         }),
       });
 
@@ -81,18 +88,58 @@ export default function CustomReportForm() {
         return;
       }
 
-      // Create and download the Excel file
-      const worksheet = XLSX.utils.json_to_sheet(data);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Custom Report");
-      
-      // Generate a filename with current date
-      const date = new Date().toISOString().split('T')[0];
-      XLSX.writeFile(workbook, `plant_inventory_custom_report_${date}.xlsx`);
+      // Generate the report in the selected format
+      if (exportFormat === "excel") {
+        // Create and download the Excel file
+        const worksheet = XLSX.utils.json_to_sheet(data);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Custom Report");
+        
+        // Generate a filename with current date
+        const date = new Date().toISOString().split('T')[0];
+        XLSX.writeFile(workbook, `plant_inventory_custom_report_${date}.xlsx`);
+      } else {
+        // Generate PDF
+        const doc = new jsPDF();
+        
+        // Add title
+        doc.setFontSize(18);
+        doc.text("Custom Plant Inventory Report", 14, 22);
+        
+        // Add date
+        doc.setFontSize(12);
+        doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
+        
+        // Prepare columns for PDF
+        const tableColumns = selectedColumns.map(col => {
+          // Convert camelCase to Title Case for display
+          const colName = col.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+          return { header: colName, dataKey: col };
+        });
+        
+        // Add table to document
+        (autoTable as any)(doc, {
+          columns: tableColumns,
+          body: data,
+          startY: 40,
+          theme: 'grid',
+          styles: { fontSize: 10 },
+          headStyles: { fillColor: [46, 125, 50] },
+          didDrawPage: (data: any) => {
+            // Footer
+            doc.setFontSize(8);
+            doc.text(`Plant Inventory System - Page ${data.pageNumber}`, 14, doc.internal.pageSize.height - 10);
+          }
+        });
+        
+        // Save document
+        const date = new Date().toISOString().split('T')[0];
+        doc.save(`plant_inventory_custom_report_${date}.pdf`);
+      }
       
       toast({
         title: "Report generated",
-        description: `Successfully created report with ${data.length} entries.`,
+        description: `Successfully created ${exportFormat.toUpperCase()} report with ${data.length} entries.`,
       });
     } catch (error) {
       console.error("Error generating report:", error);
@@ -142,6 +189,20 @@ export default function CustomReportForm() {
               onChange={(e) => handleFilterChange("location", e.target.value)}
             />
           </div>
+
+          <div className="flex items-center space-x-2 pt-6">
+            <Checkbox
+              id="exclude-zero"
+              checked={excludeZeroQuantity}
+              onCheckedChange={() => setExcludeZeroQuantity(!excludeZeroQuantity)}
+            />
+            <label
+              htmlFor="exclude-zero"
+              className="text-sm font-medium leading-none"
+            >
+              Exclude plants with zero quantity
+            </label>
+          </div>
         </div>
 
         <div className="mb-6">
@@ -165,12 +226,33 @@ export default function CustomReportForm() {
           </div>
         </div>
 
+        <div className="mb-6">
+          <Label className="block mb-2">Export Format</Label>
+          <Tabs defaultValue="excel" value={exportFormat} onValueChange={setExportFormat} className="w-full">
+            <TabsList className="grid grid-cols-2 w-full">
+              <TabsTrigger value="excel" className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Excel
+              </TabsTrigger>
+              <TabsTrigger value="pdf" className="flex items-center gap-2">
+                <File className="h-4 w-4" />
+                PDF
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
         <Button 
           onClick={handleExport} 
           disabled={selectedColumns.length === 0 || isLoading}
           className="w-full"
         >
-          {isLoading ? "Generating..." : "Generate Custom Report"}
+          {isLoading ? "Generating..." : (
+            <>
+              <Download className="mr-2 h-4 w-4" />
+              {`Generate ${exportFormat === "excel" ? "Excel" : "PDF"} Report`}
+            </>
+          )}
         </Button>
       </CardContent>
     </Card>
