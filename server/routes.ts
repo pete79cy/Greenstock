@@ -561,61 +561,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("Will exclude plants with zero quantity from the report");
       }
       
-      // Get all plants from the plants table
+      // Get all plants from the plants table (instead of plant views)
       const allPlants = await storage.getAllPlants();
       
       // Filter out plants with zero quantity if requested
       const filteredPlants = excludeZero 
         ? allPlants.filter(plant => plant.quantity > 0)
         : allPlants;
-        
-      // Add support for multiple years by splitting quantities 
-      // across different planting years
-      console.log("Creating multiple year entries for plants with quantities > 100");
-      
-      const multiYearPlants = [];
-      // Select plants with higher quantities to split across years
-      const plantsToSplit = filteredPlants.filter(p => p.quantity > 100);
-      
-      for (const plant of plantsToSplit) {
-        const originalQuantity = plant.quantity;
-        
-        // Calculate quantities for different years (showing history)
-        const year1Quantity = Math.floor(originalQuantity * 0.4); // 40% for current year
-        const year2Quantity = Math.floor(originalQuantity * 0.35); // 35% for previous year
-        const year3Quantity = originalQuantity - year1Quantity - year2Quantity; // Remainder for 2 years ago
-        
-        // Update the original plant to show just the current year quantity
-        plant.quantity = year1Quantity;
-        
-        // Create entries for previous years
-        if (year2Quantity > 0) {
-          multiYearPlants.push({
-            ...plant,
-            id: plant.id * 1000 + 1, // Create unique ID
-            plantingYear: plant.plantingYear - 1, // Previous year
-            quantity: year2Quantity,
-            createdAt: plant.createdAt,
-            updatedAt: plant.updatedAt
-          });
-        }
-        
-        if (year3Quantity > 0) {
-          multiYearPlants.push({
-            ...plant,
-            id: plant.id * 1000 + 2, // Create unique ID
-            plantingYear: plant.plantingYear - 2, // 2 years ago
-            quantity: year3Quantity,
-            createdAt: plant.createdAt,
-            updatedAt: plant.updatedAt
-          });
-        }
-      }
-      
-      // Add the new entries to the filtered plants
-      filteredPlants.push(...multiYearPlants);
-      console.log(`Added ${multiYearPlants.length} additional year entries for ${plantsToSplit.length} plants`);
-      
       
       // Map plants to the format needed for the report
       let flattenedEntries: Array<{
