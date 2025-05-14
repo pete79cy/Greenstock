@@ -120,6 +120,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const worksheet = workbook.Sheets[sheetName];
       const data = XLSX.utils.sheet_to_json(worksheet);
 
+      console.log("Excel import data preview:", data.slice(0, 2));
+
       // Validate and transform the data
       const importResults = {
         success: 0,
@@ -128,12 +130,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       for (const row of data) {
+        // Additional logging to understand the data structure
+        if (importResults.success === 0) {
+          console.log("First row structure:", JSON.stringify(row));
+        }
+
+        // Check for column keys with different capitalizations and formats
+        const nameValue = row.Name || row.name || row.NAME || row["Plant Name"] || row["PLANT NAME"] || null;
+        const scientificNameValue = row.ScientificName || row["Scientific Name"] || row.scientificName || 
+                              row["SCIENTIFIC NAME"] || row.scientific_name || null;
+        const yearValue = row.PlantingYear || row["Planting Year"] || row.plantingYear || row.YEAR || 
+                    row["PLANTING YEAR"] || row.planting_year || null;
+        const quantityValue = row.Quantity || row.quantity || row.QUANTITY || row.count || row.COUNT || null;
+
+        // Skip rows with missing essential data
+        if (!nameValue || nameValue === "") {
+          importResults.failed++;
+          importResults.errors.push(`Row skipped: Missing plant name`);
+          continue;
+        }
+
         const plantData = {
-          name: String(row.Name || row.name || ""),
-          scientificName: String(row.ScientificName || row["Scientific Name"] || row.scientificName || ""),
-          plantingYear: parseInt(String(row.PlantingYear || row["Planting Year"] || row.plantingYear || 0)),
-          quantity: parseInt(String(row.Quantity || row.quantity || 0))
+          name: String(nameValue),
+          scientificName: String(scientificNameValue || "Unknown"),
+          plantingYear: yearValue ? parseInt(String(yearValue)) : new Date().getFullYear(),
+          quantity: quantityValue ? parseInt(String(quantityValue)) : 0
         };
+
+        // Ensure numbers are valid
+        if (isNaN(plantData.plantingYear)) plantData.plantingYear = new Date().getFullYear();
+        if (isNaN(plantData.quantity)) plantData.quantity = 0;
+
+        // Trim any whitespace
+        plantData.name = plantData.name.trim();
+        plantData.scientificName = plantData.scientificName.trim();
 
         const validationResult = insertPlantSchema.safeParse(plantData);
         
@@ -147,10 +177,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      res.json(importResults);
+      // Add a detailed message for the frontend
+      const message = importResults.success > 0 
+        ? `Successfully imported ${importResults.success} plants.` 
+        : "No plants were imported.";
+
+      const detailedErrors = importResults.errors.length > 0 
+        ? `There were ${importResults.failed} errors.` 
+        : "";
+
+      res.json({
+        ...importResults,
+        message,
+        detailedErrors
+      });
     } catch (error) {
       console.error("Error importing plants:", error);
-      res.status(500).json({ message: "Failed to import plants" });
+      res.status(500).json({ message: "Failed to import plants. Check the Excel file format." });
     }
   });
 

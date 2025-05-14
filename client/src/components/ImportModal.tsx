@@ -75,6 +75,17 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
       return;
     }
     
+    // Validate file extension
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    if (fileExtension !== 'xlsx' && fileExtension !== 'xls') {
+      toast({
+        title: "Invalid file format",
+        description: "Please upload an Excel file (.xlsx or .xls).",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
@@ -97,18 +108,28 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/plants"] });
       queryClient.invalidateQueries({ queryKey: ["/api/metrics"] });
       
-      toast({
-        title: "Import successful",
-        description: `Successfully imported ${result.success} plants. ${result.failed > 0 ? `Failed to import ${result.failed} plants.` : ""}`,
-      });
-      
-      onClose();
-      setFile(null);
+      if (result.success > 0) {
+        toast({
+          title: "Import successful",
+          description: `Successfully imported ${result.success} plants. ${result.failed > 0 ? `Failed to import ${result.failed} plants.` : ""}`,
+        });
+        
+        // Close the modal and reset state only if some plants were successfully imported
+        onClose();
+        setFile(null);
+      } else {
+        // If no plants were imported, show an error but keep the modal open
+        toast({
+          title: "Import warning",
+          description: `No plants were imported. ${result.failed > 0 ? `${result.failed} rows had errors.` : ""} Please check your Excel file format.`,
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       console.error("Import error:", error);
       toast({
         title: "Import failed",
-        description: "There was an error importing your data. Please try again.",
+        description: "There was an error importing your data. Please make sure your Excel file has columns for Name, Scientific Name, Planting Year, and Quantity.",
         variant: "destructive",
       });
     } finally {
