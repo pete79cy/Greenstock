@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Helmet } from "react-helmet";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plant } from "@shared/schema";
 import InventoryTable from "@/components/InventoryTable";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import ImportModal from "@/components/ImportModal";
 import ExportDropdown from "@/components/ExportDropdown";
 import PlantModal from "@/components/PlantModal";
-import { Filter, Plus, Search } from "lucide-react";
+import { Filter, Plus, Search, ChevronDown, ChevronUp } from "lucide-react";
 
 export default function Inventory() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -18,6 +18,18 @@ export default function Inventory() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [showPlantModal, setShowPlantModal] = useState(false);
   const [selectedPlant, setSelectedPlant] = useState<Plant | null>(null);
+  const [isMobileView, setIsMobileView] = useState(window.innerWidth < 768);
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // Handle responsive view
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileView(window.innerWidth < 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Fetch plant data
   const { data: plants = [], isLoading, isError } = useQuery<Plant[]>({
@@ -91,8 +103,9 @@ export default function Inventory() {
         </div>
         
         {/* Filter and Search */}
-        <div className="bg-card rounded-lg shadow p-4">
-          <div className="flex flex-col md:flex-row gap-4">
+        <div className="bg-card rounded-lg shadow">
+          {/* Always visible search bar with collapsible filters toggle on mobile */}
+          <div className="p-4 flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -105,39 +118,88 @@ export default function Inventory() {
               </div>
             </div>
             
-            <div className="flex gap-2">
-              <Select value={yearFilter} onValueChange={setYearFilter}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="All Years" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Years</SelectItem>
-                  <SelectItem value="2025">2025</SelectItem>
-                  <SelectItem value="2024">2024</SelectItem>
-                  <SelectItem value="2023">2023</SelectItem>
-                  <SelectItem value="2022">2022</SelectItem>
-                  <SelectItem value="2021">2021</SelectItem>
-                  <SelectItem value="2020">2020</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Select value={quantityFilter} onValueChange={setQuantityFilter}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="All Quantities" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Quantities</SelectItem>
-                  <SelectItem value="low">Low Stock (&lt; 10)</SelectItem>
-                  <SelectItem value="medium">Medium (10-50)</SelectItem>
-                  <SelectItem value="high">High (&gt; 50)</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Button variant="outline" size="icon">
-                <Filter className="h-4 w-4" />
+            {isMobileView ? (
+              <Button 
+                variant="outline" 
+                onClick={() => setShowFilters(!showFilters)} 
+                className="flex items-center justify-between"
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                Filters
+                {showFilters ? 
+                  <ChevronUp className="h-4 w-4 ml-2" /> : 
+                  <ChevronDown className="h-4 w-4 ml-2" />
+                }
               </Button>
-            </div>
+            ) : (
+              <div className="flex gap-2">
+                <Select value={yearFilter} onValueChange={setYearFilter}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="All Years" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Years</SelectItem>
+                    <SelectItem value="2025">2025</SelectItem>
+                    <SelectItem value="2024">2024</SelectItem>
+                    <SelectItem value="2023">2023</SelectItem>
+                    <SelectItem value="2022">2022</SelectItem>
+                    <SelectItem value="2021">2021</SelectItem>
+                    <SelectItem value="2020">2020</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select value={quantityFilter} onValueChange={setQuantityFilter}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="All Quantities" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Quantities</SelectItem>
+                    <SelectItem value="low">Low Stock (&lt; 10)</SelectItem>
+                    <SelectItem value="medium">Medium (10-50)</SelectItem>
+                    <SelectItem value="high">High (&gt; 50)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
+
+          {/* Collapsible filters section for mobile */}
+          {isMobileView && showFilters && (
+            <div className="px-4 pb-4 border-t border-border pt-4 space-y-3">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Year</label>
+                <Select value={yearFilter} onValueChange={setYearFilter}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="All Years" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Years</SelectItem>
+                    <SelectItem value="2025">2025</SelectItem>
+                    <SelectItem value="2024">2024</SelectItem>
+                    <SelectItem value="2023">2023</SelectItem>
+                    <SelectItem value="2022">2022</SelectItem>
+                    <SelectItem value="2021">2021</SelectItem>
+                    <SelectItem value="2020">2020</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium mb-1 block">Quantity</label>
+                <Select value={quantityFilter} onValueChange={setQuantityFilter}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="All Quantities" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Quantities</SelectItem>
+                    <SelectItem value="low">Low Stock (&lt; 10)</SelectItem>
+                    <SelectItem value="medium">Medium (10-50)</SelectItem>
+                    <SelectItem value="high">High (&gt; 50)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
         </div>
         
         {/* Full Inventory Table */}
