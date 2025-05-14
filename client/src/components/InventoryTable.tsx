@@ -159,6 +159,18 @@ export default function InventoryTable({
                   <Button 
                     variant="ghost" 
                     size="icon" 
+                    onClick={() => {
+                      setSelectedPlant(plant);
+                      setIsAddStockModalOpen(true);
+                    }}
+                    className="h-8 w-8 text-green-600"
+                    title="Add Stock"
+                  >
+                    <PlusCircle className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
                     onClick={() => onEdit(plant)}
                     className="h-8 w-8 text-blue-600"
                   >
@@ -267,6 +279,18 @@ export default function InventoryTable({
                       <Button 
                         variant="ghost" 
                         size="icon" 
+                        onClick={() => {
+                          setSelectedPlant(plant);
+                          setIsAddStockModalOpen(true);
+                        }}
+                        className="text-green-600 hover:text-green-800 hover:bg-green-50"
+                        title="Add Stock"
+                      >
+                        <PlusCircle className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
                         onClick={() => onEdit(plant)}
                         className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
                       >
@@ -353,6 +377,13 @@ export default function InventoryTable({
           </div>
         </div>
       )}
+      
+      {/* Add Stock Modal */}
+      <AddStockModal 
+        isOpen={isAddStockModalOpen}
+        onOpenChange={setIsAddStockModalOpen}
+        plant={selectedPlant}
+      />
     </div>
   );
 }

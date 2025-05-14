@@ -260,6 +260,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to delete plant" });
     }
   });
+  
+  // Add stock to plant
+  app.post("/api/plants/:id/add-stock", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { quantityToAdd } = req.body;
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid ID format" });
+      }
+      
+      if (!quantityToAdd || isNaN(parseInt(quantityToAdd)) || parseInt(quantityToAdd) <= 0) {
+        return res.status(400).json({ message: "Quantity to add must be a positive number" });
+      }
+      
+      // Get the current plant
+      const currentPlant = await storage.getPlant(id);
+      if (!currentPlant) {
+        return res.status(404).json({ message: "Plant not found" });
+      }
+      
+      // Update the plant with the new quantity
+      const updatedPlant = await storage.updatePlant({
+        id: currentPlant.id,
+        quantity: currentPlant.quantity + parseInt(quantityToAdd)
+      });
+      
+      if (!updatedPlant) {
+        return res.status(500).json({ message: "Failed to update plant quantity" });
+      }
+      
+      res.json({ 
+        message: "Stock updated successfully",
+        plant: updatedPlant
+      });
+    } catch (error) {
+      console.error("Error adding stock to plant:", error);
+      res.status(500).json({ message: "Failed to add stock to plant" });
+    }
+  });
 
   // Import plants from Excel
   app.post("/api/plants/import", upload.single("file"), async (req: MulterRequest, res: Response) => {
