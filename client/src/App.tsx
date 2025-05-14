@@ -15,19 +15,27 @@ import { useAuth } from "@/hooks/useAuth";
 
 // Protected route component
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+  console.log("ProtectedRoute called with component:", Component.name);
   const { user, isLoading, isAuthenticated } = useAuth();
   
   // Always define hooks at the top level, regardless of conditions
   useEffect(() => {
+    console.log("ProtectedRoute effect running:", { 
+      isLoading, 
+      isAuthenticated, 
+      component: Component.name 
+    });
+    
     // If not authenticated and not loading, redirect to login
     if (!isLoading && !isAuthenticated) {
       console.log("Authentication check failed, redirecting to login", { user, isAuthenticated });
       window.location.href = "/login";
     }
-  }, [isLoading, isAuthenticated, user]);
+  }, [isLoading, isAuthenticated, user, Component.name]);
   
   // While checking authentication status, we can return a loading state
   if (isLoading) {
+    console.log("ProtectedRoute - Loading auth state");
     return <div className="flex items-center justify-center h-screen">
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
@@ -38,6 +46,7 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   
   // If not authenticated, show a loading state while redirecting
   if (!isAuthenticated) {
+    console.log("ProtectedRoute - Not authenticated, redirecting");
     return <div className="flex items-center justify-center h-screen">
       <div className="text-center">
         <p className="text-gray-600">Redirecting to login...</p>
@@ -46,6 +55,7 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   }
   
   // If authenticated, render the component
+  console.log("ProtectedRoute - Authenticated, rendering component:", Component.name);
   return <Component />;
 }
 
@@ -73,7 +83,12 @@ function Router() {
           <Layout>
             <Switch>
               <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
-              <Route path="/inventory" component={() => <ProtectedRoute component={Inventory} />} />
+              <Route path="/inventory">
+                {() => {
+                  console.log("Inventory route activated");
+                  return <ProtectedRoute component={Inventory} />;
+                }}
+              </Route>
               <Route component={NotFound} />
             </Switch>
           </Layout>

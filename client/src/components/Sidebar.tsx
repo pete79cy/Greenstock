@@ -49,12 +49,17 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           </li>
           <li>
             <Link href="/inventory">
-              <div className={cn(
-                "flex items-center p-2 rounded-md cursor-pointer",
-                location === "/inventory" 
-                  ? "bg-primary bg-opacity-10 text-primary" 
-                  : "hover:bg-gray-100"
-              )}>
+              <div 
+                className={cn(
+                  "flex items-center p-2 rounded-md cursor-pointer",
+                  location === "/inventory" 
+                    ? "bg-primary bg-opacity-10 text-primary" 
+                    : "hover:bg-gray-100"
+                )}
+                onClick={() => {
+                  console.log("Inventory link clicked, location:", location);
+                }}
+              >
                 <Warehouse className="mr-3 h-5 w-5" />
                 <span>Inventory</span>
               </div>
