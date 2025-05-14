@@ -28,7 +28,7 @@ export default function InventoryTable({
   const [sortField, setSortField] = useState<keyof Plant>("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const itemsPerPage = 10;
 
   // Calculate pagination
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -52,7 +52,7 @@ export default function InventoryTable({
   
   const currentItems = showPagination 
     ? sortedPlants.slice(indexOfFirstItem, indexOfLastItem) 
-    : sortedPlants.slice(0, 5);
+    : sortedPlants.slice(0, 10);
   
   const totalPages = Math.ceil(plants.length / itemsPerPage);
 
