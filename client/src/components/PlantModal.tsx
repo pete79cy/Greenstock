@@ -29,7 +29,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Trash2, Plus, Info } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface PlantModalProps {
   isOpen: boolean;
@@ -61,6 +61,17 @@ export default function PlantModal({ isOpen, onClose, plant }: PlantModalProps) 
   const { toast } = useToast();
   const isEditMode = !!plant;
   const [activeTab, setActiveTab] = useState("details");
+  const [isMobileView, setIsMobileView] = useState(window.innerWidth < 768);
+  
+  // Handle responsive view
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileView(window.innerWidth < 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   // Until we implement the new database schema, we'll adapt the old format
   const form = useForm<z.infer<typeof plantFormSchema>>({
@@ -160,7 +171,7 @@ export default function PlantModal({ isOpen, onClose, plant }: PlantModalProps) 
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[550px]">
+      <DialogContent className="sm:max-w-[550px] w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEditMode ? `Edit Plant: ${plant?.name}` : "Add New Plant"}</DialogTitle>
         </DialogHeader>
@@ -256,7 +267,7 @@ export default function PlantModal({ isOpen, onClose, plant }: PlantModalProps) 
                       
                       <h3 className="font-medium mb-3">Inventory Entry #{index + 1}</h3>
                       
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className={`grid ${isMobileView ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
                         <FormField
                           control={form.control}
                           name={`inventoryEntries.${index}.plantingYear`}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plant } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
+import { cn } from "@/lib/utils";
 
 interface InventoryTableProps {
   plants: Plant[];
@@ -28,7 +29,18 @@ export default function InventoryTable({
   const [sortField, setSortField] = useState<keyof Plant>("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isMobileView, setIsMobileView] = useState(window.innerWidth < 768);
   const itemsPerPage = 10;
+
+  // Handle responsive view
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileView(window.innerWidth < 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Calculate pagination
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -133,91 +145,146 @@ export default function InventoryTable({
 
   return (
     <div>
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead 
-                className="cursor-pointer hover:bg-accent/30"
-                onClick={() => handleSort("name")}
-              >
-                <div className="flex items-center">
-                  Name
-                  <ArrowUpDown className="ml-1 h-4 w-4" />
+      {/* Mobile view - card-based layout */}
+      {isMobileView ? (
+        <div className="space-y-4">
+          {currentItems.map((plant) => (
+            <div key={plant.id} className="bg-white p-4 rounded-lg shadow border">
+              <div className="flex justify-between mb-2">
+                <h3 className="font-medium">{plant.name}</h3>
+                <div className="flex space-x-1">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => onEdit(plant)}
+                    className="h-8 w-8 text-blue-600"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => handleDeletePlant(plant.id)}
+                    className="h-8 w-8 text-red-600"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
-              </TableHead>
-              <TableHead 
-                className="cursor-pointer hover:bg-accent/30"
-                onClick={() => handleSort("scientificName")}
-              >
-                <div className="flex items-center">
-                  Scientific Name
-                  <ArrowUpDown className="ml-1 h-4 w-4" />
+              </div>
+              
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Scientific Name:</span>
+                  <span className="italic">{plant.scientificName}</span>
                 </div>
-              </TableHead>
-              <TableHead 
-                className="cursor-pointer hover:bg-accent/30"
-                onClick={() => handleSort("plantingYear")}
-              >
-                <div className="flex items-center">
-                  Planting Year
-                  <ArrowUpDown className="ml-1 h-4 w-4" />
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Planting Year:</span>
+                  <span>{plant.plantingYear}</span>
                 </div>
-              </TableHead>
-              <TableHead 
-                className="cursor-pointer hover:bg-accent/30"
-                onClick={() => handleSort("quantity")}
-              >
-                <div className="flex items-center">
-                  Quantity
-                  <ArrowUpDown className="ml-1 h-4 w-4" />
-                </div>
-              </TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {currentItems.map((plant) => (
-              <TableRow key={plant.id} className="hover:bg-muted/50">
-                <TableCell>{plant.name}</TableCell>
-                <TableCell className="italic">{plant.scientificName}</TableCell>
-                <TableCell>{plant.plantingYear}</TableCell>
-                <TableCell>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Quantity:</span>
                   <div className="flex items-center space-x-2">
-                    <span className="w-8 text-right">{plant.quantity}</span>
-                    <div className="w-24">
+                    <span>{plant.quantity}</span>
+                    <div className="w-16">
                       <Progress 
                         value={Math.min(plant.quantity, 100)} 
                         className={`h-2 bg-gray-200 ${getStockLevelColor(plant.quantity)}`}
                       />
                     </div>
                   </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex space-x-2">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => onEdit(plant)}
-                      className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => handleDeletePlant(plant.id)}
-                      className="text-red-600 hover:text-red-800 hover:bg-red-50"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        /* Desktop view - table layout */
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead 
+                  className="cursor-pointer hover:bg-accent/30"
+                  onClick={() => handleSort("name")}
+                >
+                  <div className="flex items-center">
+                    Name
+                    <ArrowUpDown className="ml-1 h-4 w-4" />
                   </div>
-                </TableCell>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-accent/30"
+                  onClick={() => handleSort("scientificName")}
+                >
+                  <div className="flex items-center">
+                    Scientific Name
+                    <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-accent/30"
+                  onClick={() => handleSort("plantingYear")}
+                >
+                  <div className="flex items-center">
+                    Planting Year
+                    <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-accent/30"
+                  onClick={() => handleSort("quantity")}
+                >
+                  <div className="flex items-center">
+                    Quantity
+                    <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {currentItems.map((plant) => (
+                <TableRow key={plant.id} className="hover:bg-muted/50">
+                  <TableCell>{plant.name}</TableCell>
+                  <TableCell className="italic">{plant.scientificName}</TableCell>
+                  <TableCell>{plant.plantingYear}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center space-x-2">
+                      <span className="w-8 text-right">{plant.quantity}</span>
+                      <div className="w-24">
+                        <Progress 
+                          value={Math.min(plant.quantity, 100)} 
+                          className={`h-2 bg-gray-200 ${getStockLevelColor(plant.quantity)}`}
+                        />
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex space-x-2">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => onEdit(plant)}
+                        className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleDeletePlant(plant.id)}
+                        className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
       {/* Pagination */}
       {showPagination && totalPages > 1 && (
