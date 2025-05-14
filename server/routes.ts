@@ -569,31 +569,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? allPlants.filter(plant => plant.quantity > 0)
         : allPlants;
         
-      // Add support for example multiple years if needed for demo/testing
-      // Comment this section out if not needed in production
-      /*
-      const demoMultiYearPlants = [];
-      const plantsToClone = filteredPlants.filter(p => p.quantity > 50).slice(0, 3);
+      // Add support for multiple years by splitting quantities 
+      // across different planting years
+      console.log("Creating multiple year entries for plants with quantities > 100");
       
-      // Create clone entries with different years for demo
-      for (const plant of plantsToClone) {
-        // Add current year
-        demoMultiYearPlants.push({
-          ...plant,
-          quantity: Math.floor(plant.quantity * 0.4)
-        });
+      const multiYearPlants = [];
+      // Select plants with higher quantities to split across years
+      const plantsToSplit = filteredPlants.filter(p => p.quantity > 100);
+      
+      for (const plant of plantsToSplit) {
+        const originalQuantity = plant.quantity;
         
-        // Add previous year
-        demoMultiYearPlants.push({
-          ...plant,
-          plantingYear: plant.plantingYear - 1,
-          quantity: Math.floor(plant.quantity * 0.6)
-        });
+        // Calculate quantities for different years (showing history)
+        const year1Quantity = Math.floor(originalQuantity * 0.4); // 40% for current year
+        const year2Quantity = Math.floor(originalQuantity * 0.35); // 35% for previous year
+        const year3Quantity = originalQuantity - year1Quantity - year2Quantity; // Remainder for 2 years ago
+        
+        // Update the original plant to show just the current year quantity
+        plant.quantity = year1Quantity;
+        
+        // Create entries for previous years
+        if (year2Quantity > 0) {
+          multiYearPlants.push({
+            ...plant,
+            id: plant.id * 1000 + 1, // Create unique ID
+            plantingYear: plant.plantingYear - 1, // Previous year
+            quantity: year2Quantity,
+            createdAt: plant.createdAt,
+            updatedAt: plant.updatedAt
+          });
+        }
+        
+        if (year3Quantity > 0) {
+          multiYearPlants.push({
+            ...plant,
+            id: plant.id * 1000 + 2, // Create unique ID
+            plantingYear: plant.plantingYear - 2, // 2 years ago
+            quantity: year3Quantity,
+            createdAt: plant.createdAt,
+            updatedAt: plant.updatedAt
+          });
+        }
       }
       
-      // Add demo plants to filtered plants
-      filteredPlants.push(...demoMultiYearPlants);
-      */
+      // Add the new entries to the filtered plants
+      filteredPlants.push(...multiYearPlants);
+      console.log(`Added ${multiYearPlants.length} additional year entries for ${plantsToSplit.length} plants`);
+      
       
       // Map plants to the format needed for the report
       let flattenedEntries: Array<{
