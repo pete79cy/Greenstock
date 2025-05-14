@@ -20,6 +20,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 export default function ExportDropdown() {
   const { toast } = useToast();
@@ -27,6 +29,8 @@ export default function ExportDropdown() {
   const [isExporting, setIsExporting] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
+  const [excludeZeroQuantity, setExcludeZeroQuantity] = useState(false);
+  const [showExcludeOption, setShowExcludeOption] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Create a hidden file input for restore
@@ -258,8 +262,8 @@ export default function ExportDropdown() {
       // Don't use a relative URL like "/api/..." as it can sometimes cause issues
       // Use the full URL instead to ensure we're making a proper API call
       const baseUrl = window.location.origin;
-      const apiUrl = `${baseUrl}/api/plants/export/cultivation-declaration`;
-      console.log(`Fetching PDF from: ${apiUrl}`);
+      const apiUrl = `${baseUrl}/api/plants/export/cultivation-declaration${excludeZeroQuantity ? '?excludeZero=true' : ''}`;
+      console.log(`Fetching PDF from: ${apiUrl}, excluding zero quantity: ${excludeZeroQuantity}`);
       
       const response = await fetch(apiUrl, {
         method: "GET",
@@ -353,6 +357,45 @@ export default function ExportDropdown() {
         </AlertDialogContent>
       </AlertDialog>
       
+      {/* Cultivation declaration options dialog */}
+      <AlertDialog open={showExcludeOption} onOpenChange={setShowExcludeOption}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>ΔΗΛΩΣΗ ΚΑΛΛΙΕΡΓΕΙΑΣ ΓΙΑ ΤΟ 2025</AlertDialogTitle>
+            <AlertDialogDescription>
+              Generate a cultivation declaration report for 2025.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="flex items-center space-x-2 py-4">
+            <Checkbox 
+              id="exclude-zero" 
+              checked={excludeZeroQuantity}
+              onCheckedChange={(checked) => setExcludeZeroQuantity(!!checked)}
+              className="data-[state=checked]:bg-green-600"
+            />
+            <Label htmlFor="exclude-zero" className="text-sm font-medium">
+              Exclude plants with zero quantity
+            </Label>
+          </div>
+          
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isExporting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              disabled={isExporting} 
+              onClick={(e) => {
+                e.preventDefault();
+                handleExportCultivationDeclaration();
+                setShowExcludeOption(false);
+              }}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {isExporting ? "Generating..." : "Generate Report"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
       {/* Export dropdown menu */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -383,7 +426,7 @@ export default function ExportDropdown() {
             onClick={(e) => {
               e.preventDefault();  // Prevent any default navigation behavior
               e.stopPropagation(); // Stop event bubbling
-              handleExportCultivationDeclaration();
+              setShowExcludeOption(true); // Show the option dialog instead of exporting directly
             }}
             disabled={isExporting}
             className="cursor-pointer"

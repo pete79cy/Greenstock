@@ -457,8 +457,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("Initiating Cultivation Declaration Report generation with custom font...");
       
+      // Check if we should exclude plants with zero quantity
+      const excludeZero = req.query.excludeZero === 'true';
+      if (excludeZero) {
+        console.log("Will exclude plants with zero quantity from the report");
+      }
+      
       // Get all plants and sort alphabetically by name
-      const plants = await storage.getAllPlants();
+      let plants = await storage.getAllPlants();
+      
+      // Filter out plants with zero quantity if requested
+      if (excludeZero) {
+        plants = plants.filter(plant => plant.quantity > 0);
+      }
+      
       const sortedPlants = [...plants].sort((a, b) => a.name.localeCompare(b.name));
       
       // --- Load Custom Font ---
@@ -668,7 +680,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Add footer with note
-      page.drawText("Σημείωση: Κατάσταση Καλλιεργούμενων Φυτών (Αλφαβητικά)", {
+      const footerText = excludeZero 
+        ? "Σημείωση: Κατάσταση Καλλιεργούμενων Φυτών (Αλφαβητικά, χωρίς τα φυτά με μηδενική ποσότητα)" 
+        : "Σημείωση: Κατάσταση Καλλιεργούμενων Φυτών (Αλφαβητικά)";
+      
+      page.drawText(footerText, {
         x: 50,
         y: 30,
         size: 10,
