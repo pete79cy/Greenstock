@@ -32,7 +32,7 @@ export default function Inventory() {
       plant.scientificName.toLowerCase().includes(searchTerm.toLowerCase());
     
     // Apply year filter
-    const matchesYear = yearFilter === "" || plant.plantingYear.toString() === yearFilter;
+    const matchesYear = yearFilter === "all" || plant.plantingYear.toString() === yearFilter;
     
     // Apply quantity filter
     let matchesQuantity = true;
@@ -124,7 +124,7 @@ export default function Inventory() {
                   <SelectValue placeholder="All Quantities" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Quantities</SelectItem>
+                  <SelectItem value="all">All Quantities</SelectItem>
                   <SelectItem value="low">Low Stock (&lt; 10)</SelectItem>
                   <SelectItem value="medium">Medium (10-50)</SelectItem>
                   <SelectItem value="high">High (&gt; 50)</SelectItem>

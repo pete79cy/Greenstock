@@ -26,7 +26,12 @@ export default function Dashboard() {
   });
 
   // Fetch metrics data
-  const { data: metrics = { totalPlants: 0, lowStockItems: 0, newAdditions: 0, plantCategories: 0 } } = useQuery({
+  const { data: metrics = { totalPlants: 0, lowStockItems: 0, newAdditions: 0, plantCategories: 0 } } = useQuery<{
+    totalPlants: number;
+    lowStockItems: number;
+    newAdditions: number;
+    plantCategories: number;
+  }>({
     queryKey: ["/api/metrics"],
   });
 
@@ -38,7 +43,7 @@ export default function Dashboard() {
       plant.scientificName.toLowerCase().includes(searchTerm.toLowerCase());
     
     // Apply year filter
-    const matchesYear = yearFilter === "" || plant.plantingYear.toString() === yearFilter;
+    const matchesYear = yearFilter === "all" || plant.plantingYear.toString() === yearFilter;
     
     // Apply quantity filter
     let matchesQuantity = true;
