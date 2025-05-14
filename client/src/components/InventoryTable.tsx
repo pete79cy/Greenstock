@@ -2,13 +2,14 @@ import { useState, useEffect } from "react";
 import { Plant } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Edit, Trash2, ChevronLeft, ChevronRight, ArrowUpDown } from "lucide-react";
+import { Edit, Trash2, ChevronLeft, ChevronRight, ArrowUpDown, PlusCircle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
+import { AddStockModal } from "@/components/AddStockModal";
 
 interface InventoryTableProps {
   plants: Plant[];
@@ -30,6 +31,8 @@ export default function InventoryTable({
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [currentPage, setCurrentPage] = useState(1);
   const [isMobileView, setIsMobileView] = useState(window.innerWidth < 768);
+  const [selectedPlant, setSelectedPlant] = useState<Plant | null>(null);
+  const [isAddStockModalOpen, setIsAddStockModalOpen] = useState(false);
   const itemsPerPage = 10;
 
   // Handle responsive view
