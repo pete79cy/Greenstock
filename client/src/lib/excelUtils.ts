@@ -5,23 +5,40 @@ import { Plant } from "@shared/schema";
  * Read Excel file and convert to plants array
  */
 export async function readExcelFile(file: File): Promise<any[]> {
+  console.log("Reading Excel file:", file.name, "Size:", file.size, "Type:", file.type);
+  
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     
     reader.onload = (e) => {
       try {
+        console.log("Excel file read successful");
         const data = e.target?.result;
         const workbook = XLSX.read(data, { type: "binary" });
+        
+        console.log("Excel sheet names:", workbook.SheetNames);
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
+        
+        // Get the data as JSON
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        
+        // Log information to help debug the structure
+        console.log("Excel rows found:", jsonData.length);
+        if (jsonData.length > 0) {
+          console.log("Excel first row:", jsonData[0]);
+          console.log("Excel column names:", Object.keys(jsonData[0]));
+        }
+        
         resolve(jsonData);
       } catch (error) {
+        console.error("Excel parsing error:", error);
         reject(error);
       }
     };
     
     reader.onerror = (error) => {
+      console.error("FileReader error:", error);
       reject(error);
     };
     

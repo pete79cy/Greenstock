@@ -8,6 +8,11 @@ import { fromZodError } from "zod-validation-error";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 
+// Define a type for the request with file
+interface MulterRequest extends Request {
+  file?: Express.Multer.File;
+}
+
 // Configure multer for file uploads
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -108,7 +113,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Import plants from Excel
-  app.post("/api/plants/import", upload.single("file"), async (req: Request, res: Response) => {
+  app.post("/api/plants/import", upload.single("file"), async (req: MulterRequest, res: Response) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
@@ -118,7 +123,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      const data = XLSX.utils.sheet_to_json(worksheet);
+      
+      // Define a type for Excel row data
+      type ExcelRow = Record<string, string | number | null | undefined>;
+      
+      const data = XLSX.utils.sheet_to_json(worksheet) as ExcelRow[];
 
       console.log("Excel import data preview:", data.slice(0, 2));
 
@@ -135,13 +144,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log("First row structure:", JSON.stringify(row));
         }
 
-        // Check for column keys with different capitalizations and formats
-        const nameValue = row.Name || row.name || row.NAME || row["Plant Name"] || row["PLANT NAME"] || null;
-        const scientificNameValue = row.ScientificName || row["Scientific Name"] || row.scientificName || 
-                              row["SCIENTIFIC NAME"] || row.scientific_name || null;
-        const yearValue = row.PlantingYear || row["Planting Year"] || row.plantingYear || row.YEAR || 
-                    row["PLANTING YEAR"] || row.planting_year || null;
-        const quantityValue = row.Quantity || row.quantity || row.QUANTITY || row.count || row.COUNT || null;
+        // Extract and normalize field values with type safety
+        const getValue = (fieldNames: string[]): string | number | null => {
+          for (const field of fieldNames) {
+            if (row[field] !== undefined && row[field] !== null) {
+              return row[field] as string | number;
+            }
+          }
+          return null;
+        };
+
+        // Get values using the helper function
+        const nameValue = getValue([
+          'Name', 'name', 'NAME', 'Plant Name', 'PLANT NAME', 'plant_name'
+        ]);
+        
+        const scientificNameValue = getValue([
+          'ScientificName', 'Scientific Name', 'scientificName', 
+          'SCIENTIFIC NAME', 'scientific_name'
+        ]);
+        
+        const yearValue = getValue([
+          'PlantingYear', 'Planting Year', 'plantingYear', 'YEAR',
+          'PLANTING YEAR', 'planting_year'
+        ]);
+        
+        const quantityValue = getValue([
+          'Quantity', 'quantity', 'QUANTITY', 'count', 'COUNT'
+        ]);
 
         // Skip rows with missing essential data
         if (!nameValue || nameValue === "") {
@@ -151,19 +181,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         const plantData = {
-          name: String(nameValue),
-          scientificName: String(scientificNameValue || "Unknown"),
-          plantingYear: yearValue ? parseInt(String(yearValue)) : new Date().getFullYear(),
-          quantity: quantityValue ? parseInt(String(quantityValue)) : 0
+          name: String(nameValue).trim(),
+          scientificName: scientificNameValue ? String(scientificNameValue).trim() : "Unknown",
+          plantingYear: yearValue !== null ? parseInt(String(yearValue)) : new Date().getFullYear(),
+          quantity: quantityValue !== null ? parseInt(String(quantityValue)) : 0
         };
 
         // Ensure numbers are valid
         if (isNaN(plantData.plantingYear)) plantData.plantingYear = new Date().getFullYear();
         if (isNaN(plantData.quantity)) plantData.quantity = 0;
-
-        // Trim any whitespace
-        plantData.name = plantData.name.trim();
-        plantData.scientificName = plantData.scientificName.trim();
 
         const validationResult = insertPlantSchema.safeParse(plantData);
         
