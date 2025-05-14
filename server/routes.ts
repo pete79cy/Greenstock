@@ -519,16 +519,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("Will exclude plants with zero quantity from the report");
       }
       
-      // Get all plants 
-      let plants = await storage.getAllPlants();
+      // Get all plant views with their inventory entries
+      const plantViews = await storage.getAllPlantViews();
       
-      // Filter out plants with zero quantity if requested
-      if (excludeZero) {
-        plants = plants.filter(plant => plant.quantity > 0);
+      // Create flattened entries for the report
+      let flattenedEntries: Array<{
+        name: string;
+        scientificName: string;
+        plantingYear: number;
+        quantity: number;
+      }> = [];
+      
+      // Flatten the plant views into individual entries
+      plantViews.forEach(plantView => {
+        // Debug log for American Beech
+        if (plantView.name === 'American Beech') {
+          console.log(`American Beech inventory entries: ${JSON.stringify(plantView.inventoryEntries)}`);
+        }
+        
+        plantView.inventoryEntries.forEach(entry => {
+          // Filter out zero quantities if requested
+          if (!excludeZero || entry.quantity > 0) {
+            flattenedEntries.push({
+              name: plantView.name,
+              scientificName: plantView.scientificName,
+              plantingYear: entry.plantingYear,
+              quantity: entry.quantity
+            });
+          }
+        });
+      });
+      
+      // Log flattened entries count and some samples
+      console.log(`Total flattened entries: ${flattenedEntries.length}`);
+      if (flattenedEntries.length > 0) {
+        console.log(`Sample entry: ${JSON.stringify(flattenedEntries[0])}`);
       }
       
-      // Sort plants: primary sort by name, secondary sort by planting year
-      const sortedPlants = [...plants].sort((a, b) => {
+      // Sort flattened entries: primary sort by name, secondary sort by planting year
+      const sortedPlants = [...flattenedEntries].sort((a, b) => {
         // First sort by name alphabetically
         const nameComparison = a.name.localeCompare(b.name);
         
@@ -540,6 +569,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Otherwise, sort by name
         return nameComparison;
       });
+      
+      // Log American Beech entries in the sorted plants
+      const americanBeechEntries = sortedPlants.filter(plant => plant.name === 'American Beech');
+      console.log(`American Beech entries in sorted plants: ${JSON.stringify(americanBeechEntries)}`);
       
       // --- Load Custom Font ---
       // Construct the path to the font file
