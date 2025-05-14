@@ -455,82 +455,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const plants = await storage.getAllPlants();
       const sortedPlants = [...plants].sort((a, b) => a.name.localeCompare(b.name));
       
-      // Create a new PDF document in landscape orientation
-      const doc = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4'
-      }) as any;
+      // Create a new PDF document
+      const doc = new jsPDF() as any;
       
-      // Add report title in Greek
-      doc.setFontSize(16);
-      doc.text("ΔΗΛΩΣΗ ΚΑΛΛΙΕΡΓΕΙΑΣ (Κατάσταση Φυτών)", 14, 15);
+      // Add report title
+      doc.setFontSize(18);
+      doc.text("ΔΗΛΩΣΗ ΚΑΛΛΙΕΡΓΕΙΑΣ", 14, 22);
       
-      // Add generation date
-      doc.setFontSize(10);
-      doc.text(`Ημερομηνία: ${new Date().toLocaleDateString()}`, 14, 22);
+      // Add date
+      doc.setFontSize(12);
+      doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
       
-      // Create table column headers (Greek format)
+      // Create table data
       const tableColumn = [
-        "A/A",                          // Serial number
-        "Τοποθεσία",                    // Location
-        "Φύλλο Σχέδιο",                 // Plan Sheet
-        "Αρ. τεμαχίου",                 // Plot Number
-        "Ιδιοκτησιακό Καθεστώς",        // Ownership Status
-        "Αποδεικτικό Έγγραφο",          // Proof Document
-        "Είδος Καλλιέργειας",           // Plant Type (Name)
-        "Έκταση (δεκάρια)",             // Area
-        "Έτος Φύτευσης",                // Planting Year
-        "Συνολ. Αρ. Δέντρων/Θάμνων"     // Total Number of Trees/Bushes (Quantity)
+        "A/A",
+        "Είδος Καλλιέργειας",
+        "Έτος Φύτευσης",
+        "Συνολ. Αρ. Δέντρων"
       ];
       
-      // Create table rows with data
       const tableRows = sortedPlants.map((plant, index) => [
-        (index + 1).toString(),     // Serial number
-        "",                         // Location (not available)
-        "",                         // Plan Sheet (not available)
-        "",                         // Plot Number (not available)
-        "",                         // Ownership Status (not available)
-        "",                         // Proof Document (not available)
-        plant.name,                 // Plant Type (Name)
-        "",                         // Area (not available)
-        plant.plantingYear.toString(), // Planting Year
-        plant.quantity.toString()   // Total Number (Quantity)
+        (index + 1).toString(),
+        plant.name,
+        plant.plantingYear.toString(),
+        plant.quantity.toString()
       ]);
       
-      // Add table to document with Greek-friendly styling
-      // Use the imported autoTable
-      (doc as any).autoTable({
+      // Add table to document
+      autoTable(doc, {
         head: [tableColumn],
         body: tableRows,
-        startY: 30,
+        startY: 40,
         theme: 'grid',
-        styles: { 
-          fontSize: 9,
-          cellPadding: 2,
-        },
-        headStyles: { 
-          fillColor: [76, 175, 80],  // Green color for header
-          textColor: [255, 255, 255],
-          fontStyle: 'bold'
-        },
-        columnStyles: {
-          0: { cellWidth: 10 },      // A/A - narrow
-          6: { cellWidth: 50 },      // Plant name - wider
-          8: { cellWidth: 20 },      // Planting year 
-          9: { cellWidth: 30 },      // Quantity
-        }
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [46, 125, 50] }
       });
       
-      // Add footer with explanatory note
-      const pageCount = doc.internal.getNumberOfPages();
-      doc.setPage(pageCount);
-      doc.setFontSize(8);
-      doc.setTextColor(100);
-      const pageHeight = doc.internal.pageSize.height;
-      doc.text("Σημείωση: Αυτή η αναφορά είναι μια προσομοίωση του επίσημου εντύπου 'ΔΗΛΩΣΗ ΚΑΛΛΙΕΡΓΕΙΑΣ'.", 14, pageHeight - 10);
-      
-      // Set response headers for PDF download
+      // Set response headers
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", "attachment; filename=cultivation-declaration.pdf");
       
