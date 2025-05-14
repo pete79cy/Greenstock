@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -6,18 +6,50 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
 import Inventory from "@/pages/Inventory";
+import Login from "@/pages/Login";
+import Register from "@/pages/Register";
 import Layout from "@/components/Layout";
 import { ThemeProvider } from "next-themes";
+import { useAuth } from "@/hooks/useAuth";
+
+// Protected route component
+function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  const [, setLocation] = useLocation();
+  
+  // While checking authentication status, we can return a loading state or null
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+  }
+  
+  // If not authenticated, redirect to login
+  if (!isAuthenticated) {
+    return <Redirect to="/login" />;
+  }
+  
+  // If authenticated, render the component
+  return <Component />;
+}
 
 function Router() {
   return (
-    <Layout>
-      <Switch>
-        <Route path="/" component={Dashboard} />
-        <Route path="/inventory" component={Inventory} />
-        <Route component={NotFound} />
-      </Switch>
-    </Layout>
+    <Switch>
+      <Route path="/login" component={Login} />
+      <Route path="/register" component={Register} />
+      
+      {/* Protected routes */}
+      <Route path="/">
+        {() => (
+          <Layout>
+            <Switch>
+              <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
+              <Route path="/inventory" component={() => <ProtectedRoute component={Inventory} />} />
+              <Route component={NotFound} />
+            </Switch>
+          </Layout>
+        )}
+      </Route>
+    </Switch>
   );
 }
 
