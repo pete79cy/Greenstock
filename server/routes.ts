@@ -29,18 +29,21 @@ const upload = multer({
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Configure CORS for handling cross-origin requests in production
-  app.use(cors({
-    origin: function(origin, callback) {
+  const corsOptions = {
+    origin: function(origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
       // Allow requests with no origin (like mobile apps, curl, or postman requests)
       if (!origin) return callback(null, true);
-      // Allow all domains in dev and specific domains in production
-      if (process.env.NODE_ENV === 'development') {
+      
+      // Allow all domains in dev
+      if (process.env.NODE_ENV !== 'production') {
         return callback(null, true);
       }
+      
       // In production, allow requests from Replit domains or your custom domains
       const allowedDomains = [
         /\.replit\.app$/,
         /\.repl\.co$/,
+        /\.replit\.dev$/,
         // Add any other domains you might deploy to
       ];
       
@@ -48,13 +51,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (allowed) {
         callback(null, true);
       } else {
-        callback(new Error('Not allowed by CORS'), false);
+        console.warn(`CORS blocked request from origin: ${origin}`);
+        callback(null, false);
       }
     },
-    credentials: true, // Important for cookies/auth sessions
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-  }));
+    credentials: true, // Essential for cookies/auth sessions
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['Set-Cookie'],
+    // Preflighted requests are valid for 24 hours
+    maxAge: 86400,
+    // Pass the CORS preflight response to the next handler
+    preflightContinue: false,
+    // Return 204 for preflight requests
+    optionsSuccessStatus: 204
+  };
+  
+  app.use(cors(corsOptions));
   
   // Configure session and authentication
   configureSession(app);

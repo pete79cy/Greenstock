@@ -66,9 +66,13 @@ export function configureSession(app: any) {
       saveUninitialized: false,
       cookie: { 
         maxAge: SESSION_MAX_AGE,
+        // In production, cookies must be secure for sameSite=none to work
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+        // Allow cross-site cookies for production deployment
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        // Ensure cookies work across subdomains if needed
+        domain: process.env.NODE_ENV === 'production' ? undefined : undefined
       }
     })
   );
