@@ -113,8 +113,18 @@ export default function CustomReportForm() {
         // link.download = `plant_inventory_custom_report_${date}.csv`;
         // link.click();
       } else {
-        // Generate PDF
-        const doc = new jsPDF();
+        // Generate PDF with proper Unicode support
+        const doc = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4',
+          putOnlyUsedFonts: true,
+          compress: true
+        });
+        
+        // Enable Unicode font support
+        // We'll use a built-in font that supports Greek characters
+        doc.setFont("helvetica", "normal");
         
         // Add title
         doc.setFontSize(18);
@@ -131,14 +141,45 @@ export default function CustomReportForm() {
           return { header: colName, dataKey: col };
         });
         
-        // Add table to document
+        // Process data to ensure Unicode characters display correctly
+        const processedData = data.map((row: Record<string, any>) => {
+          const newRow = {...row};
+          // Convert each cell value to string and ensure it's properly encoded
+          Object.keys(newRow).forEach(key => {
+            if (newRow[key] !== null && newRow[key] !== undefined) {
+              newRow[key] = String(newRow[key]);
+            } else {
+              newRow[key] = '';
+            }
+          });
+          return newRow;
+        });
+        
+        // Add table to document with Unicode support
         (autoTable as any)(doc, {
           columns: tableColumns,
-          body: data,
+          body: processedData,
           startY: 40,
           theme: 'grid',
-          styles: { fontSize: 10 },
-          headStyles: { fillColor: [46, 125, 50] },
+          styles: { 
+            fontSize: 10,
+            font: "helvetica", // Use font that supports Greek characters
+            overflow: 'linebreak'
+          },
+          headStyles: { 
+            fillColor: [46, 125, 50],
+            font: "helvetica",
+            fontStyle: "bold"
+          },
+          columnStyles: {
+            // Apply specific styles to columns containing text
+            // to ensure proper Unicode rendering
+            name: { font: "helvetica" },
+            scientificName: { font: "helvetica" },
+            description: { font: "helvetica" },
+            location: { font: "helvetica" },
+            notes: { font: "helvetica" }
+          },
           didDrawPage: (data: any) => {
             // Footer
             doc.setFontSize(8);

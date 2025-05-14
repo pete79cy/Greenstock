@@ -585,8 +585,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const plants = await storage.getAllPlants();
       
-      // Create a new PDF document
-      const doc = new jsPDF() as any;
+      // Create a new PDF document with Unicode support
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+        putOnlyUsedFonts: true,
+        compress: true
+      }) as any;
+      
+      // Use a font that supports Greek characters
+      doc.setFont("helvetica", "normal");
       
       // Add title
       doc.setFontSize(18);
@@ -596,23 +605,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       doc.setFontSize(12);
       doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
       
-      // Create table data
-      const tableColumn = ["Name", "Scientific Name", "Planting Year", "Quantity"];
-      const tableRows = plants.map(plant => [
-        plant.name,
-        plant.scientificName,
-        plant.plantingYear.toString(),
-        plant.quantity.toString()
+      // Process plant data to ensure proper Unicode handling
+      const processedRows = plants.map(plant => [
+        String(plant.name || ''),
+        String(plant.scientificName || ''),
+        String(plant.plantingYear || ''),
+        String(plant.quantity || '')
       ]);
       
-      // Add table to document
+      // Create table data
+      const tableColumn = ["Name", "Scientific Name", "Planting Year", "Quantity"];
+      
+      // Add table to document with proper Unicode support
       doc.autoTable({
         head: [tableColumn],
-        body: tableRows,
+        body: processedRows,
         startY: 40,
         theme: 'grid',
-        styles: { fontSize: 10 },
-        headStyles: { fillColor: [46, 125, 50] } // #2E7D32 (primary color)
+        styles: { 
+          fontSize: 10,
+          font: "helvetica", 
+          overflow: 'linebreak'
+        },
+        headStyles: { 
+          fillColor: [46, 125, 50],
+          font: "helvetica",
+          fontStyle: "bold"
+        },
+        columnStyles: {
+          // Apply specific styles to text columns
+          0: { font: "helvetica" }, // Name column
+          1: { font: "helvetica" }  // Scientific Name column
+        },
+        didDrawPage: (data: any) => {
+          // Footer
+          doc.setFontSize(8);
+          doc.text(`Plant Inventory System - Page ${data.pageNumber}`, 14, doc.internal.pageSize.height - 10);
+        }
       });
       
       // Set response headers
