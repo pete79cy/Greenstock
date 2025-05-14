@@ -1,5 +1,7 @@
 import { plants, type Plant, type InsertPlant, type UpdatePlant } from "@shared/schema";
 import { users, type User, type InsertUser } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 // Modify the interface with CRUD methods for plants
 export interface IStorage {
@@ -16,137 +18,141 @@ export interface IStorage {
   deletePlant(id: number): Promise<boolean>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private plantsData: Map<number, Plant>;
-  private userCurrentId: number;
-  private plantCurrentId: number;
-
-  constructor() {
-    this.users = new Map();
-    this.plantsData = new Map();
-    this.userCurrentId = 1;
-    this.plantCurrentId = 1;
-    
-    // Add some initial plant data
-    this.seedInitialPlantData();
-  }
-
+export class DatabaseStorage implements IStorage {
   // User methods
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.userCurrentId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
     return user;
   }
 
   // Plant methods
   async getAllPlants(): Promise<Plant[]> {
-    return Array.from(this.plantsData.values());
+    return await db.select().from(plants);
   }
 
   async getPlant(id: number): Promise<Plant | undefined> {
-    return this.plantsData.get(id);
+    const [plant] = await db.select().from(plants).where(eq(plants.id, id));
+    return plant || undefined;
   }
 
   async createPlant(insertPlant: InsertPlant): Promise<Plant> {
-    const id = this.plantCurrentId++;
     const now = new Date();
-    
-    const plant: Plant = { 
-      ...insertPlant, 
-      id,
-      createdAt: now,
-      updatedAt: now
-    };
-    
-    this.plantsData.set(id, plant);
+    const [plant] = await db
+      .insert(plants)
+      .values({
+        ...insertPlant,
+        createdAt: now,
+        updatedAt: now
+      })
+      .returning();
     return plant;
   }
 
   async updatePlant(updatePlant: UpdatePlant): Promise<Plant | undefined> {
-    const { id } = updatePlant;
-    const existingPlant = this.plantsData.get(id);
+    const { id, ...data } = updatePlant;
+    if (!id) return undefined;
     
-    if (!existingPlant) {
-      return undefined;
-    }
+    // Drizzle requires the condition to compare numeric ID in a specific way
+    const result = await db
+      .update(plants)
+      .set({
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(eq(plants.id, id))
+      .returning();
     
-    const updatedPlant: Plant = {
-      ...existingPlant,
-      ...updatePlant,
-      updatedAt: new Date()
-    };
-    
-    this.plantsData.set(id, updatedPlant);
-    return updatedPlant;
+    return result[0] || undefined;
   }
 
   async deletePlant(id: number): Promise<boolean> {
-    if (!this.plantsData.has(id)) {
-      return false;
-    }
+    const result = await db
+      .delete(plants)
+      .where(eq(plants.id, id))
+      .returning({ id: plants.id });
     
-    return this.plantsData.delete(id);
+    return result.length > 0;
   }
 
-  // Seed some initial plant data for demonstration
-  private seedInitialPlantData() {
-    const initialPlants: InsertPlant[] = [
-      {
-        name: "Silver Maple",
-        scientificName: "Acer saccharinum",
-        plantingYear: 2022,
-        quantity: 85
-      },
-      {
-        name: "Japanese Cherry",
-        scientificName: "Prunus serrulata",
-        plantingYear: 2023,
-        quantity: 32
-      },
-      {
-        name: "Blue Spruce",
-        scientificName: "Picea pungens",
-        plantingYear: 2022,
-        quantity: 8
-      },
-      {
-        name: "American Beech",
-        scientificName: "Fagus grandifolia",
-        plantingYear: 2021,
-        quantity: 45
-      },
-      {
-        name: "Red Oak",
-        scientificName: "Quercus rubra",
-        plantingYear: 2021,
-        quantity: 62
-      }
-    ];
+  // Function to seed initial plant data if needed
+  async seedInitialPlantDataIfNeeded() {
+    try {
+      const allPlants = await this.getAllPlants();
+      if (allPlants.length === 0) {
+        const initialPlants: InsertPlant[] = [
+          {
+            name: "Silver Maple",
+            scientificName: "Acer saccharinum",
+            plantingYear: 2022,
+            quantity: 85
+          },
+          {
+            name: "Japanese Cherry",
+            scientificName: "Prunus serrulata",
+            plantingYear: 2023,
+            quantity: 32
+          },
+          {
+            name: "Blue Spruce",
+            scientificName: "Picea pungens",
+            plantingYear: 2022,
+            quantity: 8
+          },
+          {
+            name: "American Beech",
+            scientificName: "Fagus grandifolia",
+            plantingYear: 2021,
+            quantity: 45
+          },
+          {
+            name: "Red Oak",
+            scientificName: "Quercus rubra",
+            plantingYear: 2021,
+            quantity: 62
+          }
+        ];
 
-    initialPlants.forEach(plant => {
-      const id = this.plantCurrentId++;
-      const now = new Date();
-      
-      this.plantsData.set(id, {
-        ...plant,
-        id,
-        createdAt: now,
-        updatedAt: now
-      });
-    });
+        const now = new Date();
+        for (const plant of initialPlants) {
+          await db.insert(plants).values({
+            ...plant,
+            createdAt: now,
+            updatedAt: now
+          });
+        }
+        console.log("Initial plant data seeded successfully");
+      }
+    } catch (error) {
+      console.error("Error seeding plant data:", error);
+      throw error;
+    }
   }
 }
 
-export const storage = new MemStorage();
+// Create a singleton instance of the storage
+const storage = new DatabaseStorage();
+
+// Seed initial data when the server starts
+(async () => {
+  try {
+    await storage.seedInitialPlantDataIfNeeded();
+    console.log("Database initialized successfully");
+  } catch (error) {
+    console.error("Error initializing database:", error);
+  }
+})();
+
+export { storage };
