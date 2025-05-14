@@ -1,0 +1,141 @@
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import * as XLSX from "xlsx";
+
+const columns = [
+  { label: "Plant Name", value: "name" },
+  { label: "Scientific Name", value: "scientificName" },
+  { label: "Description", value: "description" },
+  { label: "Planting Year", value: "plantingYear" },
+  { label: "Quantity", value: "quantity" },
+  { label: "Location", value: "location" },
+  { label: "Notes", value: "notes" },
+  { label: "Created At", value: "createdAt" }
+];
+
+// Mocked example data for demonstration
+const mockData = [
+  {
+    name: "Silver Maple",
+    scientificName: "Acer saccharinum",
+    description: "Fast-growing deciduous tree",
+    inventoryEntries: [
+      { plantingYear: 2022, quantity: 85, location: "North Area", notes: "", createdAt: "2022-01-01" },
+      { plantingYear: 2023, quantity: 35, location: "East Garden", notes: "", createdAt: "2023-01-01" }
+    ],
+    createdAt: "2021-12-01"
+  },
+  {
+    name: "Japanese Cherry",
+    scientificName: "Prunus serrulata",
+    description: "Spring blossoms tree",
+    inventoryEntries: [
+      { plantingYear: 2023, quantity: 32, location: "Central Garden", notes: "", createdAt: "2023-03-01" }
+    ],
+    createdAt: "2022-02-15"
+  }
+];
+
+export default function CustomReportForm() {
+  const [selectedColumns, setSelectedColumns] = useState([]);
+  const [filters, setFilters] = useState({
+    name: "",
+    plantingYear: "",
+    location: "",
+  });
+
+  const handleColumnToggle = (value) => {
+    setSelectedColumns((prev) =>
+      prev.includes(value)
+        ? prev.filter((col) => col !== value)
+        : [...prev, value]
+    );
+  };
+
+  const handleFilterChange = (field, value) => {
+    setFilters((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleExport = () => {
+    const filtered = [];
+    mockData.forEach((plant) => {
+      if (filters.name && !plant.name.toLowerCase().includes(filters.name.toLowerCase())) return;
+      plant.inventoryEntries.forEach((entry) => {
+        if (filters.plantingYear && entry.plantingYear.toString() !== filters.plantingYear) return;
+        if (filters.location && !entry.location.toLowerCase().includes(filters.location.toLowerCase())) return;
+
+        const row = {};
+        selectedColumns.forEach((col) => {
+          row[col] = col in plant ? plant[col] : entry[col];
+        });
+        filtered.push(row);
+      });
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(filtered);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Report");
+    XLSX.writeFile(workbook, "plant_inventory_report.xlsx");
+  };
+
+  return (
+    <Card className="max-w-3xl mx-auto mt-10 p-6">
+      <CardContent>
+        <h2 className="text-xl font-bold mb-4">Custom Report Options</h2>
+
+        <div className="mb-4 grid grid-cols-2 gap-4">
+          <div>
+            <Label>Plant Name</Label>
+            <Input
+              placeholder="e.g., Silver Maple"
+              value={filters.name}
+              onChange={(e) => handleFilterChange("name", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Label>Planting Year</Label>
+            <Input
+              type="number"
+              placeholder="e.g., 2023"
+              value={filters.plantingYear}
+              onChange={(e) => handleFilterChange("plantingYear", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Label>Location</Label>
+            <Input
+              placeholder="e.g., North Area"
+              value={filters.location}
+              onChange={(e) => handleFilterChange("location", e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <Label className="block mb-2">Select Columns</Label>
+          <div className="grid grid-cols-2 gap-2">
+            {columns.map((col) => (
+              <div key={col.value} className="flex items-center space-x-2">
+                <Checkbox
+                  checked={selectedColumns.includes(col.value)}
+                  onCheckedChange={() => handleColumnToggle(col.value)}
+                />
+                <span>{col.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <Button onClick={handleExport} disabled={selectedColumns.length === 0}>
+          Export Report
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
