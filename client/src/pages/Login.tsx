@@ -56,7 +56,14 @@ export default function Login() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen">
+    <div className="flex flex-col items-center justify-center min-h-screen">
+      <div className="w-full max-w-xs mb-8">
+        <img 
+          src="/assets/pakkoutis-logo.png" 
+          alt="Andreas Pakkoutis & Sons Ltd" 
+          className="w-full h-auto"
+        />
+      </div>
       <div className="w-full max-w-md p-4">
         <Card className="border-primary/20">
           <CardHeader className="space-y-1">

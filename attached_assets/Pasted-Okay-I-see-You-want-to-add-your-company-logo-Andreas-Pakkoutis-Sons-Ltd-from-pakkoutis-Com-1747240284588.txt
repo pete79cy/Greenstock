@@ -1,0 +1,245 @@
+Okay, I see\! You want to add your company logo, "Andreas Pakkoutis & Sons Ltd" (from `pakkoutis Company Logo.jpg`), to the login page (shown in `image_3bfd8b.png`).
+
+This is a great way to personalize the application and reinforce your brand identity right from the start.
+
+Here's how we can do this:
+
+1.  **Place the Logo in the Project**:
+
+      * The logo image (`pakkoutis Company Logo.jpg`) needs to be accessible to the web application. The standard place for static assets like images is the `public` directory in your project.
+      * I'll assume we can place the logo there, for example, as `public/logo.jpg` or `public/pakkoutis-logo.jpg` (it's good practice to use web-friendly filenames, e.g., lowercase, hyphens instead of spaces). Since you've uploaded it as "pakkoutis Company Logo.jpg", I'll refer to it by a simplified name like `pakkoutis-logo.jpg` for use in the code. You'll need to make sure the actual file is saved with this name in the `public` directory.
+
+2.  **Modify the Login Page Component**:
+
+      * We need to identify which file renders the login page. Since this is a new page/feature we haven't worked on yet, I'll assume we need to create a new route and component for it, for example, `src/pages/LoginPage.tsx`.
+      * If a login page already exists but wasn't in the "Allowed files" list before, I'll need to be able to edit it. For now, I'll proceed with creating a new `LoginPage.tsx` and the necessary route.
+      * In this component, we'll use an `<img>` HTML tag (or a Next.js `<Image>` component if it's a Next.js project and image optimization is desired) to display the logo.
+      * The logo will likely be placed above the "Login" title or the login form.
+      * We'll use Tailwind CSS for styling to ensure it looks good and is centered.
+
+**Plan:**
+
+1.  **Add Logo to `public` Directory**: I'll instruct you on this, as I can't directly add files to `public` myself. I'll refer to the logo as `/pakkoutis-logo.jpg` in the code, assuming it will be placed in `public/pakkoutis-logo.jpg`.
+2.  **Create Login Page Component (`src/pages/LoginPage.tsx` - New File)**:
+      * This will be a new page.
+      * It will replicate the form structure shown in your screenshot (Username, Password, Login button).
+      * It will include the company logo image above the form.
+3.  **Add Route for Login Page (in `src/App.tsx`)**:
+      * We'll add a new route (e.g., `/login`) in your main router setup in `src/App.tsx` that points to the new `LoginPage` component.
+
+Let's get your logo onto that login page\!
+
+\<lov-code\>
+\<lov-thinking\>
+The user wants to add their company logo to a login page.
+The login page itself might not exist yet as a distinct, editable file in the provided context. The screenshot `image_3bfd8b.png` shows a login UI. The logo is `pakkoutis Company Logo.jpg`.
+
+**Steps:**
+
+1.  **Image Placement (Instruction to User & Code Assumption):**
+      * The logo `pakkoutis Company Logo.jpg` needs to be placed in the `public` directory. I will rename it for web-friendliness in my code to `pakkoutis-logo.jpg`. The path in the code will be `/pakkoutis-logo.jpg`. The user must perform this file operation (placing and possibly renaming the image in `public/`).
+2.  **Create Login Page Component (`src/pages/LoginPage.tsx` - New File):**
+      * This component will render the login form structure (based on `image_3bfd8b.png`).
+      * It will include an `<img>` tag for `/pakkoutis-logo.jpg` styled with Tailwind CSS, placed above the form.
+      * I'll use `shadcn/ui` components (`Card`, `Input`, `Button`, `Label`) for the form elements to maintain consistency, assuming they are available (they are listed as forbidden to edit, implying they are installed).
+3.  **Add Route in `src/App.tsx`:**
+      * A new `<Route path="/login" element={<LoginPage />} />` will be added to the `BrowserRouter` in `src/App.tsx`.
+4.  **Styling:**
+      * The login page will be centered on the screen.
+      * The logo will be centered above the login card.
+
+**File to be created:** `src/pages/LoginPage.tsx`
+**File to be modified:** `src/App.tsx`
+
+This will create a new, dedicated login page with the company logo and a basic form structure. Actual login *functionality* (authentication logic) is not part of this request and would be a separate, more complex task.
+\</lov-thinking\>
+
+Okay, adding your company logo to the login page is a great way to make it feel more professional and branded\!
+
+Here's the plan:
+
+1.  **Prepare Your Logo**:
+
+      * You'll need to take your logo file (`pakkoutis Company Logo.jpg`) and place it into the `public` directory of your project.
+      * For best web practice, I recommend renaming it to something like `pakkoutis-logo.jpg` (all lowercase, use a hyphen instead of spaces). In the code below, I'll assume the logo will be available at `/pakkoutis-logo.jpg`.
+
+2.  **Create the Login Page**:
+
+      * I'll create a new file for your login page (`src/pages/LoginPage.tsx`).
+      * This page will display your logo centered above a login form (Username, Password, Login button), similar to the screenshot you provided.
+
+3.  **Set up the Route**:
+
+      * I'll add a new route (e.g., `/login`) in your main application file (`src/App.tsx`) so that when you navigate to `/login` in your browser, this new login page appears.
+
+Let's start by creating the `LoginPage.tsx` component.
+
+\<lov-write file\_path="src/pages/LoginPage.tsx"\>
+import { useState } from 'react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+
+const LoginPage = () =\> {
+const [username, setUsername] = useState('');
+const [password, setPassword] = useState('');
+const [isLoading, setIsLoading] = useState(false);
+const [error, setError] = useState\<string | null\>(null);
+
+const handleSubmit = async (event: React.FormEvent\<HTMLFormElement\>) =\> {
+event.preventDefault();
+setIsLoading(true);
+setError(null);
+console.log("Login attempt with:", { username, password });
+// Simulate API call for login
+// In a real app, you would make an API call here:
+// try {
+//   const response = await fetch('/api/auth/login', {
+//     method: 'POST',
+//     headers: { 'Content-Type': 'application/json' },
+//     body: JSON.stringify({ username, password }),
+//   });
+//   if (\!response.ok) {
+//     const errorData = await response.json();
+//     throw new Error(errorData.message || 'Login failed');
+//   }
+//   // Handle successful login (e.g., redirect, store token)
+//   console.log('Login successful');
+// } catch (err: any) {
+//   setError(err.message);
+//   console.error('Login error:', err);
+// } finally {
+//   setIsLoading(false);
+// }
+setTimeout(() =\> { // Simulating network delay
+if (username === "admin" && password === "password") {
+alert("Simulated Login Successful\!");
+// Here you would redirect or update auth state
+} else {
+setError("Invalid username or password (demo).");
+}
+setIsLoading(false);
+}, 1000);
+};
+
+return (
+\<div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4"\>
+\<div className="mb-8"\>
+{/\* IMPORTANT: Make sure your logo image is in the `public` directory.
+For example, if you named it `pakkoutis-logo.jpg` and placed it in `public/`,
+the src should be `/pakkoutis-logo.jpg`.
+Adjust the src path if your filename or location within public is different.
+\*/}
+\<img
+src="/pakkoutis-logo.jpg"
+alt="Andreas Pakkoutis & Sons Ltd Logo"
+className="h-32 w-auto md:h-40" // Adjust size as needed
+/\>
+\</div\>
+\<Card className="w-full max-w-md shadow-lg"\>
+\<CardHeader className="text-center"\>
+\<CardTitle className="text-2xl font-bold"\>Login\</CardTitle\>
+\<CardDescription\>Enter your credentials to access your account\</CardDescription\>
+\</CardHeader\>
+\<CardContent\>
+\<form onSubmit={handleSubmit} className="space-y-6"\>
+\<div className="space-y-2"\>
+\<Label htmlFor="username"\>Username\</Label\>
+\<Input
+id="username"
+type="text"
+placeholder="username"
+value={username}
+onChange={(e) =\> setUsername(e.target.value)}
+required
+disabled={isLoading}
+/\>
+\</div\>
+\<div className="space-y-2"\>
+\<Label htmlFor="password"\>Password\</Label\>
+\<Input
+id="password"
+type="password"
+placeholder="\*\*\*\*\*\*\*\*"
+value={password}
+onChange={(e) =\> setPassword(e.target.value)}
+required
+disabled={isLoading}
+/\>
+\</div\>
+{error && \<p className="text-sm text-red-600 text-center"\>{error}\</p\>}
+\<Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isLoading}\>
+{isLoading ? 'Logging in...' : 'Login'}
+\</Button\>
+\</form\>
+\</CardContent\>
+\<CardFooter className="text-center text-sm text-gray-600"\>
+\<p\>Contact administrator for access\</p\>
+\</CardFooter\>
+\</Card\>
+\</div\>
+);
+};
+
+export default LoginPage;
+\</lov-write\>
+
+Now, let's add a route to this new login page in your `src/App.tsx` file.
+
+\<lov-write file\_path="src/App.tsx"\>
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Index from "./pages/Index";
+import LoginPage from "./pages/LoginPage"; // Import the new LoginPage
+
+const queryClient = new QueryClient();
+
+const App = () =\> (
+\<QueryClientProvider client={queryClient}\>
+\<TooltipProvider\>
+\<Toaster /\>
+\<Sonner /\>
+\<BrowserRouter\>
+\<Routes\>
+\<Route path="/" element={\<Index /\>} /\>
+\<Route path="/login" element={\<LoginPage /\>} /\> {/\* Add new route for login */}
+{/* You can add more routes here later, e.g., for a dashboard after login \*/}
+\</Routes\>
+\</BrowserRouter\>
+\</TooltipProvider\>
+\</QueryClientProvider\>
+);
+
+export default App;
+\</lov-write\>
+
+A few important things:
+
+1.  **Logo File**:
+
+      * Please take your `pakkoutis Company Logo.jpg` file.
+      * Rename it to `pakkoutis-logo.jpg` (all lowercase, hyphens for spaces).
+      * Place this renamed file directly into the `public` folder at the root of your project. The code I've written expects it to be at `/pakkoutis-logo.jpg`.
+
+2.  **Login Functionality**: The login page I've created has the visual elements and a *simulated* login process (it will show "Simulated Login Successful\!" if you use "admin" and "password"). Real login authentication (connecting to a backend to verify users) is a more complex feature that we can work on separately if you need it.
+
+3.  **Navigation**: After these changes, you should be able to go to the `/login` URL in your application (e.g., `your-app-url/login`) to see the new login page with your logo.
+
+This will give you a branded login page\! Let me know how it looks once you've placed the logo file.
+\</lov-code\>
+
+I've set up a new login page for you that will display your company logo\!
+
+**Here’s what you need to do for the logo:**
+
+1.  Find your logo image file (`pakkoutis Company Logo.jpg`).
+2.  **Rename it** to `pakkoutis-logo.jpg` (all lowercase, with a hyphen instead of spaces).
+3.  Place this renamed `pakkoutis-logo.jpg` file directly into the **`public` folder** at the root of your project.
+
+Once you've done that, I've created a new page at `src/pages/LoginPage.tsx` which includes your logo above a login form. I've also updated `src/App.tsx` to add a route so you can access this page by going to the `/login` path in your application's URL.
+
+The login form itself is currently for display and has a simulated login; actual user authentication would be the next step if you need that functionality.
