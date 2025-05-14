@@ -10,6 +10,7 @@ import ImportModal from "@/components/ImportModal";
 import ExportDropdown from "@/components/ExportDropdown";
 import PlantModal from "@/components/PlantModal";
 import { Filter, Plus, Search, ChevronDown, ChevronUp } from "lucide-react";
+import useDebounce from "@/hooks/useDebounce";
 
 export default function Inventory() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -21,6 +22,9 @@ export default function Inventory() {
   const [isMobileView, setIsMobileView] = useState(window.innerWidth < 768);
   const [showFilters, setShowFilters] = useState(false);
   
+  // Apply debounce to search term to avoid frequent API calls
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
+  
   // Handle responsive view
   useEffect(() => {
     const handleResize = () => {
@@ -31,18 +35,21 @@ export default function Inventory() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Fetch plant data
+  // Fetch plant data with search parameter
   const { data: plants = [], isLoading, isError } = useQuery<Plant[]>({
-    queryKey: ["/api/plants"],
+    queryKey: ["/api/plants", debouncedSearchTerm],
+    queryFn: async () => {
+      const response = await fetch(`/api/plants${debouncedSearchTerm ? `?search=${encodeURIComponent(debouncedSearchTerm)}` : ''}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch plants');
+      }
+      return response.json();
+    },
   });
 
-  // Function to filter plants based on search term and filters
+  // Function to filter plants based on filters (year and quantity)
+  // Search filtering is now done on the server side
   const filteredPlants = plants.filter((plant) => {
-    // Apply search filter
-    const matchesSearch = searchTerm === "" || 
-      plant.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      plant.scientificName.toLowerCase().includes(searchTerm.toLowerCase());
-    
     // Apply year filter
     const matchesYear = yearFilter === "all" || plant.plantingYear.toString() === yearFilter;
     
@@ -56,7 +63,7 @@ export default function Inventory() {
       matchesQuantity = plant.quantity > 50;
     }
     
-    return matchesSearch && matchesYear && matchesQuantity;
+    return matchesYear && matchesQuantity;
   });
 
   const handleAddPlant = () => {

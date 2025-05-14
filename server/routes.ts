@@ -22,11 +22,26 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Get all plants
+  // Get all plants with optional search
   app.get("/api/plants", async (req: Request, res: Response) => {
     try {
+      const searchQuery = req.query.search as string | undefined;
+      
+      // Get all plants
       const plants = await storage.getAllPlants();
-      res.json(plants);
+      
+      // If search query is provided, filter plants on the server
+      if (searchQuery && searchQuery.trim() !== '') {
+        const normalizedQuery = searchQuery.toLowerCase().trim();
+        const filteredPlants = plants.filter(plant => 
+          plant.name.toLowerCase().includes(normalizedQuery) || 
+          (plant.scientificName && plant.scientificName.toLowerCase().includes(normalizedQuery))
+        );
+        res.json(filteredPlants);
+      } else {
+        // Return all plants if no search query
+        res.json(plants);
+      }
     } catch (error) {
       console.error("Error fetching plants:", error);
       res.status(500).json({ message: "Failed to fetch plants" });
