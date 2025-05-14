@@ -1,0 +1,193 @@
+You're right, that's an important detail for a cultivation declaration! If you have the same type of plant (e.g., "Lavender") but planted in different years (say, a batch from 2022 and another from 2023), the report should list these as separate line items, each with its respective planting year and quantity. Currently, it sounds like it might be grouping them or only showing one instance.
+To fix this, we need to adjust how the data is fetched and sorted for the PDF report. Specifically, we need to ensure that:
+ * The primary sort is by the plant's Name (alphabetically, as it is now).
+ * The secondary sort is by the Planting Year.
+This way, all entries for "Lavender" will appear together, and within that group, they will be further sorted by their planting year, ensuring each unique batch (Name + Planting Year) gets its own row in the report.
+This change will be made in the backend API endpoint that generates the PDF (src/pages/api/reports/cultivation-declaration.ts). Your current data structure (where each plant entry has its own name, plantingYear, and quantity) already supports this; we just need to refine the query.
+<lov-code>
+<lov-thinking>
+The user wants the PDF report to list each unique combination of plant name and planting year as a separate row. This means if "Rose" was planted in 2021 and again in 2022 (and these are distinct records in the database), they should both appear as separate line items in the report.
+The current schema for plantsTable (with id, name, scientificName, plantingYear, quantity) allows for such distinct records.
+The fix involves modifying the database query in src/pages/api/reports/cultivation-declaration.ts to include a secondary sort criterion.
+The current sorting is orderBy(asc(plantsTable.name)).
+It needs to be changed to orderBy(asc(plantsTable.name), asc(plantsTable.plantingYear)).
+The excludeZero functionality should still work correctly with this.
+The PDF generation loop iterates over each record fetched, so if the records are distinct by name and plantingYear in the fetched data, they will get their own rows.
+</lov-thinking>
+I'll update the data fetching part in your API file.
+<lov-write file_path="src/pages/api/reports/cultivation-declaration.ts">
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { db } from '@/server/db'; // Adjust path to your db setup
+import { plantsTable } from '@/server/db/schema'; // Adjust path to your schema
+import { asc, gt } from 'drizzle-orm'; // asc is already here, gt for excludeZero
+import { PDFDocument, rgb, PageSizes, PDFFont } from 'pdf-lib';
+import fs from 'fs';
+import path from 'path';
+const drawTextSafe = (
+page: any,
+text: any,
+x: number,
+y: number,
+font: PDFFont,
+size: number,
+maxWidth: number,
+color = rgb(0, 0, 0)
+) => {
+// ... (keep existing drawTextSafe function from previous step with truncation)
+let safeText = text === undefined || text === null ? '' : String(text);
+let textWidth = font.widthOfTextAtSize(safeText, size);
+if (textWidth > maxWidth && maxWidth > 0) {
+let truncatedText = '';
+for (let i = safeText.length; i > 0; i--) {
+truncatedText = safeText.substring(0, i) + '...';
+if (font.widthOfTextAtSize(truncatedText, size) <= maxWidth) {
+break;
+}
+}
+safeText = truncatedText;
+if (font.widthOfTextAtSize(safeText, size) > maxWidth) {
+safeText = safeText.substring(0, Math.floor(maxWidth / font.widthOfTextAtSize("...", size) * 3));
+}
+}
+page.drawText(safeText, { x, y, font, size, color });
+};
+export default async function handler(
+req: NextApiRequest,
+res: NextApiResponse
+) {
+if (req.method === 'GET') {
+const { excludeZero } = req.query;
+console.log(API: Cultivation Report. Exclude zero: ${excludeZero}. Adding secondary sort by planting year.);
+try {
+  const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansGreek-Regular.ttf');
+  let customFontBytes;
+  try {
+    customFontBytes = fs.readFileSync(fontPath);
+  } catch (fontError: any) {
+    console.error(`API: Failed to load font file at ${fontPath}. Error: ${fontError.message}`);
+    return res.status(500).json({ 
+      message: 'Failed to load font for PDF generation. Ensure font file is in public/fonts/.', 
+      error: `Font file not found: ${fontPath}.` 
+    });
+  }
+
+  // Base query builder
+  let queryBuilder = db.select().from(plantsTable);
+
+  // Conditionally add where clause for excluding zero quantities
+  if (excludeZero === 'true') {
+    console.log("API: Excluding plants with zero quantity.");
+    // @ts-ignore Drizzle's fluent API should handle this chaining.
+    queryBuilder = queryBuilder.where(gt(plantsTable.quantity, 0));
+  }
+  
+  // Fetch and sort data: primary sort by name, secondary sort by plantingYear
+  // @ts-ignore Drizzle's fluent API should handle this chaining.
+  const plantsData = await queryBuilder.orderBy(asc(plantsTable.name), asc(plantsTable.plantingYear));
+  
+  console.log(`API: Fetched ${plantsData.length} plants for the report (sorted by name, then year).`);
+
+  const pdfDoc = await PDFDocument.create();
+  const customFont = await pdfDoc.embedFont(customFontBytes);
+  
+  let page = pdfDoc.addPage(PageSizes.A4);
+  const { width, height } = page.getSize();
+  
+  const fontSize = 9;
+  const headerFontSize = 10;
+  const titleFontSize = 14;
+  const margin = 40;
+  let yPosition = height - margin - 20;
+
+  const reportTitle = "ΔΗΛΩΣΗ ΚΑΛΛΙΕΡΓΕΙΑΣ ΓΙΑ ΤΟ 2025";
+  const titleWidth = customFont.widthOfTextAtSize(reportTitle, titleFontSize);
+  page.drawText(reportTitle, {
+    x: (width - titleWidth) / 2,
+    y: yPosition,
+    font: customFont,
+    size: titleFontSize,
+    color: rgb(0, 0, 0),
+  });
+  yPosition -= (titleFontSize + 25);
+
+  const headers = [
+    { text: 'Α/Α', width: 35, xOffset: 5 },
+    { text: 'Name', width: 170, xOffset: 5 },
+    { text: 'Scientific Name', width: 170, xOffset: 5 },
+    { text: 'Year', width: 60, xOffset: 5 },
+    { text: 'Quantity', width: 60, xOffset: 5 },
+  ];
+
+  const rowHeight = 18;
+
+  const drawPageHeaders = (targetPage: any, currentY: number) => {
+    // ... (keep existing drawPageHeaders function)
+    let x = margin;
+    targetPage.drawLine({ start: { x: margin, y: currentY + 5 }, end: { x: width - margin, y: currentY + 5 }, thickness: 1, color: rgb(0,0,0) });
+    headers.forEach(header => {
+        drawTextSafe(targetPage, header.text, x + header.xOffset, currentY - headerFontSize + 2, customFont, headerFontSize, header.width - header.xOffset - 2, rgb(0,0,0));
+        x += header.width;
+    });
+    targetPage.drawLine({ start: { x: margin, y: currentY - rowHeight + 7 }, end: { x: width - margin, y: currentY - rowHeight + 7 }, thickness: 1, color: rgb(0,0,0) });
+    return currentY - rowHeight;
+  };
+  
+  yPosition = drawPageHeaders(page, yPosition + rowHeight);
+
+  plantsData.forEach((plant, index) => {
+    // ... (keep existing row drawing logic, including new page creation and header redraw)
+    if (yPosition < margin + rowHeight) {
+      page.drawLine({start: {x: margin, y: yPosition + 7}, end: {x: width-margin, y: yPosition + 7}, thickness: 0.5, color: rgb(0.7,0.7,0.7) });
+      page = pdfDoc.addPage(PageSizes.A4);
+      yPosition = height - margin - rowHeight - 10; 
+      yPosition = drawPageHeaders(page, yPosition + rowHeight);
+    }
+
+    let currentX = margin;
+    const rowData = [
+      { text: (index + 1).toString(), width: headers[0].width, xOffset: headers[0].xOffset },
+      { text: plant.name, width: headers[1].width, xOffset: headers[1].xOffset },
+      { text: plant.scientificName || '', width: headers[2].width, xOffset: headers[2].xOffset },
+      { text: plant.plantingYear?.toString() || '', width: headers[3].width, xOffset: headers[3].xOffset },
+      { text: plant.quantity.toString(), width: headers[4].width, xOffset: headers[4].xOffset },
+    ];
+
+    rowData.forEach(data => {
+      const cellContentMaxWidth = data.width - data.xOffset - 2; 
+      drawTextSafe(page, data.text, currentX + data.xOffset, yPosition - fontSize + 2 , customFont, fontSize, cellContentMaxWidth);
+      currentX += data.width;
+    });
+    page.drawLine({start: {x: margin, y: yPosition - rowHeight + 7}, end: {x: width-margin, y: yPosition -rowHeight + 7}, thickness: 0.5, color: rgb(0.7,0.7,0.7)});
+    yPosition -= rowHeight;
+  });
+
+  const pdfBytes = await pdfDoc.save();
+  const timestamp = new Date().toISOString().replace(/:/g, '-').slice(0, 19);
+  const filename = `declaration-cultivation-2025-${excludeZero === 'true' ? 'nozero-' : ''}${timestamp}.pdf`;
+
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.status(200).send(Buffer.from(pdfBytes));
+  console.log(`API: Cultivation Declaration Report sent. Excluded zero: ${excludeZero}, sorted by name then year.`);
+
+} catch (error: any) {
+  console.error('API: Error generating Cultivation Declaration PDF:', error);
+  res.status(500).json({ message: 'Failed to generate PDF report', error: error.message });
+}
+
+} else {
+res.setHeader('Allow', ['GET']);
+res.status(405).end(Method ${req.method} Not Allowed);
+}
+}
+</lov-write>
+The main change is in the database query:
+const plantsData = await queryBuilder.orderBy(asc(plantsTable.name), asc(plantsTable.plantingYear));
+This tells the database to first sort all plants alphabetically by their name, and then, for any plants that have the same name, sort them by their plantingYear in ascending order.
+The rest of the PDF generation logic remains the same, as it already iterates through each record fetched from the database and creates a new row for it. So, if your database contains distinct entries for the same plant type but with different planting years, they will now be listed separately and in order of their planting year within each plant type group.
+</lov-code>
+I've updated the report generation logic. Now, when you generate the "ΔΗΛΩΣΗ ΚΑΛΛΙΕΡΓΕΙΑΣ ΓΙΑ ΤΟ 2025" PDF:
+ * Plants will still be listed alphabetically by their Name.
+ * Within each group of plants that share the same name, they will be further sorted by their Planting Year (from oldest to newest).
+This means if you have, for example, "Rose" bushes planted in 2021 and more "Rose" bushes planted in 2023, they will now appear as distinct line items in the report under "Rose", with the 2021 batch listed before the 2023 batch. Each will show its respective quantity and other details.
+This should give you the clear breakdown per product and planting year that you're looking for!
