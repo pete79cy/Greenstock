@@ -8,8 +8,9 @@ import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useToast } from "@/hooks/use-toast";
-import { Download, FileText, File } from "lucide-react";
+import { Download, FileText, File, MoveVertical } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import SortableColumns from "./SortableColumns";
 
 const columns = [
   { label: "Plant Name", value: "name" },
@@ -34,13 +35,7 @@ export default function CustomReportForm() {
   const [exportFormat, setExportFormat] = useState<string>("excel");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleColumnToggle = (value: string) => {
-    setSelectedColumns((prev) =>
-      prev.includes(value)
-        ? prev.filter((col) => col !== value)
-        : [...prev, value]
-    );
-  };
+  // Column selection is now handled by the SortableColumns component
 
   const handleFilterChange = (field: string, value: string) => {
     setFilters((prev) => ({ ...prev, [field]: value }));
@@ -76,7 +71,7 @@ export default function CustomReportForm() {
         throw new Error('Failed to generate report data');
       }
 
-      const data = await response.json();
+      let data = await response.json();
       
       if (data.length === 0) {
         toast({
@@ -86,6 +81,18 @@ export default function CustomReportForm() {
         });
         setIsLoading(false);
         return;
+      }
+      
+      // Reorder data according to selected columns order
+      if (data.length > 0) {
+        // Create a new array with only the selected columns in the order they were selected
+        data = data.map((item: Record<string, any>) => {
+          const orderedItem: Record<string, any> = {};
+          selectedColumns.forEach((colName) => {
+            orderedItem[colName] = item[colName];
+          });
+          return orderedItem;
+        });
       }
 
       // Generate the report in the selected format
@@ -261,24 +268,17 @@ export default function CustomReportForm() {
         </div>
 
         <div className="mb-6">
-          <Label className="block mb-2">Select Columns</Label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {columns.map((col) => (
-              <div key={col.value} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`col-${col.value}`}
-                  checked={selectedColumns.includes(col.value)}
-                  onCheckedChange={() => handleColumnToggle(col.value)}
-                />
-                <label
-                  htmlFor={`col-${col.value}`}
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  {col.label}
-                </label>
-              </div>
-            ))}
+          <div className="flex items-center justify-between mb-2">
+            <Label className="block">Select and Arrange Columns</Label>
+            <div className="text-xs text-muted-foreground flex items-center gap-1">
+              <MoveVertical className="h-3 w-3" /> Drag to reorder
+            </div>
           </div>
+          <SortableColumns 
+            columns={columns} 
+            selectedColumns={selectedColumns} 
+            onSelectedColumnsChange={setSelectedColumns} 
+          />
         </div>
 
         <div className="mb-6">
