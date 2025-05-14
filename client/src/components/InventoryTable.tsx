@@ -422,12 +422,7 @@ export default function InventoryTable({
         </div>
       )}
       
-      {/* Add Stock Modal */}
-      <AddStockModal 
-        isOpen={isAddStockModalOpen}
-        onOpenChange={setIsAddStockModalOpen}
-        plant={selectedPlant}
-      />
+      {/* No need for duplicate modal, already included above */}
     </div>
   );
 }
