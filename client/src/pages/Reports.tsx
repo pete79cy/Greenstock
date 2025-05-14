@@ -3,11 +3,14 @@ import { Helmet } from "react-helmet";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, FileText } from "lucide-react";
+import { Download, FileText, BarChart } from "lucide-react";
+import CustomReportForm from "@/components/CustomReportForm";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Reports() {
   const [reportType, setReportType] = useState<string>("");
   const [year, setYear] = useState<string>(new Date().getFullYear().toString());
+  const [activeTab, setActiveTab] = useState<string>("standard");
   
   // Available years for selection
   const currentYear = new Date().getFullYear();
@@ -47,95 +50,108 @@ export default function Reports() {
           </div>
         </div>
         
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {/* Excel Export Card */}
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Excel Report
-              </CardTitle>
-              <CardDescription>
-                Export your complete inventory as an Excel spreadsheet
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button 
-                className="w-full" 
-                onClick={() => {
-                  setReportType("excel");
-                  window.open("/api/plants/export/excel", "_blank");
-                }}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Download Excel
-              </Button>
-            </CardContent>
-          </Card>
+        <Tabs defaultValue="standard" value={activeTab} onValueChange={setActiveTab} className="mb-6">
+          <TabsList className="mb-4">
+            <TabsTrigger value="standard">Standard Reports</TabsTrigger>
+            <TabsTrigger value="custom">Custom Report</TabsTrigger>
+          </TabsList>
           
-          {/* PDF Export Card */}
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                PDF Report
-              </CardTitle>
-              <CardDescription>
-                Generate a PDF report of your plant inventory
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button 
-                className="w-full" 
-                onClick={() => {
-                  setReportType("pdf");
-                  window.open("/api/plants/export/pdf", "_blank");
-                }}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Download PDF
-              </Button>
-            </CardContent>
-          </Card>
+          <TabsContent value="standard">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {/* Excel Export Card */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Excel Report
+                  </CardTitle>
+                  <CardDescription>
+                    Export your complete inventory as an Excel spreadsheet
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button 
+                    className="w-full" 
+                    onClick={() => {
+                      setReportType("excel");
+                      window.open("/api/plants/export/excel", "_blank");
+                    }}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Download Excel
+                  </Button>
+                </CardContent>
+              </Card>
+              
+              {/* PDF Export Card */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    PDF Report
+                  </CardTitle>
+                  <CardDescription>
+                    Generate a PDF report of your plant inventory
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button 
+                    className="w-full" 
+                    onClick={() => {
+                      setReportType("pdf");
+                      window.open("/api/plants/export/pdf", "_blank");
+                    }}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Download PDF
+                  </Button>
+                </CardContent>
+              </Card>
+              
+              {/* Cultivation Declaration Card */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Cultivation Declaration
+                  </CardTitle>
+                  <CardDescription>
+                    Generate a cultivation declaration PDF for official purposes
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Select Year</label>
+                    <Select value={year} onValueChange={setYear}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {years.map((y) => (
+                          <SelectItem key={y} value={y}>{y}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button 
+                    className="w-full" 
+                    onClick={() => {
+                      setReportType("cultivation");
+                      window.open(`/api/plants/export/cultivation-declaration?year=${year}`, "_blank");
+                    }}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Generate Declaration
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
           
-          {/* Cultivation Declaration Card */}
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Cultivation Declaration
-              </CardTitle>
-              <CardDescription>
-                Generate a cultivation declaration PDF for official purposes
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Select Year</label>
-                <Select value={year} onValueChange={setYear}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select year" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {years.map((y) => (
-                      <SelectItem key={y} value={y}>{y}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button 
-                className="w-full" 
-                onClick={() => {
-                  setReportType("cultivation");
-                  window.open(`/api/plants/export/cultivation-declaration?year=${year}`, "_blank");
-                }}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Generate Declaration
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+          <TabsContent value="custom">
+            <CustomReportForm />
+          </TabsContent>
+        </Tabs>
       </div>
     </>
   );

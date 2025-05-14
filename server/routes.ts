@@ -917,6 +917,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Custom report API endpoint
+  app.post("/api/reports/custom", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { filters, selectedColumns } = req.body;
+      
+      // Get all plant views for detailed data
+      const plantViews = await storage.getAllPlantViews();
+      
+      // Prepare the result array
+      const result: Array<Record<string, any>> = [];
+      
+      // Process each plant and its inventory entries based on filters
+      plantViews.forEach(plant => {
+        // Filter by plant name if specified
+        if (filters.name && !plant.name.toLowerCase().includes(filters.name.toLowerCase())) {
+          return;
+        }
+        
+        // Process inventory entries
+        plant.inventoryEntries.forEach(entry => {
+          // Filter by planting year if specified
+          if (filters.plantingYear && entry.plantingYear.toString() !== filters.plantingYear) {
+            return;
+          }
+          
+          // Filter by location if specified
+          if (filters.location && (!entry.location || !entry.location.toLowerCase().includes(filters.location.toLowerCase()))) {
+            return;
+          }
+          
+          // Create a row with selected columns
+          const row: Record<string, any> = {};
+          
+          // Add selected columns to the row
+          selectedColumns.forEach((column: string) => {
+            if (column in plant) {
+              row[column] = plant[column as keyof typeof plant];
+            } else if (column in entry) {
+              row[column] = entry[column as keyof typeof entry];
+            }
+          });
+          
+          result.push(row);
+        });
+      });
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating custom report:", error);
+      res.status(500).json({ message: "Failed to generate custom report", error: (error as Error).message });
+    }
+  });
+
   // Get counts for dashboard metrics
   app.get("/api/metrics", isAuthenticated, async (req: Request, res: Response) => {
     try {
