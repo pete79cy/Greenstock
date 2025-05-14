@@ -1,0 +1,261 @@
+Okay, I've reviewed the PDF (`cultivation-declaration-2.pdf`) you attached. It seems like the Greek font is now working for the main header "ΔΗΛΩΣΗ ΚΑΛΛΙΕΡΓΕΙΑΣ ΓΙΑ ΤΟ 2025" and for some of the plant names\! That's a good step forward.
+
+However, I can see there are still some data alignment or parsing issues within the table content, specifically related to how the data is being split or interpreted, particularly in the "Scientific Name" and "Year" columns for certain rows.
+
+Looking at the PDF:
+
+  * **Row 8 "GoldCrest"**: The Scientific Name seems to be "Cupressus macrocarpa 'Gold" and the Year is "Cre25". It looks like "Crest" from Goldcrest might have been incorrectly split/parsed into the Year column.
+  * **Row 31 (Page 2) "Αλαίαγνος ή Ελαίαγνος Πράσινο"**: The name column seems empty, and the full name including "Ęlaeagnus Ebbingei" appears in the Scientific Name column.
+  * **Row 33 (Page 2) "Αλτερναθέρα Purple Knight"**: The Scientific Name "Alternanthera dentata 'Purple Kat'" seems to have a typo ('Kat' instead of 'Knight'), and the Year is missing.
+  * **Row 38 (Page 2) "Αρεκάστρουμ"**: The Scientific Name "Syagrus romanzoffiana, the que2025alm" looks like "queen palm" with the year "2025" embedded. The Year column is empty.
+  * Similar issues might be present for other rows where parts of the scientific name or common name are mixed with the year, or where data seems to be shifted between columns. For example, row 44 (page 2) "Αρχοντοφοίνικας cunninghamiana..."
+
+These types of errors usually stem from:
+
+1.  **Data Entry Issues in the Source**: The original data in your database for these specific plants might have these typos, extra spaces, or incorrectly combined information.
+2.  **PDF Generation Logic - Text Wrapping/Overflow**: If the text for a column is too long for its defined width, `pdf-lib` might not handle the wrapping perfectly, or my drawing logic might be too simplistic and not account for graceful text overflow or truncation within cells. This could cause text to appear to run into the next "cell" area if not drawn carefully.
+3.  **Parsing/Display Logic in `drawTextSafe` or Data Preparation**: While less likely for simple string fields, complex data processing before PDF generation could introduce errors.
+
+**Let's try to address this by focusing on the PDF generation logic first, particularly how text is placed and column widths are handled.**
+
+**Primary things to check and adjust in `src/pages/api/reports/cultivation-declaration.ts`:**
+
+  * **Column Widths**: The defined widths for "Name" and "Scientific Name" might be too restrictive for some of your longer entries, causing text to be cut off or potentially misaligning subsequent data points if not handled carefully by the drawing logic.
+  * **Text Drawing within Cells**: Ensure that text is drawn strictly within the allocated width for each cell. `pdf-lib` doesn't have automatic table cell management with text wrapping like `jsPDF-AutoTable`. My current `drawTextSafe` is very basic.
+  * **Data Sanitization (Minor Point)**: While the main issue is likely layout, ensuring that data fetched from the DB (like `plant.scientificName`) doesn't contain unexpected newline characters that could interfere with PDF line drawing.
+
+**Proposed Adjustments:**
+
+1.  **Increase Column Widths**: I'll try increasing the widths for the "Name" and "Scientific Name" columns to give more space.
+2.  **Basic Text Truncation (if still needed)**: As a simple measure, if text still overflows, I can add a basic truncation logic within `drawTextSafe` or before calling it, to prevent it from overrunning its cell boundaries. A more advanced solution would be text wrapping, which is more complex with `pdf-lib`'s basic drawing tools.
+3.  **Review Data from PDF**: I will specifically look at the problematic rows you mentioned (8, 31, 33, 38) and see if the issue is purely a display/width problem in the PDF or if it hints at how the source data might be structured. The PDF shows the *output*, so the problem is either in the *source data* or in the *PDF generation from that data*. Since you're asking to fix errors in the *report*, I'll focus on the PDF generation.
+
+It's crucial to differentiate between data errors (typos in the database) and rendering errors (PDF layout issues). I'll assume for now the database data is mostly correct and the issue is primarily in how it's being rendered into the fixed-width columns in the PDF.
+
+Let's adjust the column widths and ensure text is handled a bit more robustly.
+
+\<lov-code\>
+\<lov-thinking\>
+The user has pointed out specific rows (8, 31, 33, 38) in the generated PDF where data seems misaligned, truncated, or parts of one field bleed into another (e.g., part of a name appearing in the year column). This strongly suggests issues with how text is being laid out within the defined column widths.
+
+The `pdf-lib` library provides low-level drawing capabilities. Unlike libraries with auto-table features, I'm manually placing text. If text is longer than the allocated cell width, it will simply be drawn past the boundary unless I explicitly handle wrapping or truncation.
+
+My plan is to:
+
+1.  **Adjust Column Widths**: Re-evaluate the column widths defined in the `headers` array in `src/pages/api/reports/cultivation-declaration.ts`. I'll give more space to `Name` and `Scientific Name` as these often contain longer strings.
+2.  **Implement Basic Text Clipping/Truncation**: Modify the `drawTextSafe` helper or the main drawing loop to ensure that text drawn for a cell does not exceed the allocated width for that cell. A simple approach is to truncate text with an ellipsis (...) if it's too long. Proper text wrapping within a cell is more complex and might be a follow-up if truncation isn't sufficient.
+3.  **Verify Data Integrity**: Double-check that `plant.scientificName` and `plant.plantingYear` are being accessed correctly and that `null` or `undefined` values are handled gracefully (which `drawTextSafe` already attempts to do by converting to an empty string).
+
+Let's focus on refining the PDF layout within the API route.
+The year "Cre25" for GoldCrest (row 8) strongly suggests that "Crest" was truncated from "GoldCrest" and the remaining "est" combined with the year "2025" became "Cre25" due to how numbers and strings might have been concatenated or parsed if there was an overflow issue that shifted data.
+For row 31, where the "Name" is blank and "Scientific Name" has "Ęlaeagnus Ebbingei", this could be a data issue or a very aggressive truncation of the name field.
+For row 33, year missing, "Purple Kat" typo in scientific name. The typo is likely a data issue. The missing year might be data or layout.
+For row 38, "que2025alm" in scientific name: "queen palm" and year "2025" got mangled.
+
+The core problem seems to be text exceeding cell boundaries and the drawing logic not handling this, causing subsequent data to be drawn in the wrong visual position, effectively "shifting" data into adjacent column areas.
+
+I'll modify the `drawTextSafe` to accept a `maxWidth` parameter and truncate text if it exceeds this.
+\</lov-thinking\>
+
+I've examined the PDF (`cultivation-declaration-2.pdf`) and see the alignment and data spill-over issues you're referring to, like on rows 8 ("GoldCrest"), 31, 33, and 38. This usually happens when the text content for a column is wider than the space allocated for it in the PDF, causing it to either get cut off abruptly or, in some manual drawing scenarios, visually "push" subsequent data out of alignment.
+
+The standard fonts, even with Greek support, can also have varying character widths which can make precise layout tricky without more advanced text measurement and wrapping.
+
+Let's try to improve this by:
+
+1.  Adjusting the column widths to give more space to potentially long fields like "Name" and "Scientific Name".
+2.  Implementing a basic text truncation mechanism within our PDF drawing logic. If a piece of text is too long for its column, it will be shortened and an ellipsis (...) will be added. This is simpler than full text wrapping within cells with `pdf-lib`'s basic tools but should prevent the data spill-over.
+
+I'll modify the API endpoint `src/pages/api/reports/cultivation-declaration.ts` that generates this PDF.
+
+\<lov-write file\_path="src/pages/api/reports/cultivation-declaration.ts"\>
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { db } from '@/server/db'; // Adjust path to your db setup
+import { plantsTable } from '@/server/db/schema'; // Adjust path to your schema
+import { asc } from 'drizzle-orm';
+import { PDFDocument, rgb, PageSizes, PDFFont } from 'pdf-lib'; // Added PDFFont type
+import fs from 'fs'; // Node.js File System module
+import path from 'path'; // Node.js Path module
+
+// Helper function to draw text, handle undefined, and truncate if too long
+const drawTextSafe = (
+page: any,
+text: any,
+x: number,
+y: number,
+font: PDFFont, // Use PDFFont type
+size: number,
+maxWidth: number,
+color = rgb(0, 0, 0)
+) =\> {
+let safeText = text === undefined || text === null ? '' : String(text);
+
+// Truncate text if it's too wide for the cell
+let textWidth = font.widthOfTextAtSize(safeText, size);
+if (textWidth \> maxWidth && maxWidth \> 0) {
+let truncatedText = '';
+for (let i = safeText.length; i \> 0; i--) {
+truncatedText = safeText.substring(0, i) + '...';
+if (font.widthOfTextAtSize(truncatedText, size) \<= maxWidth) {
+break;
+}
+}
+safeText = truncatedText;
+// Fallback if even "..." is too long (highly unlikely for reasonable maxWidth)
+if (font.widthOfTextAtSize(safeText, size) \> maxWidth) {
+safeText = safeText.substring(0, Math.floor(maxWidth / font.widthOfTextAtSize("...", size) \* 3)); // very rough estimate
+}
+}
+
+page.drawText(safeText, { x, y, font, size, color });
+};
+
+export default async function handler(
+req: NextApiRequest,
+res: NextApiResponse
+) {
+if (req.method === 'GET') {
+console.log("API: Initiating Cultivation Declaration Report (v2) with text truncation...");
+try {
+const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansGreek-Regular.ttf');
+let customFontBytes;
+try {
+customFontBytes = fs.readFileSync(fontPath);
+} catch (fontError: any) {
+console.error(`API: Failed to load font file at ${fontPath}. Error: ${fontError.message}`);
+return res.status(500).json({
+message: 'Failed to load font for PDF generation. Ensure font file is in public/fonts/.',
+error: `Font file not found: ${fontPath}.`
+});
+}
+
+```
+  const plantsData = await db.select().from(plantsTable).orderBy(asc(plantsTable.name));
+  console.log(`API: Fetched ${plantsData.length} plants for the report (v2).`);
+
+  const pdfDoc = await PDFDocument.create();
+  const customFont = await pdfDoc.embedFont(customFontBytes);
+  
+  let page = pdfDoc.addPage(PageSizes.A4);
+  const { width, height } = page.getSize();
+  
+  const fontSize = 9; // Adjusted font size
+  const headerFontSize = 10;
+  const titleFontSize = 14;
+  const margin = 40;
+  let yPosition = height - margin - 20;
+
+  const reportTitle = "ΔΗΛΩΣΗ ΚΑΛΛΙΕΡΓΕΙΑΣ ΓΙΑ ΤΟ 2025";
+  const titleWidth = customFont.widthOfTextAtSize(reportTitle, titleFontSize);
+  page.drawText(reportTitle, {
+    x: (width - titleWidth) / 2,
+    y: yPosition,
+    font: customFont,
+    size: titleFontSize,
+    color: rgb(0, 0, 0),
+  });
+  yPosition -= (titleFontSize + 25);
+
+  const headers = [
+    { text: 'Α/Α', width: 35, xOffset: 5 },
+    { text: 'Name', width: 170, xOffset: 5 }, // Increased width
+    { text: 'Scientific Name', width: 170, xOffset: 5 }, // Increased width
+    { text: 'Year', width: 60, xOffset: 5 },
+    { text: 'Quantity', width: 60, xOffset: 5 },
+  ];
+
+  let currentX = margin;
+  const headerY = yPosition;
+  const rowHeight = 18;
+
+  page.drawLine({ start: { x: margin, y: headerY + 5 }, end: { x: width - margin, y: headerY + 5 }, thickness: 1, color: rgb(0,0,0) });
+  headers.forEach(header => {
+    // For headers, truncation is less critical, but use the helper for consistency or if headers could be dynamic
+    drawTextSafe(page, header.text, currentX + header.xOffset, headerY - headerFontSize + 2, customFont, headerFontSize, header.width - header.xOffset -2, rgb(0,0,0));
+    currentX += header.width;
+  });
+  page.drawLine({ start: { x: margin, y: headerY - rowHeight + 7 }, end: { x: width - margin, y: headerY - rowHeight + 7 }, thickness: 1, color: rgb(0,0,0) });
+  yPosition -= rowHeight;
+
+  const drawPageHeaders = (targetPage: any, currentY: number) => {
+    let x = margin;
+    targetPage.drawLine({ start: { x: margin, y: currentY + 5 }, end: { x: width - margin, y: currentY + 5 }, thickness: 1, color: rgb(0,0,0) });
+    headers.forEach(header => {
+        drawTextSafe(targetPage, header.text, x + header.xOffset, currentY - headerFontSize + 2, customFont, headerFontSize, header.width - header.xOffset - 2, rgb(0,0,0));
+        x += header.width;
+    });
+    targetPage.drawLine({ start: { x: margin, y: currentY - rowHeight + 7 }, end: { x: width - margin, y: currentY - rowHeight + 7 }, thickness: 1, color: rgb(0,0,0) });
+    return currentY - rowHeight;
+  };
+
+  plantsData.forEach((plant, index) => {
+    if (yPosition < margin + rowHeight) {
+      page.drawLine({start: {x: margin, y: yPosition + 7}, end: {x: width-margin, y: yPosition + 7}, thickness: 0.5, color: rgb(0.7,0.7,0.7) });
+      page = pdfDoc.addPage(PageSizes.A4);
+      yPosition = height - margin - rowHeight - 10; 
+      yPosition = drawPageHeaders(page, yPosition + rowHeight); // Redraw headers and update yPosition
+    }
+
+    currentX = margin;
+    const rowData = [
+      { text: (index + 1).toString(), width: headers[0].width, xOffset: headers[0].xOffset },
+      { text: plant.name, width: headers[1].width, xOffset: headers[1].xOffset },
+      { text: plant.scientificName || '', width: headers[2].width, xOffset: headers[2].xOffset },
+      { text: plant.plantingYear?.toString() || '', width: headers[3].width, xOffset: headers[3].xOffset },
+      { text: plant.quantity.toString(), width: headers[4].width, xOffset: headers[4].xOffset },
+    ];
+
+    rowData.forEach(data => {
+      // Pass maxWidth for truncation: data.width - data.xOffset (padding) - a small buffer
+      const cellContentMaxWidth = data.width - data.xOffset - 2; 
+      drawTextSafe(page, data.text, currentX + data.xOffset, yPosition - fontSize + 2 , customFont, fontSize, cellContentMaxWidth);
+      currentX += data.width;
+    });
+    page.drawLine({start: {x: margin, y: yPosition - rowHeight + 7}, end: {x: width-margin, y: yPosition -rowHeight + 7}, thickness: 0.5, color: rgb(0.7,0.7,0.7)});
+    yPosition -= rowHeight;
+  });
+
+  const pdfBytes = await pdfDoc.save();
+  const timestamp = new Date().toISOString().replace(/:/g, '-').slice(0, 19);
+  const filename = `declaration-cultivation-2025-v2-${timestamp}.pdf`;
+
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.status(200).send(Buffer.from(pdfBytes));
+  console.log("API: Cultivation Declaration Report (v2) with truncation sent successfully.");
+
+} catch (error: any) {
+  console.error('API: Error generating Cultivation Declaration PDF (v2):', error);
+  res.status(500).json({ message: 'Failed to generate PDF report (v2)', error: error.message });
+}
+```
+
+} else {
+res.setHeader('Allow', ['GET']);
+res.status(405).end(`Method ${req.method} Not Allowed`);
+}
+}
+\</lov-write\>
+Key changes in `src/pages/api/reports/cultivation-declaration.ts`:
+
+  * **Adjusted Column Widths**: I've increased the `width` for "Name" and "Scientific Name" in the `headers` array.
+  * **Modified `drawTextSafe` Function**:
+      * It now accepts a `maxWidth` parameter.
+      * It calculates the width of the text using `font.widthOfTextAtSize()`.
+      * If the text width exceeds `maxWidth`, it iteratively truncates the text and appends "..." until it fits. This is a basic form of truncation.
+  * **Using `maxWidth` in Drawing Logic**: When drawing cell data, the `maxWidth` passed to `drawTextSafe` is calculated based on the column's defined width, minus some padding (`data.xOffset` and a small buffer).
+  * **Header Redraw on New Page**: Added a `drawPageHeaders` function to redraw headers when a new page is created.
+  * **Slight Styling Adjustments**: Minor changes to font sizes and offsets for potentially better visual appearance.
+
+**Important Considerations:**
+
+  * **Data vs. Display**: This fix attempts to manage how data is *displayed* in the PDF. If the underlying data in your database has typos (e.g., "Purple Kat" instead of "Purple Knight") or incorrectly merged fields (like the year mixed into the scientific name), those data issues will still be reflected. You might need to clean up the source data for those specific entries.
+  * **Font Metrics**: The accuracy of `font.widthOfTextAtSize()` is crucial for this to work well. Different characters have different widths.
+  * **Complex Cases**: For very long strings or complex text layout needs (like hyphenation or true multi-line wrapping within a cell), this basic truncation might still have limitations. A more sophisticated table drawing approach or a different PDF library with built-in table support would be needed for that.
+
+Please try generating the report again. Hopefully, the increased widths and the text truncation will prevent the data from spilling over and causing the misalignments you observed. Check rows 8, 31, 33, and 38 specifically.
+\</lov-code\>
+
+I've updated the PDF generation logic with adjusted column widths and a basic text truncation mechanism. This should help prevent text from overflowing its designated column and causing the kind of data shifting and misalignment you saw in the previous PDF, especially for the problematic rows you pointed out.
+
+Please try generating the "ΔΗΛΩΣΗ ΚΑΛΛΙΕΡΓΕΙΑΣ ΓΙΑ ΤΟ 2025" report again. Hopefully, it will look much cleaner. Remember that if there are actual typos or errors in the plant data itself within your database, those will still appear, but they should now stay within their correct columns.
