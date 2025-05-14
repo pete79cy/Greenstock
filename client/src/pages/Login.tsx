@@ -72,7 +72,7 @@ export default function Login() {
     <div className="flex flex-col items-center justify-center min-h-screen">
       <div className="w-full max-w-xs mb-8">
         <img 
-          src="/assets/pakkoutis-logo.png" 
+          src={new URL('../assets/pakkoutis-logo.png', import.meta.url).href}
           alt="Andreas Pakkoutis & Sons Ltd" 
           className="w-full h-auto"
         />
