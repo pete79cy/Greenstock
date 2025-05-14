@@ -41,6 +41,10 @@ export interface IStorage {
   getPlantView(id: number): Promise<PlantView | undefined>;
   createPlantView(plantName: string, scientificName: string, description: string | null, inventoryEntries: { plantingYear: number, quantity: number, location?: string, notes?: string }[]): Promise<PlantView>;
   
+  // Additional inventory-related methods
+  getInventoryCountForPlant(plantId: number): Promise<number>;
+  renamePlant(plantId: number, newName: string, forceRename?: boolean): Promise<Plant | undefined>;
+  
   // Migration method
   migrateToNewSchema(): Promise<void>;
 }
@@ -282,6 +286,45 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Migration method to move data from the old schema to the new schema
+  async getInventoryCountForPlant(plantId: number): Promise<number> {
+    // Check if plant exists first
+    const plant = await this.getPlant(plantId);
+    if (!plant) {
+      throw new Error("Plant not found");
+    }
+    
+    // Get the count of inventory items for this plant (if using old schema)
+    // For old plants schema, we can just return 1 if the plant exists
+    return 1;
+  }
+  
+  async renamePlant(plantId: number, newName: string, forceRename: boolean = false): Promise<Plant | undefined> {
+    // Check if plant exists
+    const plant = await this.getPlant(plantId);
+    if (!plant) {
+      return undefined; // Plant not found
+    }
+    
+    // If forceRename is false, check if there are inventory entries
+    if (!forceRename) {
+      const inventoryCount = await this.getInventoryCountForPlant(plantId);
+      
+      if (inventoryCount > 0) {
+        // Plant has inventory and force flag is false, don't allow rename
+        throw new Error(`This plant has inventory entries. Use forceRename to proceed with renaming.`);
+      }
+    }
+    
+    // Proceed with renaming the plant - maintain all other fields
+    return await this.updatePlant({
+      id: plantId,
+      name: newName,
+      scientificName: plant.scientificName,
+      plantingYear: plant.plantingYear,
+      quantity: plant.quantity
+    });
+  }
+
   async migrateToNewSchema(): Promise<void> {
     // Get all plants from the old schema
     const oldPlants = await this.getAllPlants();

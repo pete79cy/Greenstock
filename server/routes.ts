@@ -267,9 +267,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update plant
+  // Get inventory count for a plant
+  app.get("/api/plants/:id/inventory-count", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid plant ID" });
+      }
+      
+      const count = await storage.getInventoryCountForPlant(id);
+      res.json({ count });
+    } catch (error: any) {
+      console.error("Error getting inventory count:", error);
+      if (error.message === "Plant not found") {
+        return res.status(404).json({ message: "Plant not found" });
+      }
+      res.status(500).json({ message: "Failed to get inventory count" });
+    }
+  });
+
+  // Update plant
   app.put("/api/plants/:id", async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      
+      // Special case: If this is a rename operation with forceRename flag
+      if (req.body.newName !== undefined) {
+        const { newName, forceRename } = req.body;
+        
+        if (typeof newName !== 'string' || newName.trim() === '') {
+          return res.status(400).json({ message: "New name is required and must be a string" });
+        }
+        
+        try {
+          const renamed = await storage.renamePlant(id, newName, !!forceRename);
+          
+          if (!renamed) {
+            return res.status(404).json({ message: "Plant not found" });
+          }
+          
+          return res.json({ 
+            message: `Plant "${id}" renamed successfully to "${newName}"`,
+            plant: renamed 
+          });
+        } catch (error: any) {
+          // Special error for inventory conflict
+          if (error.message && error.message.includes("inventory")) {
+            return res.status(409).json({ message: error.message });
+          }
+          throw error; // Re-throw for the outer catch block
+        }
+      }
+      
+      // Regular update (not rename)
       const validationResult = updatePlantSchema.safeParse({
         id,
         ...req.body
