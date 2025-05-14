@@ -251,30 +251,58 @@ export default function ExportDropdown() {
   };
   
   const handleExportCultivationDeclaration = async () => {
+    console.log("Starting cultivation declaration export...");
     setIsExporting(true);
     
     try {
-      const response = await fetch("/api/plants/export/cultivation-declaration", {
+      // Don't use a relative URL like "/api/..." as it can sometimes cause issues
+      // Use the full URL instead to ensure we're making a proper API call
+      const baseUrl = window.location.origin;
+      const apiUrl = `${baseUrl}/api/plants/export/cultivation-declaration`;
+      console.log(`Fetching PDF from: ${apiUrl}`);
+      
+      const response = await fetch(apiUrl, {
         method: "GET",
         credentials: "include",
       });
       
       if (!response.ok) {
+        console.error(`Error response: ${response.status} ${response.statusText}`);
         throw new Error("Export failed");
       }
       
+      console.log("Response received, creating blob...");
       const blob = await response.blob();
+      console.log(`Blob created: ${blob.size} bytes, type: ${blob.type}`);
+      
+      // Create object URL
       const url = window.URL.createObjectURL(blob);
+      console.log(`Created object URL: ${url}`);
+      
+      // Create download link
       const a = document.createElement("a");
       a.style.display = "none";
       a.href = url;
       a.download = "cultivation-declaration.pdf";
+      a.target = "_blank"; // Open in new tab if clicked
+      
+      // Explicitly set to prevent navigation
+      a.onclick = (e) => {
+        e.stopPropagation();
+        return true;
+      };
+      
+      // Append to body, click, then clean up
+      console.log("Triggering download...");
       document.body.appendChild(a);
       a.click();
       
-      // Clean up
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      // Clean up after small delay to ensure download starts
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        console.log("Download link cleaned up");
+      }, 100);
       
       toast({
         title: "Export successful",
@@ -352,7 +380,11 @@ export default function ExportDropdown() {
           </DropdownMenuItem>
 
           <DropdownMenuItem 
-            onClick={handleExportCultivationDeclaration}
+            onClick={(e) => {
+              e.preventDefault();  // Prevent any default navigation behavior
+              e.stopPropagation(); // Stop event bubbling
+              handleExportCultivationDeclaration();
+            }}
             disabled={isExporting}
             className="cursor-pointer"
           >
