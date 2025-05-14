@@ -22,6 +22,136 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Backup plants as JSON
+  app.get("/api/backup", async (req: Request, res: Response) => {
+    try {
+      const plants = await storage.getAllPlants();
+      
+      // Get current timestamp for the filename
+      const timestamp = new Date().toISOString().replace(/:/g, '-').slice(0, 19);
+      const filename = `plant-inventory-backup-${timestamp}.json`;
+      
+      // Set the response headers
+      res.setHeader("Content-Type", "application/json");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      
+      // Send the JSON data
+      res.json(plants);
+    } catch (error) {
+      console.error("Error creating backup:", error);
+      res.status(500).json({ message: "Failed to create backup" });
+    }
+  });
+  
+  // Restore plants from JSON
+  app.post("/api/restore", upload.single("backupFile"), async (req: MulterRequest, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No backup file uploaded" });
+      }
+      
+      // Read the JSON file
+      const backupDataString = req.file.buffer.toString('utf-8');
+      let plantsToRestore;
+      
+      try {
+        plantsToRestore = JSON.parse(backupDataString);
+      } catch (parseError) {
+        return res.status(400).json({ message: "Invalid JSON format in backup file" });
+      }
+      
+      if (!Array.isArray(plantsToRestore)) {
+        return res.status(400).json({ message: "Invalid backup format. Expected an array of plants." });
+      }
+      
+      console.log(`Restoring ${plantsToRestore.length} plants from backup...`);
+      
+      // Validate each plant
+      const restoreResults = {
+        success: 0,
+        failed: 0,
+        errors: [] as string[]
+      };
+      
+      // Clear existing plants and add new ones in a transaction
+      let clearSuccess = false;
+      
+      // First, try to delete all existing plants
+      try {
+        // Get all plants
+        const existingPlants = await storage.getAllPlants();
+        
+        // Delete each plant
+        for (const plant of existingPlants) {
+          await storage.deletePlant(plant.id);
+        }
+        
+        clearSuccess = true;
+      } catch (clearError) {
+        console.error("Error clearing existing plants:", clearError);
+        return res.status(500).json({ 
+          message: "Failed to clear existing plants before restore",
+          error: (clearError as Error).message
+        });
+      }
+      
+      if (clearSuccess) {
+        // Now add plants from the backup
+        for (const plantData of plantsToRestore) {
+          try {
+            // Ensure we have required fields for a plant
+            if (!plantData.name) {
+              restoreResults.failed++;
+              restoreResults.errors.push(`Plant missing name field`);
+              continue;
+            }
+            
+            // Extract relevant fields for insert (omit id and timestamps)
+            const plantToInsert = {
+              name: plantData.name,
+              scientificName: plantData.scientificName || "Unknown",
+              plantingYear: parseInt(plantData.plantingYear) || new Date().getFullYear(),
+              quantity: parseInt(plantData.quantity) || 0
+            };
+            
+            // Validate using the schema
+            const validationResult = insertPlantSchema.safeParse(plantToInsert);
+            
+            if (validationResult.success) {
+              await storage.createPlant(validationResult.data);
+              restoreResults.success++;
+            } else {
+              const validationError = fromZodError(validationResult.error);
+              restoreResults.failed++;
+              restoreResults.errors.push(`Validation error: ${validationError.message}`);
+            }
+          } catch (insertError) {
+            restoreResults.failed++;
+            restoreResults.errors.push(`Error inserting plant: ${(insertError as Error).message}`);
+          }
+        }
+      }
+      
+      // Generate response
+      const message = restoreResults.success > 0 
+        ? `Successfully restored ${restoreResults.success} plants.` 
+        : "No plants were restored.";
+      
+      const detailedErrors = restoreResults.errors.length > 0 
+        ? `There were ${restoreResults.failed} errors.` 
+        : "";
+      
+      res.json({
+        ...restoreResults,
+        message,
+        detailedErrors
+      });
+    } catch (error) {
+      console.error("Error restoring data:", error);
+      res.status(500).json({ message: "Failed to restore plants" });
+    }
+  });
+
   // Get all plants with optional search
   app.get("/api/plants", async (req: Request, res: Response) => {
     try {
