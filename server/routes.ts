@@ -5,8 +5,8 @@ import multer from "multer";
 import * as XLSX from "xlsx";
 import { insertPlantSchema, updatePlantSchema } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 // Define a type for the request with file
 interface MulterRequest extends Request {
@@ -499,7 +499,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ]);
       
       // Add table to document with Greek-friendly styling
-      doc.autoTable({
+      // Use the imported autoTable
+      (doc as any).autoTable({
         head: [tableColumn],
         body: tableRows,
         startY: 30,
