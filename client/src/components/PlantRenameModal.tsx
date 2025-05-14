@@ -55,8 +55,7 @@ export function PlantRenameModal({
       toast({ 
         title: 'Validation Error', 
         description: 'New plant name cannot be empty', 
-        variant: 'destructive',
-        icon: <AlertCircle className="h-4 w-4" />
+        variant: 'destructive'
       });
       return;
     }
@@ -99,8 +98,7 @@ export function PlantRenameModal({
         toast({
           title: 'Rename Successful',
           description: renameData.message,
-          variant: 'default',
-          icon: <CheckCircle2 className="h-4 w-4" />
+          variant: 'default'
         });
         
         // Close modal and trigger refresh
@@ -124,8 +122,7 @@ export function PlantRenameModal({
       toast({
         title: 'Rename Failed',
         description,
-        variant: 'destructive',
-        icon: <AlertCircle className="h-4 w-4" />
+        variant: 'destructive'
       });
     } finally {
       setIsLoading(false);

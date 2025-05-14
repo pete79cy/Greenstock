@@ -1,7 +1,5 @@
 // API utility functions for plant management
 
-import { apiRequest } from "./queryClient";
-
 // Response types
 export interface InventoryCountResponse {
   count: number;
@@ -20,12 +18,22 @@ export interface RenameResponse {
  */
 export async function getPlantInventoryCount(plantId: number): Promise<InventoryCountResponse> {
   try {
-    const result = await apiRequest<InventoryCountResponse>({
-      url: `/api/plants/${plantId}/inventory-count`,
+    const response = await fetch(`/api/plants/${plantId}/inventory-count`, {
       method: "GET",
-      on401: "throw",
+      credentials: "include",
+      headers: {
+        "Accept": "application/json",
+      }
     });
-    return result;
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const error = new Error(errorData.message || `Error fetching inventory count: ${response.status}`);
+      (error as any).status = response.status;
+      throw error;
+    }
+
+    return await response.json();
   } catch (error: any) {
     console.error("Error fetching inventory count:", error);
     throw error;
@@ -45,13 +53,24 @@ export async function renamePlant(
   forceRename: boolean = false
 ): Promise<RenameResponse> {
   try {
-    const result = await apiRequest<RenameResponse>({
-      url: `/api/plants/${plantId}`,
+    const response = await fetch(`/api/plants/${plantId}`, {
       method: "PUT",
-      body: { newName, forceRename },
-      on401: "throw",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({ newName, forceRename })
     });
-    return result;
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const error = new Error(errorData.message || `Error renaming plant: ${response.status}`);
+      (error as any).status = response.status;
+      throw error;
+    }
+
+    return await response.json();
   } catch (error: any) {
     console.error("Error renaming plant:", error);
     throw error;

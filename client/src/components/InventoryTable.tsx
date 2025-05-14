@@ -173,8 +173,21 @@ export default function InventoryTable({
                   <Button 
                     variant="ghost" 
                     size="icon" 
+                    onClick={() => {
+                      setSelectedPlant(plant);
+                      setIsRenameModalOpen(true);
+                    }}
+                    className="h-8 w-8 text-amber-600"
+                    title="Rename Plant"
+                  >
+                    <PenLine className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
                     onClick={() => onEdit(plant)}
                     className="h-8 w-8 text-blue-600"
+                    title="Edit Plant"
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
@@ -293,8 +306,21 @@ export default function InventoryTable({
                       <Button 
                         variant="ghost" 
                         size="icon" 
+                        onClick={() => {
+                          setSelectedPlant(plant);
+                          setIsRenameModalOpen(true);
+                        }}
+                        className="text-amber-600 hover:text-amber-800 hover:bg-amber-50"
+                        title="Rename Plant"
+                      >
+                        <PenLine className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
                         onClick={() => onEdit(plant)}
                         className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                        title="Edit Plant"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -314,6 +340,22 @@ export default function InventoryTable({
           </Table>
         </div>
       )}
+
+      {/* Modals */}
+      <PlantRenameModal
+        isOpen={isRenameModalOpen}
+        onOpenChange={setIsRenameModalOpen}
+        plant={selectedPlant}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['/api/plants'] });
+        }}
+      />
+      
+      <AddStockModal
+        isOpen={isAddStockModalOpen}
+        onOpenChange={setIsAddStockModalOpen}
+        plant={selectedPlant}
+      />
 
       {/* Pagination */}
       {showPagination && totalPages > 1 && (
