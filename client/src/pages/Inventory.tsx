@@ -41,7 +41,12 @@ export default function Inventory() {
     queryFn: async () => {
       try {
         console.log("Fetching plants data...");
-        const response = await fetch(`/api/plants${debouncedSearchTerm ? `?search=${encodeURIComponent(debouncedSearchTerm)}` : ''}`);
+        const response = await fetch(`/api/plants${debouncedSearchTerm ? `?search=${encodeURIComponent(debouncedSearchTerm)}` : ''}`, {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
         if (!response.ok) {
           console.error("Error fetching plants:", response.status, response.statusText);
           throw new Error('Failed to fetch plants');

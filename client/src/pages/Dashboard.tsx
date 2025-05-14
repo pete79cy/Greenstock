@@ -28,11 +28,25 @@ export default function Dashboard() {
   const { data: plants = [], isLoading, isError } = useQuery<Plant[]>({
     queryKey: ["/api/plants", debouncedSearchTerm],
     queryFn: async () => {
-      const response = await fetch(`/api/plants${debouncedSearchTerm ? `?search=${encodeURIComponent(debouncedSearchTerm)}` : ''}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch plants');
+      try {
+        console.log("Dashboard: Fetching plants data...");
+        const response = await fetch(`/api/plants${debouncedSearchTerm ? `?search=${encodeURIComponent(debouncedSearchTerm)}` : ''}`, {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        if (!response.ok) {
+          console.error("Dashboard: Error fetching plants:", response.status, response.statusText);
+          throw new Error('Failed to fetch plants');
+        }
+        const data = await response.json();
+        console.log("Dashboard: Plants data received:", data.length, "plants");
+        return data;
+      } catch (error) {
+        console.error("Dashboard: Error in plants query:", error);
+        throw error;
       }
-      return response.json();
     },
   });
 
@@ -44,6 +58,27 @@ export default function Dashboard() {
     plantCategories: number;
   }>({
     queryKey: ["/api/metrics"],
+    queryFn: async () => {
+      try {
+        console.log("Dashboard: Fetching metrics data...");
+        const response = await fetch('/api/metrics', {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        if (!response.ok) {
+          console.error("Dashboard: Error fetching metrics:", response.status, response.statusText);
+          throw new Error('Failed to fetch metrics');
+        }
+        const data = await response.json();
+        console.log("Dashboard: Metrics data received:", data);
+        return data;
+      } catch (error) {
+        console.error("Dashboard: Error in metrics query:", error);
+        throw error;
+      }
+    },
   });
 
   // Function to filter plants based on filters (year and quantity)

@@ -918,7 +918,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get counts for dashboard metrics
-  app.get("/api/metrics", async (req: Request, res: Response) => {
+  app.get("/api/metrics", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const plants = await storage.getAllPlants();
       
