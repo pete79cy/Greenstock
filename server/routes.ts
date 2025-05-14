@@ -448,6 +448,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate cultivation declaration report (Greek format)
+  app.get("/api/plants/export/cultivation-declaration", async (req: Request, res: Response) => {
+    try {
+      // Get all plants and sort alphabetically by name
+      const plants = await storage.getAllPlants();
+      const sortedPlants = [...plants].sort((a, b) => a.name.localeCompare(b.name));
+      
+      // Create a new PDF document in landscape orientation
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      }) as any;
+      
+      // Add report title in Greek
+      doc.setFontSize(16);
+      doc.text("ΔΗΛΩΣΗ ΚΑΛΛΙΕΡΓΕΙΑΣ (Κατάσταση Φυτών)", 14, 15);
+      
+      // Add generation date
+      doc.setFontSize(10);
+      doc.text(`Ημερομηνία: ${new Date().toLocaleDateString()}`, 14, 22);
+      
+      // Create table column headers (Greek format)
+      const tableColumn = [
+        "A/A",                          // Serial number
+        "Τοποθεσία",                    // Location
+        "Φύλλο Σχέδιο",                 // Plan Sheet
+        "Αρ. τεμαχίου",                 // Plot Number
+        "Ιδιοκτησιακό Καθεστώς",        // Ownership Status
+        "Αποδεικτικό Έγγραφο",          // Proof Document
+        "Είδος Καλλιέργειας",           // Plant Type (Name)
+        "Έκταση (δεκάρια)",             // Area
+        "Έτος Φύτευσης",                // Planting Year
+        "Συνολ. Αρ. Δέντρων/Θάμνων"     // Total Number of Trees/Bushes (Quantity)
+      ];
+      
+      // Create table rows with data
+      const tableRows = sortedPlants.map((plant, index) => [
+        (index + 1).toString(),     // Serial number
+        "",                         // Location (not available)
+        "",                         // Plan Sheet (not available)
+        "",                         // Plot Number (not available)
+        "",                         // Ownership Status (not available)
+        "",                         // Proof Document (not available)
+        plant.name,                 // Plant Type (Name)
+        "",                         // Area (not available)
+        plant.plantingYear.toString(), // Planting Year
+        plant.quantity.toString()   // Total Number (Quantity)
+      ]);
+      
+      // Add table to document with Greek-friendly styling
+      doc.autoTable({
+        head: [tableColumn],
+        body: tableRows,
+        startY: 30,
+        theme: 'grid',
+        styles: { 
+          fontSize: 9,
+          cellPadding: 2,
+        },
+        headStyles: { 
+          fillColor: [76, 175, 80],  // Green color for header
+          textColor: [255, 255, 255],
+          fontStyle: 'bold'
+        },
+        columnStyles: {
+          0: { cellWidth: 10 },      // A/A - narrow
+          6: { cellWidth: 50 },      // Plant name - wider
+          8: { cellWidth: 20 },      // Planting year 
+          9: { cellWidth: 30 },      // Quantity
+        }
+      });
+      
+      // Add footer with explanatory note
+      const pageCount = doc.internal.getNumberOfPages();
+      doc.setPage(pageCount);
+      doc.setFontSize(8);
+      doc.setTextColor(100);
+      const pageHeight = doc.internal.pageSize.height;
+      doc.text("Σημείωση: Αυτή η αναφορά είναι μια προσομοίωση του επίσημου εντύπου 'ΔΗΛΩΣΗ ΚΑΛΛΙΕΡΓΕΙΑΣ'.", 14, pageHeight - 10);
+      
+      // Set response headers for PDF download
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", "attachment; filename=cultivation-declaration.pdf");
+      
+      // Send the PDF as a buffer
+      const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error("Error generating cultivation declaration PDF:", error);
+      res.status(500).json({ message: "Failed to generate cultivation declaration report" });
+    }
+  });
+
   // Get counts for dashboard metrics
   app.get("/api/metrics", async (req: Request, res: Response) => {
     try {

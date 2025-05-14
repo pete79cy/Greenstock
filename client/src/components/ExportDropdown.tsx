@@ -7,7 +7,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Download, FileSpreadsheet, FileType, Save, Upload } from "lucide-react";
+import { Download, FileSpreadsheet, FileText, FileType, Save, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -249,6 +249,48 @@ export default function ExportDropdown() {
       setIsExporting(false);
     }
   };
+  
+  const handleExportCultivationDeclaration = async () => {
+    setIsExporting(true);
+    
+    try {
+      const response = await fetch("/api/plants/export/cultivation-declaration", {
+        method: "GET",
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        throw new Error("Export failed");
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = url;
+      a.download = "cultivation-declaration.pdf";
+      document.body.appendChild(a);
+      a.click();
+      
+      // Clean up
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Export successful",
+        description: "Cultivation Declaration exported to PDF",
+      });
+    } catch (error) {
+      console.error("Export error:", error);
+      toast({
+        title: "Export failed",
+        description: "There was an error exporting the Cultivation Declaration. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
     <>
@@ -307,6 +349,15 @@ export default function ExportDropdown() {
           >
             <FileType className="mr-2 h-4 w-4 text-muted-foreground" />
             <span>Export as PDF</span>
+          </DropdownMenuItem>
+
+          <DropdownMenuItem 
+            onClick={handleExportCultivationDeclaration}
+            disabled={isExporting}
+            className="cursor-pointer"
+          >
+            <FileText className="mr-2 h-4 w-4 text-muted-foreground" />
+            <span>ΔΗΛΩΣΗ ΚΑΛΛΙΕΡΓΕΙΑΣ</span>
           </DropdownMenuItem>
           
           <DropdownMenuSeparator />
