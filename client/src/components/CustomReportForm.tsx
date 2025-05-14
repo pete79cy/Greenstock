@@ -119,26 +119,7 @@ export default function CustomReportForm() {
         // link.download = `plant_inventory_custom_report_${date}.csv`;
         // link.click();
       } else {
-        // Generate PDF with proper Unicode support
-        const doc = new jsPDF({
-          orientation: 'portrait',
-          unit: 'mm',
-          format: 'a4',
-          putOnlyUsedFonts: true,
-          compress: true
-        });
-        
-        // Enable Unicode font support
-        // We'll use a built-in font that supports Greek characters
-        doc.setFont("helvetica", "normal");
-        
-        // Add title
-        doc.setFontSize(18);
-        doc.text("Custom Plant Inventory Report", 14, 22);
-        
-        // Add date
-        doc.setFontSize(12);
-        doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
+        // Generate PDF using our helper that supports Greek characters
         
         // Prepare columns for PDF
         const tableColumns = selectedColumns.map(col => {
@@ -147,55 +128,17 @@ export default function CustomReportForm() {
           return { header: colName, dataKey: col };
         });
         
-        // Process data to ensure Unicode characters display correctly
-        const processedData = data.map((row: Record<string, any>) => {
-          const newRow = {...row};
-          // Convert each cell value to string and ensure it's properly encoded
-          Object.keys(newRow).forEach(key => {
-            if (newRow[key] !== null && newRow[key] !== undefined) {
-              newRow[key] = String(newRow[key]);
-            } else {
-              newRow[key] = '';
-            }
-          });
-          return newRow;
-        });
-        
-        // Add table to document with Unicode support
-        (autoTable as any)(doc, {
-          columns: tableColumns,
-          body: processedData,
-          startY: 40,
-          theme: 'grid',
-          styles: { 
-            fontSize: 10,
-            font: "helvetica", // Use font that supports Greek characters
-            overflow: 'linebreak'
-          },
-          headStyles: { 
-            fillColor: [46, 125, 50],
-            font: "helvetica",
-            fontStyle: "bold"
-          },
-          columnStyles: {
-            // Apply specific styles to columns containing text
-            // to ensure proper Unicode rendering
-            name: { font: "helvetica" },
-            scientificName: { font: "helvetica" },
-            description: { font: "helvetica" },
-            location: { font: "helvetica" },
-            notes: { font: "helvetica" }
-          },
-          didDrawPage: (data: any) => {
-            // Footer
-            doc.setFontSize(8);
-            doc.text(`Plant Inventory System - Page ${data.pageNumber}`, 14, doc.internal.pageSize.height - 10);
-          }
-        });
-        
-        // Save document
+        // Create a filename with the current date
         const date = new Date().toISOString().split('T')[0];
-        doc.save(`plant_inventory_custom_report_${date}.pdf`);
+        const filename = `plant_inventory_custom_report_${date}.pdf`;
+        
+        // Generate the PDF with proper Greek character support
+        generatePDF(
+          data,
+          tableColumns,
+          "Custom Plant Inventory Report",
+          filename
+        );
       }
       
       toast({

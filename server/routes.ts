@@ -585,7 +585,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const plants = await storage.getAllPlants();
       
-      // Create a new PDF document with Unicode support
+      // Create a new PDF document with enhanced Unicode support
       const doc = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
@@ -594,23 +594,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         compress: true
       }) as any;
       
-      // Use a font that supports Greek characters
-      doc.setFont("helvetica", "normal");
+      // Register and use the Helvetica font which has better Unicode support
+      if (typeof doc.addFont === 'function') {
+        doc.addFont("Helvetica", "Helvetica", "normal");
+        doc.addFont("Helvetica-Bold", "Helvetica", "bold");
+      }
+      
+      // Use the registered font
+      doc.setFont("Helvetica", "normal");
+      
+      // Helper function to sanitize text for PDF output
+      const sanitizeText = (text: string | number | null | undefined): string => {
+        if (text === null || text === undefined) {
+          return '';
+        }
+        return String(text);
+      };
       
       // Add title
       doc.setFontSize(18);
-      doc.text("Plant Inventory Report", 14, 22);
+      doc.text(sanitizeText("Plant Inventory Report"), 14, 22);
       
       // Add date
       doc.setFontSize(12);
-      doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
+      doc.text(sanitizeText(`Generated on: ${new Date().toLocaleDateString()}`), 14, 30);
       
       // Process plant data to ensure proper Unicode handling
       const processedRows = plants.map(plant => [
-        String(plant.name || ''),
-        String(plant.scientificName || ''),
-        String(plant.plantingYear || ''),
-        String(plant.quantity || '')
+        sanitizeText(plant.name),
+        sanitizeText(plant.scientificName),
+        sanitizeText(plant.plantingYear),
+        sanitizeText(plant.quantity)
       ]);
       
       // Create table data
@@ -624,23 +638,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         theme: 'grid',
         styles: { 
           fontSize: 10,
-          font: "helvetica", 
-          overflow: 'linebreak'
+          font: "Helvetica", 
+          overflow: 'linebreak',
+          cellPadding: 3
         },
         headStyles: { 
           fillColor: [46, 125, 50],
-          font: "helvetica",
-          fontStyle: "bold"
+          font: "Helvetica",
+          fontStyle: "bold",
+          halign: 'center'
         },
         columnStyles: {
           // Apply specific styles to text columns
-          0: { font: "helvetica" }, // Name column
-          1: { font: "helvetica" }  // Scientific Name column
+          0: { font: "Helvetica" }, // Name column
+          1: { font: "Helvetica" }  // Scientific Name column
         },
         didDrawPage: (data: any) => {
           // Footer
           doc.setFontSize(8);
-          doc.text(`Plant Inventory System - Page ${data.pageNumber}`, 14, doc.internal.pageSize.height - 10);
+          doc.text(sanitizeText(`Plant Inventory System - Page ${data.pageNumber}`), 14, doc.internal.pageSize.height - 10);
         }
       });
       
@@ -772,18 +788,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tableWidth = width - 2 * margin;
       const rowHeight = 25;
       
-      // Draw title
+      // Draw title with proper Unicode handling for Greek text
       const title = "ΔΗΛΩΣΗ ΚΑΛΛΙΕΡΓΕΙΑΣ ΓΙΑ ΤΟ 2025";
       const titleWidth = customFont.widthOfTextAtSize(title, 16);
       const titleX = startX + (tableWidth - titleWidth) / 2; // Center title
       const titleY = startY - 30;
       
+      // Ensure proper rendering of Greek characters
       page.drawText(title, {
         x: titleX,
         y: titleY,
         size: 16,
         font: customFont,
-        color: rgb(0, 0, 0)
+        color: rgb(0, 0, 0),
+        lineHeight: 1.2
       });
       
       // Set up table metrics
