@@ -120,7 +120,7 @@ export default function Dashboard() {
                   <SelectValue placeholder="All Years" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Years</SelectItem>
+                  <SelectItem value="all">All Years</SelectItem>
                   <SelectItem value="2023">2023</SelectItem>
                   <SelectItem value="2022">2022</SelectItem>
                   <SelectItem value="2021">2021</SelectItem>
@@ -133,7 +133,7 @@ export default function Dashboard() {
                   <SelectValue placeholder="All Quantities" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Quantities</SelectItem>
+                  <SelectItem value="all">All Quantities</SelectItem>
                   <SelectItem value="low">Low Stock (&lt; 10)</SelectItem>
                   <SelectItem value="medium">Medium (10-50)</SelectItem>
                   <SelectItem value="high">High (&gt; 50)</SelectItem>
