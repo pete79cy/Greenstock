@@ -29,6 +29,10 @@ export default function Reports() {
         // For cultivation declaration, include the year
         window.open(`/api/plants/export/cultivation-declaration?year=${year}`, "_blank");
         break;
+      case "plant-catalog-2025":
+        // For plant catalog 2025 report
+        window.open("/api/plants/export/plant-catalog-2025", "_blank");
+        break;
       default:
         // If no report type selected, do nothing
         break;
@@ -142,6 +146,31 @@ export default function Reports() {
                   >
                     <Download className="mr-2 h-4 w-4" />
                     Generate Declaration
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Plant Catalog 2025 Card */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Κατάλογος Παραγώμενων Φυτών 2025
+                  </CardTitle>
+                  <CardDescription>
+                    Generate a catalog of all available plant varieties for 2025
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button 
+                    className="w-full" 
+                    onClick={() => {
+                      setReportType("plant-catalog-2025");
+                      window.open("/api/plants/export/plant-catalog-2025", "_blank");
+                    }}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Generate Catalog
                   </Button>
                 </CardContent>
               </Card>

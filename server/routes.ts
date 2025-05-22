@@ -680,7 +680,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Generate cultivation declaration report (Greek format)
   // Generate catalog of produced plants 2025 report without quantities or production year info
   app.get("/api/plants/export/plant-catalog-2025", async (req: Request, res: Response) => {
     try {
@@ -950,7 +949,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to generate plant catalog report", error: (error as Error).message });
     }
   });
-      
+  
   // Generate cultivation declaration report (Greek format)
   app.get("/api/plants/export/cultivation-declaration", async (req: Request, res: Response) => {
     try {
