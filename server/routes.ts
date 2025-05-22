@@ -681,6 +681,277 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate cultivation declaration report (Greek format)
+  // Generate catalog of produced plants 2025 report without quantities or production year info
+  app.get("/api/plants/export/plant-catalog-2025", async (req: Request, res: Response) => {
+    try {
+      console.log("Initiating Κατάλογος Παραγώμενων Φυτών 2025 report generation...");
+      
+      // Get all plants from the plants table
+      const allPlants = await storage.getAllPlants();
+      
+      // Extract unique plant entries (by name and scientific name)
+      const uniquePlantMap = new Map<string, { name: string; scientificName: string }>();
+      
+      // Group plants by name to eliminate duplicates
+      for (const plant of allPlants) {
+        const key = `${plant.name}|${plant.scientificName}`;
+        if (!uniquePlantMap.has(key)) {
+          uniquePlantMap.set(key, {
+            name: plant.name,
+            scientificName: plant.scientificName
+          });
+        }
+      }
+      
+      // Convert map to array
+      const uniquePlants = Array.from(uniquePlantMap.values());
+      
+      // Sort plants alphabetically by name
+      const sortedPlants = [...uniquePlants].sort((a, b) => {
+        return a.name.localeCompare(b.name);
+      });
+      
+      console.log(`Total unique plants for catalog: ${sortedPlants.length}`);
+      
+      // --- Load Custom Font for Greek text support ---
+      const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansGreek-Regular.ttf');
+      let customFontBytes: Buffer;
+      
+      try {
+        customFontBytes = fs.readFileSync(fontPath);
+        console.log("Successfully loaded custom font NotoSansGreek-Regular.ttf for plant catalog");
+      } catch (fontError: any) {
+        console.error(`Failed to load font file at ${fontPath}. Error: ${fontError.message}`);
+        console.error("Please ensure 'NotoSansGreek-Regular.ttf' is placed in the 'public/fonts/' directory.");
+        throw new Error(`Font file not found or unreadable at ${fontPath}`);
+      }
+      
+      // Create PDF document with custom embedded font
+      const pdfDoc = await PDFDocument.create();
+      // Register fontkit with PDFDocument
+      pdfDoc.registerFontkit(fontkit);
+      const customFont = await pdfDoc.embedFont(customFontBytes);
+      
+      // Helper function to truncate text if it's too long for the cell width
+      const truncateTextForCell = (text: string, maxWidth: number, fontSize: number): string => {
+        if (!text) return '';
+        
+        const textWidth = customFont.widthOfTextAtSize(text, fontSize);
+        if (textWidth <= maxWidth) return text;
+        
+        // If text is too long, truncate it with an ellipsis
+        const ellipsis = '...';
+        const ellipsisWidth = customFont.widthOfTextAtSize(ellipsis, fontSize);
+        const availableWidth = maxWidth - ellipsisWidth;
+        
+        // Find where to truncate
+        let truncatedText = '';
+        for (let i = text.length; i > 0; i--) {
+          const testText = text.substring(0, i);
+          if (customFont.widthOfTextAtSize(testText, fontSize) <= availableWidth) {
+            truncatedText = testText + ellipsis;
+            break;
+          }
+        }
+        
+        return truncatedText;
+      };
+      
+      // Create a portrait page (A4)
+      let page = pdfDoc.addPage([595, 842]); // A4 portrait dimensions in points
+      const { width, height } = page.getSize();
+      // These will be updated when we add new pages
+      let currentWidth = width;
+      let currentHeight = height;
+      
+      // Set up dimensions and positions
+      const margin = 40;
+      const startX = margin;
+      const startY = height - margin;
+      const tableWidth = width - 2 * margin;
+      const rowHeight = 25;
+      
+      // Draw title with proper Unicode handling for Greek text
+      const title = "ΚΑΤΆΛΟΓΟΣ ΠΑΡΑΓΏΜΕΝΩΝ ΦΥΤΏΝ 2025";
+      const titleWidth = customFont.widthOfTextAtSize(title, 16);
+      const titleX = startX + (tableWidth - titleWidth) / 2; // Center title
+      const titleY = startY - 30;
+      
+      // Ensure proper rendering of Greek characters
+      page.drawText(title, {
+        x: titleX,
+        y: titleY,
+        size: 16,
+        font: customFont,
+        color: rgb(0, 0, 0),
+        lineHeight: 1.2
+      });
+      
+      // Set up table metrics
+      const tableStartY = titleY - 40;
+      
+      // Define column widths (only 2 columns: name and scientific name)
+      const colWidths = [40, 260, 210]; 
+      
+      // Define headers
+      const headers = [
+        "Α/Α",
+        "Όνομα",
+        "Επιστημονικό Όνομα"
+      ];
+      
+      // Draw header line
+      page.drawLine({
+        start: { x: startX, y: tableStartY + 5 },
+        end: { x: width - margin, y: tableStartY + 5 },
+        thickness: 1,
+        color: rgb(0, 0, 0)
+      });
+      
+      // Draw header text
+      let currentX = startX;
+      let currentY = tableStartY;
+      
+      headers.forEach((header, index) => {
+        page.drawText(header, {
+          x: currentX + 5,
+          y: currentY - 15,
+          size: 11,
+          font: customFont,
+          color: rgb(0, 0, 0)
+        });
+        currentX += colWidths[index];
+      });
+      
+      // Draw line below headers
+      page.drawLine({
+        start: { x: startX, y: currentY - rowHeight + 7 },
+        end: { x: width - margin, y: currentY - rowHeight + 7 },
+        thickness: 1,
+        color: rgb(0, 0, 0)
+      });
+      
+      currentY -= rowHeight;
+      
+      // Draw rows
+      sortedPlants.forEach((plant, index) => {
+        // Check if we need a new page (not enough space for a row)
+        if (currentY < margin + rowHeight) {
+          // Add a new page
+          page = pdfDoc.addPage([595, 842]);
+          // Get dimensions of the new page
+          const { width: pageWidth, height: pageHeight } = page.getSize();
+          currentWidth = pageWidth; // Update current width
+          currentHeight = pageHeight; // Update current height
+          currentY = currentHeight - margin - rowHeight - 10;
+          
+          // Redraw headers on new page
+          let newPageX = startX;
+          const newPageHeaderY = currentY;
+          
+          // Draw header line on new page
+          page.drawLine({
+            start: { x: startX, y: newPageHeaderY + 5 },
+            end: { x: currentWidth - margin, y: newPageHeaderY + 5 },
+            thickness: 1,
+            color: rgb(0, 0, 0)
+          });
+          
+          // Draw headers on new page
+          headers.forEach((header, idx) => {
+            page.drawText(header, {
+              x: newPageX + 5,
+              y: newPageHeaderY - 15,
+              size: 11,
+              font: customFont,
+              color: rgb(0, 0, 0)
+            });
+            newPageX += colWidths[idx];
+          });
+          
+          // Draw line below headers on new page
+          page.drawLine({
+            start: { x: startX, y: newPageHeaderY - rowHeight + 7 },
+            end: { x: currentWidth - margin, y: newPageHeaderY - rowHeight + 7 },
+            thickness: 1,
+            color: rgb(0, 0, 0)
+          });
+          
+          currentY -= rowHeight;
+        }
+        
+        // Prepare and truncate row data
+        const fontSize = 10;
+        const cellPadding = 5;
+        
+        // Apply text truncation for each cell
+        const rowData = [
+          (index + 1).toString(), // Serial number
+          truncateTextForCell(plant.name || '', colWidths[1] - cellPadding * 2, fontSize),
+          truncateTextForCell(plant.scientificName || '', colWidths[2] - cellPadding * 2, fontSize)
+        ];
+        
+        // Draw row data with the truncated text
+        currentX = startX;
+        rowData.forEach((text, cellIndex) => {
+          page.drawText(text, {
+            x: currentX + cellPadding,
+            y: currentY - 15,
+            size: fontSize,
+            font: customFont,
+            color: rgb(0, 0, 0)
+          });
+          currentX += colWidths[cellIndex];
+        });
+        
+        // Draw line below row
+        page.drawLine({
+          start: { x: startX, y: currentY - rowHeight + 7 },
+          end: { x: currentWidth - margin, y: currentY - rowHeight + 7 },
+          thickness: 0.5,
+          color: rgb(0.7, 0.7, 0.7)
+        });
+        
+        currentY -= rowHeight;
+      });
+      
+      // Add footer with note and date
+      const currentDate = new Date().toLocaleDateString('el-GR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+      
+      const footerText = `Κατάλογος Παραγώμενων Φυτών 2025 - Δημιουργήθηκε: ${currentDate}`;
+      
+      page.drawText(footerText, {
+        x: 50,
+        y: 30,
+        size: 10,
+        font: customFont,
+        color: rgb(0.5, 0.5, 0.5)
+      });
+      
+      // Finalize PDF and send
+      const pdfBytes = await pdfDoc.save();
+      
+      // Set response headers with timestamp for unique filename
+      const timestamp = new Date().toISOString().replace(/:/g, '-').slice(0, 19);
+      const filename = `plant-catalog-2025-${timestamp}.pdf`;
+      
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      
+      // Send the PDF as a buffer
+      res.send(Buffer.from(pdfBytes));
+      console.log("Plant Catalog 2025 PDF sent successfully");
+    } catch (error) {
+      console.error("Error generating Plant Catalog 2025 PDF:", error);
+      res.status(500).json({ message: "Failed to generate plant catalog report", error: (error as Error).message });
+    }
+  });
+      
+  // Generate cultivation declaration report (Greek format)
   app.get("/api/plants/export/cultivation-declaration", async (req: Request, res: Response) => {
     try {
       console.log("Initiating Cultivation Declaration Report generation (sorted by name and planting year) with custom font...");
