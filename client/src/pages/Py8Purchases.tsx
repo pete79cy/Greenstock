@@ -43,11 +43,18 @@ const PLANT_VARIETIES = [
   "Χαρουπιά Άγρια", "Χαρουπιά Εμβολιασμένη", "Χρυσομηλιά"
 ];
 
+// Authentic species categories for ΠΥ8 compliance
+const PLANT_SPECIES = [
+  "ΛΕΜΟΝΟΔΕΝΤΡΑ",
+  "ΦΡΟΥΤΟΔΕΝΤΡΑ"
+];
+
 export default function Py8Purchases() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [varietySearchOpen, setVarietySearchOpen] = useState(false);
+  const [speciesSearchOpen, setSpeciesSearchOpen] = useState(false);
 
   // Query for fetching purchases
   const { data: purchases = [], isLoading, isError } = useQuery<PurchasesPy8[]>({
@@ -163,11 +170,52 @@ export default function Py8Purchases() {
                     control={form.control}
                     name="species"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="flex flex-col">
                         <FormLabel>Είδος</FormLabel>
-                        <FormControl>
-                          <Input placeholder="π.χ. Τομάτα" {...field} />
-                        </FormControl>
+                        <Popover open={speciesSearchOpen} onOpenChange={setSpeciesSearchOpen}>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={speciesSearchOpen}
+                                className="w-full justify-between"
+                              >
+                                {field.value
+                                  ? PLANT_SPECIES.find((species) => species === field.value) || field.value
+                                  : "Επιλέξτε είδος..."}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-full p-0" align="start">
+                            <Command>
+                              <CommandInput placeholder="Αναζήτηση είδους..." />
+                              <CommandList>
+                                <CommandEmpty>Δεν βρέθηκε είδος.</CommandEmpty>
+                                <CommandGroup>
+                                  {PLANT_SPECIES.map((species) => (
+                                    <CommandItem
+                                      key={species}
+                                      value={species}
+                                      onSelect={() => {
+                                        field.onChange(species);
+                                        setSpeciesSearchOpen(false);
+                                      }}
+                                    >
+                                      <Check
+                                        className={`mr-2 h-4 w-4 ${
+                                          field.value === species ? "opacity-100" : "opacity-0"
+                                        }`}
+                                      />
+                                      {species}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                         <FormMessage />
                       </FormItem>
                     )}
