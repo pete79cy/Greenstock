@@ -11,6 +11,8 @@ import Reports from "@/pages/Reports";
 import Settings from "@/pages/Settings";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
+import Py8Purchases from "@/pages/Py8Purchases";
+import Py9Sales from "@/pages/Py9Sales";
 import Layout from "@/components/Layout";
 import { ThemeProvider } from "next-themes";
 import { useAuth } from "@/hooks/useAuth";

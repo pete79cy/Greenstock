@@ -1364,6 +1364,189 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ΠΥ8 - Purchase entry routes
+  app.get("/api/purchases-py8", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const purchases = await storage.getAllPurchasesPy8();
+      res.json(purchases);
+    } catch (error) {
+      console.error("Error fetching ΠΥ8 purchases:", error);
+      res.status(500).json({ message: "Failed to fetch purchase entries" });
+    }
+  });
+
+  app.post("/api/purchases-py8", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const validationResult = insertPurchasesPy8Schema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        const validationError = fromZodError(validationResult.error);
+        return res.status(400).json({ message: validationError.message });
+      }
+
+      const purchase = await storage.createPurchasePy8(validationResult.data);
+      res.status(201).json(purchase);
+    } catch (error) {
+      console.error("Error creating ΠΥ8 purchase:", error);
+      res.status(500).json({ message: "Failed to create purchase entry" });
+    }
+  });
+
+  // ΠΥ9 - Sales import and management routes
+  app.get("/api/sales-py9", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const sales = await storage.getAllSalesPy9();
+      res.json(sales);
+    } catch (error) {
+      console.error("Error fetching ΠΥ9 sales:", error);
+      res.status(500).json({ message: "Failed to fetch sales entries" });
+    }
+  });
+
+  app.post("/api/sales-py9/import", isAuthenticated, upload.single("file"), async (req: MulterRequest, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      // Read the Excel file
+      const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      
+      type ExcelRow = Record<string, string | number | null | undefined>;
+      const data = XLSX.utils.sheet_to_json(worksheet) as ExcelRow[];
+
+      const importResults = {
+        success: 0,
+        failed: 0,
+        errors: [] as string[]
+      };
+
+      for (const row of data) {
+        try {
+          // Map Greek headers to our schema
+          const saleData = {
+            date: String(row['Ημερομηνία'] || row['Date'] || ''),
+            species: String(row['Είδος'] || row['Species'] || ''),
+            variety: row['Ποικιλία'] || row['Variety'] ? String(row['Ποικιλία'] || row['Variety']) : null,
+            quantity: parseInt(String(row['Ποσότητα'] || row['Quantity'] || '0'), 10),
+            batchCode: row['Κωδικός Παρτίδας'] || row['Batch Code'] ? String(row['Κωδικός Παρτίδας'] || row['Batch Code']) : null,
+            materialCategory: row['Κατηγορία Υλικού'] || row['Material Category'] ? String(row['Κατηγορία Υλικού'] || row['Material Category']) : null,
+            buyer: row['Αγοραστής'] || row['Buyer'] ? String(row['Αγοραστής'] || row['Buyer']) : null
+          };
+
+          const validationResult = insertSalesPy9Schema.safeParse(saleData);
+          
+          if (validationResult.success) {
+            await storage.createSalePy9(validationResult.data);
+            importResults.success++;
+          } else {
+            const validationError = fromZodError(validationResult.error);
+            importResults.failed++;
+            importResults.errors.push(`Row error: ${validationError.message}`);
+          }
+        } catch (error) {
+          importResults.failed++;
+          importResults.errors.push(`Error processing row: ${(error as Error).message}`);
+        }
+      }
+
+      const message = importResults.success > 0 
+        ? `Successfully imported ${importResults.success} sales entries.` 
+        : "No sales entries were imported.";
+
+      res.json({
+        ...importResults,
+        message
+      });
+    } catch (error) {
+      console.error("Error importing ΠΥ9 sales:", error);
+      res.status(500).json({ message: "Failed to import sales data. Check the Excel file format." });
+    }
+  });
+
+  // ΠΥ8 Excel report generation
+  app.get("/api/reports/py8/excel", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const purchases = await storage.getAllPurchasesPy8();
+      
+      // Create Excel workbook with proper Unicode handling
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(purchases.map(purchase => ({
+        'Ημερομηνία': purchase.date,
+        'Είδος': purchase.species,
+        'Ποικιλία': purchase.variety || '',
+        'Ποσότητα': purchase.quantity,
+        'Έγγραφα Προέλευσης': purchase.documentsOrigin || '',
+        'Κατηγορία': purchase.category || ''
+      })));
+      
+      XLSX.utils.book_append_sheet(workbook, worksheet, "ΠΥ8 Αγορές");
+      
+      const excelBuffer = XLSX.write(workbook, { 
+        type: "buffer", 
+        bookType: "xlsx",
+        bookSST: true,
+        compression: true
+      });
+      
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; charset=utf-8");
+      res.setHeader("Content-Disposition", "attachment; filename=py8-purchases.xlsx");
+      res.send(excelBuffer);
+    } catch (error) {
+      console.error("Error generating ΠΥ8 Excel report:", error);
+      res.status(500).json({ message: "Failed to generate ΠΥ8 Excel report" });
+    }
+  });
+
+  // ΠΥ9 PDF report generation
+  app.get("/api/reports/py9/pdf", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const sales = await storage.getAllSalesPy9();
+      
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      }) as any;
+      
+      // Title
+      doc.setFontSize(18);
+      doc.text("ΠΥ9 Αναφορά Πωλήσεων", 14, 22);
+      
+      // Date
+      doc.setFontSize(12);
+      doc.text(`Ημερομηνία: ${new Date().toLocaleDateString('el-GR')}`, 14, 30);
+      
+      // Table data
+      const tableData = sales.map(sale => [
+        sale.date,
+        sale.species,
+        sale.variety || '',
+        sale.quantity.toString(),
+        sale.batchCode || '',
+        sale.materialCategory || '',
+        sale.buyer || ''
+      ]);
+      
+      autoTable(doc, {
+        head: [['Ημερομηνία', 'Είδος', 'Ποικιλία', 'Ποσότητα', 'Κωδικός Παρτίδας', 'Κατηγορία Υλικού', 'Αγοραστής']],
+        body: tableData,
+        startY: 40,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [41, 128, 185] }
+      });
+      
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", "attachment; filename=py9-sales.pdf");
+      res.send(Buffer.from(doc.output('arraybuffer')));
+    } catch (error) {
+      console.error("Error generating ΠΥ9 PDF report:", error);
+      res.status(500).json({ message: "Failed to generate ΠΥ9 PDF report" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

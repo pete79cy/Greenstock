@@ -61,7 +61,7 @@ export interface IStorage {
   getAllSalesPy9(): Promise<SalesPy9[]>;
   getSalePy9(id: number): Promise<SalesPy9 | undefined>;
   createSalePy9(sale: InsertSalesPy9): Promise<SalesPy9>;
-  updateSalePy9(sale: UpdateSalesPy9): Promise<SalesPy9 | undefined>;
+  updateSalePy9(id: number, sale: UpdateSalesPy9): Promise<SalesPy9 | undefined>;
   deleteSalePy9(id: number): Promise<boolean>;
 }
 
@@ -525,20 +525,18 @@ export class DatabaseStorage implements IStorage {
     return purchase;
   }
 
-  async updatePurchasePy8(updatePurchase: UpdatePurchasesPy8): Promise<PurchasesPy8 | undefined> {
-    if (!updatePurchase.id) return undefined;
-    
+  async updatePurchasePy8(id: number, updatePurchase: UpdatePurchasesPy8): Promise<PurchasesPy8 | undefined> {
     const [purchase] = await db
       .update(purchasesPy8)
       .set(updatePurchase)
-      .where(eq(purchasesPy8.id, updatePurchase.id))
+      .where(eq(purchasesPy8.id, id))
       .returning();
     return purchase || undefined;
   }
 
   async deletePurchasePy8(id: number): Promise<boolean> {
     const result = await db.delete(purchasesPy8).where(eq(purchasesPy8.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // ΠΥ9 Sales methods
@@ -556,20 +554,18 @@ export class DatabaseStorage implements IStorage {
     return sale;
   }
 
-  async updateSalePy9(updateSale: UpdateSalesPy9): Promise<SalesPy9 | undefined> {
-    if (!updateSale.id) return undefined;
-    
+  async updateSalePy9(id: number, updateSale: UpdateSalesPy9): Promise<SalesPy9 | undefined> {
     const [sale] = await db
       .update(salesPy9)
       .set(updateSale)
-      .where(eq(salesPy9.id, updateSale.id))
+      .where(eq(salesPy9.id, id))
       .returning();
     return sale || undefined;
   }
 
   async deleteSalePy9(id: number): Promise<boolean> {
     const result = await db.delete(salesPy9).where(eq(salesPy9.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 }
 
