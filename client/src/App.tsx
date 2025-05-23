@@ -97,6 +97,8 @@ function Router() {
       <Route path="/" component={ProtectedWithLayout(Dashboard)} />
       <Route path="/inventory" component={ProtectedWithLayout(Inventory)} />
       <Route path="/reports" component={ProtectedWithLayout(Reports)} />
+      <Route path="/py8-purchases" component={ProtectedWithLayout(Py8Purchases)} />
+      <Route path="/py9-sales" component={ProtectedWithLayout(Py9Sales)} />
       <Route path="/settings" component={ProtectedWithLayout(Settings)} />
       
       {/* Catch-all route for 404 */}
