@@ -201,9 +201,17 @@ export default function Py8Purchases() {
                           </PopoverTrigger>
                           <PopoverContent className="w-full p-0" align="start">
                             <Command>
-                              <CommandInput placeholder="Αναζήτηση είδους..." />
+                              <CommandInput 
+                                placeholder="Αναζήτηση είδους ή πληκτρολογήστε νέο..." 
+                                value={field.value || ""}
+                                onValueChange={field.onChange}
+                              />
                               <CommandList>
-                                <CommandEmpty>Δεν βρέθηκε είδος.</CommandEmpty>
+                                <CommandEmpty>
+                                  <div className="p-2 text-sm">
+                                    Δεν βρέθηκε είδος. Πατήστε Enter για να προσθέσετε "{field.value}"
+                                  </div>
+                                </CommandEmpty>
                                 <CommandGroup>
                                   {PLANT_SPECIES.map((species) => (
                                     <CommandItem
@@ -257,9 +265,23 @@ export default function Py8Purchases() {
                           </PopoverTrigger>
                           <PopoverContent className="w-full p-0" align="start">
                             <Command>
-                              <CommandInput placeholder="Αναζήτηση ποικιλίας..." />
+                              <CommandInput 
+                                placeholder="Αναζήτηση ποικιλίας ή πληκτρολογήστε νέα..." 
+                                value={field.value === "no_variety" ? "" : (field.value || "")}
+                                onValueChange={(value) => {
+                                  if (value === "") {
+                                    field.onChange("no_variety");
+                                  } else {
+                                    field.onChange(value);
+                                  }
+                                }}
+                              />
                               <CommandList>
-                                <CommandEmpty>Δεν βρέθηκε ποικιλία.</CommandEmpty>
+                                <CommandEmpty>
+                                  <div className="p-2 text-sm">
+                                    Δεν βρέθηκε ποικιλία. Πατήστε Enter για να προσθέσετε "{field.value}"
+                                  </div>
+                                </CommandEmpty>
                                 <CommandGroup>
                                   <CommandItem
                                     value="no_variety"
@@ -358,9 +380,23 @@ export default function Py8Purchases() {
                           </PopoverTrigger>
                           <PopoverContent className="w-full p-0" align="start">
                             <Command>
-                              <CommandInput placeholder="Αναζήτηση κατηγορίας..." />
+                              <CommandInput 
+                                placeholder="Αναζήτηση κατηγορίας ή πληκτρολογήστε νέα..." 
+                                value={field.value === "no_category" ? "" : (field.value || "")}
+                                onValueChange={(value) => {
+                                  if (value === "") {
+                                    field.onChange("no_category");
+                                  } else {
+                                    field.onChange(value);
+                                  }
+                                }}
+                              />
                               <CommandList>
-                                <CommandEmpty>Δεν βρέθηκε κατηγορία.</CommandEmpty>
+                                <CommandEmpty>
+                                  <div className="p-2 text-sm">
+                                    Δεν βρέθηκε κατηγορία. Πατήστε Enter για να προσθέσετε "{field.value}"
+                                  </div>
+                                </CommandEmpty>
                                 <CommandGroup>
                                   <CommandItem
                                     value="no_category"
