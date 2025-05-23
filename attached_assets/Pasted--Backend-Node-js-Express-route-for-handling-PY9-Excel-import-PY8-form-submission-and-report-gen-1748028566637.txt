@@ -1,0 +1,112 @@
+// Backend: Node.js Express route for handling PY9 Excel import, PY8 form submission, and report generation
+
+const express = require('express');
+const multer = require('multer');
+const xlsx = require('xlsx');
+const fs = require('fs');
+const path = require('path');
+const { Pool } = require('pg');
+const ExcelJS = require('exceljs');
+const PDFDocument = require('pdfkit');
+
+const router = express.Router();
+const upload = multer({ dest: 'uploads/' });
+const pool = new Pool(); // Configure PostgreSQL connection
+
+// PY9: Import sales from Excel
+router.post('/api/sales-py9/import', upload.single('file'), async (req, res) => {
+  try {
+    const filePath = path.join(__dirname, '..', req.file.path);
+    const workbook = xlsx.readFile(filePath);
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const data = xlsx.utils.sheet_to_json(sheet, { defval: "" });
+
+    const client = await pool.connect();
+    await client.query('BEGIN');
+
+    for (const row of data) {
+      const query = `
+        INSERT INTO sales_py9 (date, species, variety, quantity, batch_code, material_category, buyer)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `;
+      const values = [
+        new Date(row['Ημερομηνία']),
+        row['Είδος'],
+        row['Ποικιλία'],
+        parseInt(row['Ποσότητα'], 10),
+        row['Κωδικός Παρτίδας'],
+        row['Κατηγορία Υλικού'],
+        row['Αγοραστής']
+      ];
+      await client.query(query, values);
+    }
+
+    await client.query('COMMIT');
+    client.release();
+    fs.unlinkSync(filePath);
+    res.status(200).send('Import successful');
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error processing file');
+  }
+});
+
+// PY8: Submit purchase entry
+router.post('/api/purchases-py8', async (req, res) => {
+  const { date, species, variety, quantity, documents_origin, category } = req.body;
+  try {
+    await pool.query(
+      `INSERT INTO purchases_py8 (date, species, variety, quantity, documents_origin, category)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [new Date(date), species, variety, quantity, documents_origin, category]
+    );
+    res.status(200).send('Entry saved');
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Database error');
+  }
+});
+
+// PY8 report in Excel
+router.get('/api/reports/py8/excel', async (req, res) => {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('PY8 Report');
+  sheet.columns = [
+    { header: 'Ημερομηνία', key: 'date' },
+    { header: 'Είδος', key: 'species' },
+    { header: 'Ποικιλία', key: 'variety' },
+    { header: 'Ποσότητα', key: 'quantity' },
+    { header: 'Έγγραφα', key: 'documents_origin' },
+    { header: 'Κατηγορία', key: 'category' }
+  ];
+
+  const result = await pool.query('SELECT * FROM purchases_py8');
+  result.rows.forEach(row => sheet.addRow(row));
+
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename=py8-report.xlsx');
+  await workbook.xlsx.write(res);
+  res.end();
+});
+
+// PY9 report in PDF
+router.get('/api/reports/py9/pdf', async (req, res) => {
+  const result = await pool.query('SELECT * FROM sales_py9');
+  const doc = new PDFDocument();
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', 'attachment; filename=py9-report.pdf');
+  doc.pipe(res);
+
+  doc.fontSize(16).text('ΠΥ9 Αναφορά Πωλήσεων', { align: 'center' });
+  doc.moveDown();
+
+  result.rows.forEach(row => {
+    doc.text(`Ημ: ${row.date.toISOString().split('T')[0]}, Είδος: ${row.species}, Ποσότητα: ${row.quantity}, Παρτίδα: ${row.batch_code}, Αγοραστής: ${row.buyer}`);
+  });
+
+  doc.end();
+});
+
+module.exports = router;
