@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, foreignKey, varchar, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, foreignKey, varchar, jsonb, index, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -124,3 +124,58 @@ export type UpdatePlant = z.infer<typeof updatePlantSchema>;
 export interface PlantView extends PlantBase {
   inventoryEntries: PlantInventory[];
 }
+
+// ΠΥ8 - Purchase entries table
+export const purchasesPy8 = pgTable("purchases_py8", {
+  id: serial("id").primaryKey(),
+  date: text("date").notNull(), // Using text for date to avoid timezone issues
+  species: text("species").notNull(),
+  variety: text("variety"),
+  quantity: integer("quantity").notNull(),
+  documentsOrigin: text("documents_origin"),
+  category: text("category"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertPurchasesPy8Schema = createInsertSchema(purchasesPy8, {
+  date: z.string().min(1, "Date is required"),
+  species: z.string().min(1, "Species is required"),
+  quantity: z.number().int().positive("Quantity must be positive"),
+}).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const updatePurchasesPy8Schema = insertPurchasesPy8Schema.partial();
+
+export type PurchasesPy8 = typeof purchasesPy8.$inferSelect;
+export type InsertPurchasesPy8 = z.infer<typeof insertPurchasesPy8Schema>;
+export type UpdatePurchasesPy8 = z.infer<typeof updatePurchasesPy8Schema>;
+
+// ΠΥ9 - Sales entries table
+export const salesPy9 = pgTable("sales_py9", {
+  id: serial("id").primaryKey(),
+  date: text("date").notNull(), // Using text for date to avoid timezone issues
+  species: text("species").notNull(),
+  variety: text("variety"),
+  quantity: integer("quantity").notNull(),
+  batchCode: text("batch_code"),
+  materialCategory: text("material_category"),
+  buyer: text("buyer"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertSalesPy9Schema = createInsertSchema(salesPy9, {
+  date: z.string().min(1, "Date is required"),
+  species: z.string().min(1, "Species is required"),
+  quantity: z.number().int().positive("Quantity must be positive"),
+}).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const updateSalesPy9Schema = insertSalesPy9Schema.partial();
+
+export type SalesPy9 = typeof salesPy9.$inferSelect;
+export type InsertSalesPy9 = z.infer<typeof insertSalesPy9Schema>;
+export type UpdateSalesPy9 = z.infer<typeof updateSalesPy9Schema>;

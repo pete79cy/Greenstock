@@ -3,7 +3,9 @@ import {
   users, type User, type InsertUser,
   plantBase, type PlantBase, type InsertPlantBase, type UpdatePlantBase,
   plantInventory, type PlantInventory, type InsertPlantInventory, type UpdatePlantInventory,
-  type PlantView
+  type PlantView,
+  purchasesPy8, type PurchasesPy8, type InsertPurchasesPy8, type UpdatePurchasesPy8,
+  salesPy9, type SalesPy9, type InsertSalesPy9, type UpdateSalesPy9
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql } from "drizzle-orm";
@@ -47,6 +49,20 @@ export interface IStorage {
   
   // Migration method
   migrateToNewSchema(): Promise<void>;
+  
+  // ΠΥ8 Purchase methods
+  getAllPurchasesPy8(): Promise<PurchasesPy8[]>;
+  getPurchasePy8(id: number): Promise<PurchasesPy8 | undefined>;
+  createPurchasePy8(purchase: InsertPurchasesPy8): Promise<PurchasesPy8>;
+  updatePurchasePy8(id: number, purchase: UpdatePurchasesPy8): Promise<PurchasesPy8 | undefined>;
+  deletePurchasePy8(id: number): Promise<boolean>;
+  
+  // ΠΥ9 Sales methods
+  getAllSalesPy9(): Promise<SalesPy9[]>;
+  getSalePy9(id: number): Promise<SalesPy9 | undefined>;
+  createSalePy9(sale: InsertSalesPy9): Promise<SalesPy9>;
+  updateSalePy9(sale: UpdateSalesPy9): Promise<SalesPy9 | undefined>;
+  deleteSalePy9(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -492,6 +508,68 @@ export class DatabaseStorage implements IStorage {
       console.error("Error seeding plant data:", error);
       throw error;
     }
+  }
+
+  // ΠΥ8 Purchase methods
+  async getAllPurchasesPy8(): Promise<PurchasesPy8[]> {
+    return await db.select().from(purchasesPy8).orderBy(desc(purchasesPy8.createdAt));
+  }
+
+  async getPurchasePy8(id: number): Promise<PurchasesPy8 | undefined> {
+    const [purchase] = await db.select().from(purchasesPy8).where(eq(purchasesPy8.id, id));
+    return purchase || undefined;
+  }
+
+  async createPurchasePy8(insertPurchase: InsertPurchasesPy8): Promise<PurchasesPy8> {
+    const [purchase] = await db.insert(purchasesPy8).values(insertPurchase).returning();
+    return purchase;
+  }
+
+  async updatePurchasePy8(updatePurchase: UpdatePurchasesPy8): Promise<PurchasesPy8 | undefined> {
+    if (!updatePurchase.id) return undefined;
+    
+    const [purchase] = await db
+      .update(purchasesPy8)
+      .set(updatePurchase)
+      .where(eq(purchasesPy8.id, updatePurchase.id))
+      .returning();
+    return purchase || undefined;
+  }
+
+  async deletePurchasePy8(id: number): Promise<boolean> {
+    const result = await db.delete(purchasesPy8).where(eq(purchasesPy8.id, id));
+    return result.rowCount > 0;
+  }
+
+  // ΠΥ9 Sales methods
+  async getAllSalesPy9(): Promise<SalesPy9[]> {
+    return await db.select().from(salesPy9).orderBy(desc(salesPy9.createdAt));
+  }
+
+  async getSalePy9(id: number): Promise<SalesPy9 | undefined> {
+    const [sale] = await db.select().from(salesPy9).where(eq(salesPy9.id, id));
+    return sale || undefined;
+  }
+
+  async createSalePy9(insertSale: InsertSalesPy9): Promise<SalesPy9> {
+    const [sale] = await db.insert(salesPy9).values(insertSale).returning();
+    return sale;
+  }
+
+  async updateSalePy9(updateSale: UpdateSalesPy9): Promise<SalesPy9 | undefined> {
+    if (!updateSale.id) return undefined;
+    
+    const [sale] = await db
+      .update(salesPy9)
+      .set(updateSale)
+      .where(eq(salesPy9.id, updateSale.id))
+      .returning();
+    return sale || undefined;
+  }
+
+  async deleteSalePy9(id: number): Promise<boolean> {
+    const result = await db.delete(salesPy9).where(eq(salesPy9.id, id));
+    return result.rowCount > 0;
   }
 }
 
