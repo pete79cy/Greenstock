@@ -1392,6 +1392,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Batch create multiple ΠΥ8 purchases under single invoice
+  app.post("/api/purchases-py8/batch", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { date, documentsOrigin, category, items } = req.body;
+      
+      // Validate request body
+      if (!date || !items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ message: "Invalid request: date and items array required" });
+      }
+
+      // Create all purchases with shared invoice data
+      const purchases = [];
+      for (const item of items) {
+        if (!item.species || !item.variety || !item.quantity) {
+          return res.status(400).json({ message: "Invalid item: species, variety, and quantity required" });
+        }
+
+        const purchaseData = {
+          date: new Date(date),
+          documentsOrigin: documentsOrigin || null,
+          category: category || null,
+          species: item.species,
+          variety: item.variety,
+          quantity: item.quantity
+        };
+
+        // Validate each purchase item
+        const validationResult = insertPurchasesPy8Schema.safeParse(purchaseData);
+        if (!validationResult.success) {
+          const validationError = fromZodError(validationResult.error);
+          return res.status(400).json({ message: `Item validation error: ${validationError.message}` });
+        }
+
+        const purchase = await storage.createPurchasePy8(validationResult.data);
+        purchases.push(purchase);
+      }
+
+      res.status(201).json({ 
+        success: true, 
+        count: purchases.length,
+        purchases 
+      });
+    } catch (error) {
+      console.error("Error creating batch ΠΥ8 purchases:", error);
+      res.status(500).json({ message: "Failed to create batch purchases" });
+    }
+  });
+
   // ΠΥ9 - Sales import and management routes
   app.get("/api/sales-py9", isAuthenticated, async (req: Request, res: Response) => {
     try {

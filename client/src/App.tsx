@@ -12,6 +12,7 @@ import Settings from "@/pages/Settings";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Py8Purchases from "@/pages/Py8Purchases";
+import Py8BatchPurchases from "@/pages/Py8BatchPurchases";
 import Py9Sales from "@/pages/Py9Sales";
 import Layout from "@/components/Layout";
 import { ThemeProvider } from "next-themes";
@@ -98,6 +99,7 @@ function Router() {
       <Route path="/inventory" component={ProtectedWithLayout(Inventory)} />
       <Route path="/reports" component={ProtectedWithLayout(Reports)} />
       <Route path="/py8-purchases" component={ProtectedWithLayout(Py8Purchases)} />
+      <Route path="/py8-batch-purchases" component={ProtectedWithLayout(Py8BatchPurchases)} />
       <Route path="/py9-sales" component={ProtectedWithLayout(Py9Sales)} />
       <Route path="/settings" component={ProtectedWithLayout(Settings)} />
       

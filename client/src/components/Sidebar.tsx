@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { Leaf, BarChart3, Warehouse, Settings, X, FileText, ShoppingCart, TrendingUp } from "lucide-react";
+import { Leaf, BarChart3, Warehouse, Settings, X, FileText, ShoppingCart, TrendingUp, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface SidebarProps {
@@ -88,6 +88,19 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               )}>
                 <ShoppingCart className="mr-3 h-5 w-5" />
                 <span>ΠΥ8 - Αγορές</span>
+              </div>
+            </Link>
+          </li>
+          <li>
+            <Link href="/py8-batch-purchases">
+              <div className={cn(
+                "flex items-center p-2 rounded-md cursor-pointer",
+                location === "/py8-batch-purchases" 
+                  ? "bg-primary bg-opacity-10 text-primary" 
+                  : "hover:bg-gray-100"
+              )}>
+                <Receipt className="mr-3 h-5 w-5" />
+                <span>ΠΥ8 - Παραστατικό</span>
               </div>
             </Link>
           </li>
