@@ -8,6 +8,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Check, ChevronsUpDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -38,6 +41,7 @@ export default function Py8Purchases() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [varietySearchOpen, setVarietySearchOpen] = useState(false);
 
   // Query for fetching purchases
   const { data: purchases = [], isLoading, isError } = useQuery<PurchasesPy8[]>({
@@ -166,23 +170,68 @@ export default function Py8Purchases() {
                     control={form.control}
                     name="variety"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="flex flex-col">
                         <FormLabel>Ποικιλία (Προαιρετικό)</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Επιλέξτε ποικιλία..." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent className="max-h-60">
-                            <SelectItem value="">Χωρίς ποικιλία</SelectItem>
-                            {PLANT_VARIETIES.map((variety) => (
-                              <SelectItem key={variety} value={variety}>
-                                {variety}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Popover open={varietySearchOpen} onOpenChange={setVarietySearchOpen}>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={varietySearchOpen}
+                                className="w-full justify-between"
+                              >
+                                {field.value && field.value !== "no_variety"
+                                  ? PLANT_VARIETIES.find((variety) => variety === field.value) || field.value
+                                  : field.value === "no_variety"
+                                  ? "Χωρίς ποικιλία"
+                                  : "Επιλέξτε ποικιλία..."}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-full p-0" align="start">
+                            <Command>
+                              <CommandInput placeholder="Αναζήτηση ποικιλίας..." />
+                              <CommandList>
+                                <CommandEmpty>Δεν βρέθηκε ποικιλία.</CommandEmpty>
+                                <CommandGroup>
+                                  <CommandItem
+                                    value="no_variety"
+                                    onSelect={() => {
+                                      field.onChange("no_variety");
+                                      setVarietySearchOpen(false);
+                                    }}
+                                  >
+                                    <Check
+                                      className={`mr-2 h-4 w-4 ${
+                                        field.value === "no_variety" ? "opacity-100" : "opacity-0"
+                                      }`}
+                                    />
+                                    Χωρίς ποικιλία
+                                  </CommandItem>
+                                  {PLANT_VARIETIES.map((variety) => (
+                                    <CommandItem
+                                      key={variety}
+                                      value={variety}
+                                      onSelect={() => {
+                                        field.onChange(variety);
+                                        setVarietySearchOpen(false);
+                                      }}
+                                    >
+                                      <Check
+                                        className={`mr-2 h-4 w-4 ${
+                                          field.value === variety ? "opacity-100" : "opacity-0"
+                                        }`}
+                                      />
+                                      {variety}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                         <FormMessage />
                       </FormItem>
                     )}
