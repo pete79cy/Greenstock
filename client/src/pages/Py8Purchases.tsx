@@ -7,11 +7,32 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPurchasesPy8Schema, type PurchasesPy8, type InsertPurchasesPy8 } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
+
+// Authentic plant varieties for ΠΥ8 compliance
+const PLANT_VARIETIES = [
+  "GrapeFruit", "GrapeFruit Κλασικό", "Passion Fruit", "Σταφύλι", "Αμπελος", "Avocado",
+  "Aloe Vera", "Αγάπες Κόκκινες", "Aγάπες Μωβ", "Φασόλια μαυρομάτικα", "Λουβά",
+  "Δεντρολίβανο Black Amber", "Δεντρολίβανο Black Diamond", "Δεντρολίβανο Stanley",
+  "Δεντρολίβανο Sunshine", "Ελιες Μαυρολιθιες", "Καλλικάρπα", "Κάκτος Alteri",
+  "Κάκτος", "Κάρδος Καθρέφτη", "Κολοκιθια Πίκλα", "Κολοκυθα Κόκκινη",
+  "Kiwi Κοινό", "Κρεμμύδι", "Λάχανα", "Αγγουρόδερφα", "Αγγούρι λαντζούλα",
+  "Μποραμές Κόκκινες", "Μπιζέλι Γράνι", "Μποραμές Μαύρα", "Μπρόκολο",
+  "Μαρούλι", "Μάνγκο", "Μαλακά California", "Μαλακά Γκούντα κρίσα",
+  "Μολόχα Blue", "Μολόχα", "Μολόχα Κολά", "Μολόχα Royal Gold", "Μαλιa Κλάφτα",
+  "Μαλιa καθρέφτη", "Μπάμιες", "Μουργούλι Τριμμέντια", "Νεκταρίνες",
+  "Νταμάτα", "Παγονιά", "Πιπεριές Ατσιλα Κόκκινες", "Παμπρίκα Βουλκάνικα",
+  "Παμπρίκα Βαλεγκάνικα", "Παμπρίκα Μαγιάλο", "Παμπρίκα Κάρα Κάρα",
+  "Παμπρίκα Καρμαρινη", "Παπάρια", "Ραδίκια", "Ραδίκια Wildcraft",
+  "Ραδίκια", "Ραδίκια", "Σπανάκι", "Σκόρδα", "Σκόρδα Μικρά",
+  "Σκόρδα Τουρκοκολια", "Τομάτες", "Τομάτες", "Βασιλικός", "Κρεμμυδάκι",
+  "Αμυγδαλος Ελληνικη κολοκυθα", "Σπαράγκι λουκιανός"
+];
 
 export default function Py8Purchases() {
   const { toast } = useToast();
@@ -147,9 +168,21 @@ export default function Py8Purchases() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Ποικιλία (Προαιρετικό)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="π.χ. Cherry" {...field} />
-                        </FormControl>
+                        <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Επιλέξτε ποικιλία..." />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent className="max-h-60">
+                            <SelectItem value="">Χωρίς ποικιλία</SelectItem>
+                            {PLANT_VARIETIES.map((variety) => (
+                              <SelectItem key={variety} value={variety}>
+                                {variety}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
