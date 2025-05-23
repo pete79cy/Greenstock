@@ -49,12 +49,23 @@ const PLANT_SPECIES = [
   "ΦΡΟΥΤΟΔΕΝΤΡΑ"
 ];
 
+// Authentic categories (suppliers) for ΠΥ8 compliance
+const PLANT_CATEGORIES = [
+  "Chrysovalantis Nursuries Ltd",
+  "Νίκος Γ. Μωυσής",
+  "Φυτώρια Παναγιώτου Λτδ",
+  "Τμήμα Γεωργίας",
+  "Φυτώρια Ανδρέα Χαραλάμπους",
+  "T. N. Theodorides Nurseries Ltd"
+];
+
 export default function Py8Purchases() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [varietySearchOpen, setVarietySearchOpen] = useState(false);
   const [speciesSearchOpen, setSpeciesSearchOpen] = useState(false);
+  const [categorySearchOpen, setCategorySearchOpen] = useState(false);
 
   // Query for fetching purchases
   const { data: purchases = [], isLoading, isError } = useQuery<PurchasesPy8[]>({
@@ -325,11 +336,68 @@ export default function Py8Purchases() {
                     control={form.control}
                     name="category"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="flex flex-col">
                         <FormLabel>Κατηγορία (Προαιρετικό)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="π.χ. Σπόρια, Φυτά" {...field} />
-                        </FormControl>
+                        <Popover open={categorySearchOpen} onOpenChange={setCategorySearchOpen}>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={categorySearchOpen}
+                                className="w-full justify-between"
+                              >
+                                {field.value && field.value !== "no_category"
+                                  ? PLANT_CATEGORIES.find((category) => category === field.value) || field.value
+                                  : field.value === "no_category"
+                                  ? "Χωρίς κατηγορία"
+                                  : "Επιλέξτε κατηγορία..."}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-full p-0" align="start">
+                            <Command>
+                              <CommandInput placeholder="Αναζήτηση κατηγορίας..." />
+                              <CommandList>
+                                <CommandEmpty>Δεν βρέθηκε κατηγορία.</CommandEmpty>
+                                <CommandGroup>
+                                  <CommandItem
+                                    value="no_category"
+                                    onSelect={() => {
+                                      field.onChange("no_category");
+                                      setCategorySearchOpen(false);
+                                    }}
+                                  >
+                                    <Check
+                                      className={`mr-2 h-4 w-4 ${
+                                        field.value === "no_category" ? "opacity-100" : "opacity-0"
+                                      }`}
+                                    />
+                                    Χωρίς κατηγορία
+                                  </CommandItem>
+                                  {PLANT_CATEGORIES.map((category) => (
+                                    <CommandItem
+                                      key={category}
+                                      value={category}
+                                      onSelect={() => {
+                                        field.onChange(category);
+                                        setCategorySearchOpen(false);
+                                      }}
+                                    >
+                                      <Check
+                                        className={`mr-2 h-4 w-4 ${
+                                          field.value === category ? "opacity-100" : "opacity-0"
+                                        }`}
+                                      />
+                                      {category}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                         <FormMessage />
                       </FormItem>
                     )}
