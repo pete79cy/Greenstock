@@ -1840,6 +1840,175 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate payslip PDF
+  app.get("/api/payslips/:id/pdf", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const payslip = await storage.getPayslip(id);
+      
+      if (!payslip) {
+        return res.status(404).json({ message: "Payslip not found" });
+      }
+
+      const employee = await storage.getEmployee(payslip.employeeId);
+      if (!employee) {
+        return res.status(404).json({ message: "Employee not found" });
+      }
+
+      const pdfDoc = await PDFDocument.create();
+      const page = pdfDoc.addPage([595, 842]);
+      const { width, height } = page.getSize();
+
+      const grossSalary = payslip.grossSalary / 100;
+      const socialInsurance = payslip.socialInsurance / 100;
+      const gesy = payslip.gesy / 100;
+      const netPay = payslip.netPay / 100;
+
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      
+      const margin = 50;
+      let currentY = height - margin;
+      
+      page.drawText('PAYSLIP', {
+        x: width / 2 - 30,
+        y: currentY,
+        size: 20,
+        font: boldFont,
+      });
+      currentY -= 40;
+
+      page.drawText(`Employee: ${employee.name}`, {
+        x: margin,
+        y: currentY,
+        size: 12,
+        font: boldFont,
+      });
+      currentY -= 20;
+
+      page.drawText(`Designation: ${employee.designation}`, {
+        x: margin,
+        y: currentY,
+        size: 11,
+        font: font,
+      });
+      currentY -= 20;
+
+      page.drawText(`Pay Period: ${payslip.payPeriod}`, {
+        x: margin,
+        y: currentY,
+        size: 11,
+        font: font,
+      });
+      
+      page.drawText(`Pay Date: ${payslip.payDate}`, {
+        x: width - margin - 120,
+        y: currentY,
+        size: 11,
+        font: font,
+      });
+      currentY -= 40;
+
+      page.drawText('SALARY BREAKDOWN', {
+        x: margin,
+        y: currentY,
+        size: 14,
+        font: boldFont,
+      });
+      currentY -= 25;
+
+      page.drawText('Gross Salary:', {
+        x: margin,
+        y: currentY,
+        size: 11,
+        font: font,
+      });
+      page.drawText(`€${grossSalary.toFixed(2)}`, {
+        x: width - margin - 80,
+        y: currentY,
+        size: 11,
+        font: font,
+      });
+      currentY -= 20;
+
+      page.drawText('DEDUCTIONS', {
+        x: margin,
+        y: currentY,
+        size: 12,
+        font: boldFont,
+      });
+      currentY -= 20;
+
+      page.drawText('Social Insurance (8.3%):', {
+        x: margin + 20,
+        y: currentY,
+        size: 11,
+        font: font,
+      });
+      page.drawText(`-€${socialInsurance.toFixed(2)}`, {
+        x: width - margin - 80,
+        y: currentY,
+        size: 11,
+        font: font,
+      });
+      currentY -= 18;
+
+      page.drawText('GESY (2.65%):', {
+        x: margin + 20,
+        y: currentY,
+        size: 11,
+        font: font,
+      });
+      page.drawText(`-€${gesy.toFixed(2)}`, {
+        x: width - margin - 80,
+        y: currentY,
+        size: 11,
+        font: font,
+      });
+      currentY -= 30;
+
+      page.drawText('NET PAY:', {
+        x: margin,
+        y: currentY,
+        size: 14,
+        font: boldFont,
+      });
+      page.drawText(`€${netPay.toFixed(2)}`, {
+        x: width - margin - 80,
+        y: currentY,
+        size: 14,
+        font: boldFont,
+      });
+
+      if (payslip.notes) {
+        currentY -= 40;
+        page.drawText('Notes:', {
+          x: margin,
+          y: currentY,
+          size: 11,
+          font: boldFont,
+        });
+        currentY -= 20;
+        page.drawText(payslip.notes, {
+          x: margin,
+          y: currentY,
+          size: 10,
+          font: font,
+        });
+      }
+
+      const pdfBytes = await pdfDoc.save();
+      
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="payslip-${employee.name.replace(/\s+/g, '-')}-${payslip.payPeriod}.pdf"`);
+      res.setHeader('Content-Length', pdfBytes.length.toString());
+      res.send(Buffer.from(pdfBytes));
+    } catch (error) {
+      console.error("Error generating payslip PDF:", error);
+      res.status(500).json({ message: "Failed to generate PDF" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

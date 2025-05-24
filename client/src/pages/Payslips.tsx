@@ -206,7 +206,12 @@ export default function Payslips() {
                 </div>
               </div>
 
-              <Button variant="outline" size="sm" className="w-full">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full"
+                onClick={() => window.open(`/api/payslips/${payslip.id}/pdf`, '_blank')}
+              >
                 <Download className="h-3 w-3 mr-2" />
                 Download PDF
               </Button>
