@@ -1554,7 +1554,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create a new workbook
       const workbook = XLSX.utils.book_new();
       
-      // Define the headers in both Greek and English for compatibility
+      // Define the headers in Greek
       const headers = [
         'Ημερομηνία',
         'Είδος', 
@@ -1567,44 +1567,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create sample data to show the expected format
       const sampleData = [
-        ['2024-01-15', 'Τομάτα', 'Cherry', 100, 'BAT001', 'Σπόροι', 'Αγροτικός Συνεταιρισμός Α'],
-        ['2024-01-16', 'Πιπεριά', 'Κόκκινη γλυκιά', 50, 'BAT002', 'Φυτά', 'Εταιρία Β'],
+        ['2025-01-15', 'Τομάτα', 'Cherry', 100, 'BAT001', 'Σπόροι', 'Αγροτικός Συνεταιρισμός Α'],
+        ['2025-01-16', 'Πιπεριά', 'Κόκκινη γλυκιά', 50, 'BAT002', 'Φυτά', 'Εταιρία Β'],
         ['', '', '', '', '', '', ''] // Empty row for user to start filling
       ];
       
       // Combine headers with sample data
       const worksheetData = [headers, ...sampleData];
       
-      // Create worksheet
+      // Create worksheet from array of arrays
       const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
       
       // Set column widths for better readability
       worksheet['!cols'] = [
-        { wch: 15 }, // Ημερομηνία
-        { wch: 20 }, // Είδος
-        { wch: 20 }, // Ποικιλία
-        { wch: 12 }, // Ποσότητα
-        { wch: 18 }, // Κωδικός Παρτίδας
-        { wch: 20 }, // Κατηγορία Υλικού
-        { wch: 25 }  // Αγοραστής
+        { width: 15 }, // Ημερομηνία
+        { width: 20 }, // Είδος
+        { width: 20 }, // Ποικιλία
+        { width: 12 }, // Ποσότητα
+        { width: 18 }, // Κωδικός Παρτίδας
+        { width: 20 }, // Κατηγορία Υλικού
+        { width: 25 }  // Αγοραστής
       ];
       
-      // Add worksheet to workbook
-      XLSX.utils.book_append_sheet(workbook, worksheet, "ΠΥ9 Πωλήσεις");
+      // Set the range for the worksheet
+      const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+      worksheet['!ref'] = XLSX.utils.encode_range(range);
       
-      // Generate Excel buffer
+      // Add worksheet to workbook with a simple name
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Sales");
+      
+      // Generate Excel buffer with standard options
       const excelBuffer = XLSX.write(workbook, { 
         type: "buffer", 
-        bookType: "xlsx",
-        bookSST: true,
-        compression: true
+        bookType: "xlsx"
       });
       
       res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
       res.setHeader("Content-Disposition", "attachment; filename=\"py9-sales-template.xlsx\"");
-      res.setHeader("Cache-Control", "no-cache");
-      res.setHeader("Pragma", "no-cache");
-      res.end(excelBuffer);
+      res.setHeader("Content-Length", excelBuffer.length.toString());
+      res.send(excelBuffer);
     } catch (error) {
       console.error("Error generating ΠΥ9 template:", error);
       res.status(500).json({ message: "Failed to generate ΠΥ9 template" });
