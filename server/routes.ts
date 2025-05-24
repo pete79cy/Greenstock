@@ -1548,6 +1548,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ΠΥ9 Template download
+  app.get("/api/sales-py9/template", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      // Create a new workbook
+      const workbook = XLSX.utils.book_new();
+      
+      // Define the headers in both Greek and English for compatibility
+      const headers = [
+        'Ημερομηνία',
+        'Είδος', 
+        'Ποικιλία',
+        'Ποσότητα',
+        'Κωδικός Παρτίδας',
+        'Κατηγορία Υλικού',
+        'Αγοραστής'
+      ];
+      
+      // Create sample data to show the expected format
+      const sampleData = [
+        ['2024-01-15', 'Τομάτα', 'Cherry', 100, 'BAT001', 'Σπόροι', 'Αγροτικός Συνεταιρισμός Α'],
+        ['2024-01-16', 'Πιπεριά', 'Κόκκινη γλυκιά', 50, 'BAT002', 'Φυτά', 'Εταιρία Β'],
+        ['', '', '', '', '', '', ''] // Empty row for user to start filling
+      ];
+      
+      // Combine headers with sample data
+      const worksheetData = [headers, ...sampleData];
+      
+      // Create worksheet
+      const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+      
+      // Set column widths for better readability
+      worksheet['!cols'] = [
+        { wch: 15 }, // Ημερομηνία
+        { wch: 20 }, // Είδος
+        { wch: 20 }, // Ποικιλία
+        { wch: 12 }, // Ποσότητα
+        { wch: 18 }, // Κωδικός Παρτίδας
+        { wch: 20 }, // Κατηγορία Υλικού
+        { wch: 25 }  // Αγοραστής
+      ];
+      
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, "ΠΥ9 Πωλήσεις");
+      
+      // Generate Excel buffer
+      const excelBuffer = XLSX.write(workbook, { 
+        type: "buffer", 
+        bookType: "xlsx",
+        bookSST: true,
+        compression: true
+      });
+      
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; charset=utf-8");
+      res.setHeader("Content-Disposition", "attachment; filename=py9-sales-template.xlsx");
+      res.send(excelBuffer);
+    } catch (error) {
+      console.error("Error generating ΠΥ9 template:", error);
+      res.status(500).json({ message: "Failed to generate ΠΥ9 template" });
+    }
+  });
+
   // ΠΥ9 PDF report generation
   app.get("/api/reports/py9/pdf", isAuthenticated, async (req: Request, res: Response) => {
     try {

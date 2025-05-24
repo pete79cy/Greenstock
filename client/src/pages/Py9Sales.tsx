@@ -135,6 +135,10 @@ export default function Py9Sales() {
     window.open("/api/reports/py9/pdf", "_blank");
   };
 
+  const handleDownloadTemplate = () => {
+    window.open("/api/sales-py9/template", "_blank");
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -161,6 +165,10 @@ export default function Py9Sales() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button onClick={handleDownloadTemplate} variant="outline">
+            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            Λήψη Προτύπου
+          </Button>
           <Button onClick={handleExportPdf} variant="outline">
             <Download className="mr-2 h-4 w-4" />
             Εξαγωγή PDF
