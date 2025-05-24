@@ -118,6 +118,32 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             </Link>
           </li>
           <li>
+            <Link href="/employees">
+              <div className={cn(
+                "flex items-center p-2 rounded-md cursor-pointer",
+                location === "/employees" 
+                  ? "bg-primary bg-opacity-10 text-primary" 
+                  : "hover:bg-gray-100"
+              )}>
+                <Users className="mr-3 h-5 w-5" />
+                <span>Employees</span>
+              </div>
+            </Link>
+          </li>
+          <li>
+            <Link href="/payslips">
+              <div className={cn(
+                "flex items-center p-2 rounded-md cursor-pointer",
+                location === "/payslips" 
+                  ? "bg-primary bg-opacity-10 text-primary" 
+                  : "hover:bg-gray-100"
+              )}>
+                <Calculator className="mr-3 h-5 w-5" />
+                <span>Payslips</span>
+              </div>
+            </Link>
+          </li>
+          <li>
             <Link href="/settings">
               <div className={cn(
                 "flex items-center p-2 rounded-md cursor-pointer",
