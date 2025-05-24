@@ -1,0 +1,94 @@
+### What I found from the three files you sent
+
+| File                                  | Relevant bits                                                                             | Potential problem                                                                                                                                                                                            |
+| ------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **vite.config.ts**                    | no `server.proxy` block                                                                   | In dev, the browser is sending `http://localhost:5173/api/*` straight to the Vite server instead of the Express server. That means **no cookie ever comes back**, so every later request is unauthenticated. |
+| **client api.ts** (front-end helper)  | `fetch('/api/…', { credentials:'include' … })`                                            | Good: credentials included. But if the request never reaches Express, the session cookie can’t be set.                                                                                                       |
+| **server auth.ts**                    | `cookie.httpOnly:false` and `sameSite:'lax'`; no CORS middleware before `express-session` | Minor issues (should be `httpOnly:true`), but **the big one is that the request probably never arrives here in dev**.                                                                                        |
+
+So the repeated “401 Not authenticated” happens like this in development:
+
+1. **POST /api/auth/login**
+   Goes to **Vite dev server (5173)** → 404 (or mocked) → no `Set-Cookie`.
+2. Your React code still navigates on “success”, then on `/employees` it calls **GET /api/employees** with `credentials:'include'`.
+   No cookie in the jar → Express (if it even sees the request) responds 401.
+
+The reason you *sometimes* see a 200 for `/api/employees` is probably when you’re running the **production** build (React served by Express). In prod both front-end and back-end share the same origin, so the cookie works.
+
+---
+
+### Two-step fix
+
+#### 1. Add a dev proxy in **vite.config.ts**
+
+```ts
+// vite.config.ts
+export default defineConfig({
+  /* …existing config… */
+  server: {
+    proxy: {
+      // Anything starting with /api will be forwarded to Express on 3000
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
+});
+```
+
+Now every `fetch('/api/…')` during `vite dev` really hits Express, which sets `Set-Cookie: plant-session=…`.
+
+#### 2. Harden the Express session + CORS middle-ware
+
+```ts
+// server/app.ts  (or wherever you bootstrap Express)
+import cors from 'cors';
+import { configureSession } from './auth';
+
+app.use(
+  cors({
+    origin: 'http://localhost:5173', // Dev front-end origin
+    credentials: true,               // <- allow cookies
+  }),
+);
+
+configureSession(app);               // <- express-session AFTER cors
+```
+
+…and in **auth.ts**, tighten the cookie:
+
+```ts
+cookie: {
+  maxAge: SESSION_MAX_AGE,
+  secure: process.env.NODE_ENV === 'production',
+  httpOnly: true,        // prevents XSS from reading it
+  sameSite: 'lax',
+},
+rolling: true,           // refresh expiry on every hit (optional)
+```
+
+*(You don’t need to change the store; `connect-pg-simple` is fine.)*
+
+---
+
+### How to confirm it’s fixed
+
+1. `pnpm dev` (or `npm run dev`) both servers.
+2. Open **DevTools → Application → Cookies**.
+
+   * After a successful **POST /api/auth/login** you should now see `plant-session`.
+3. Hit **/api/auth/user** manually or reload the page.
+
+   * Cookie is sent → Express finds session → 200 with the user.
+
+---
+
+### If the problem persists
+
+* Send me **server entrypoint** (where Express app is created) so I can check middleware order.
+* Verify in the Network tab that every `/api/...` request during dev is indeed going to **localhost:3000** (not 5173).
+* Check the `Set-Cookie` header on the login response—if it’s missing, the request still isn’t proxied correctly.
+
+Let me know once you try the proxy + CORS tweak, and we’ll nail any remaining edge-cases!
