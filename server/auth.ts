@@ -62,13 +62,14 @@ export function configureSession(app: any) {
         createTableIfMissing: true,
       }),
       secret: SESSION_SECRET,
-      resave: true,
+      resave: false,
       saveUninitialized: false,
-      rolling: true,
+      rolling: false,
+      name: 'plant-session',
       cookie: { 
         maxAge: SESSION_MAX_AGE,
         secure: false,
-        httpOnly: true,
+        httpOnly: false,
         sameSite: 'lax'
       }
     })
