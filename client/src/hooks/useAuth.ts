@@ -11,11 +11,11 @@ export function useAuth() {
   const { data: user, isLoading, isError, error } = useQuery<User | null>({
     queryKey: ["/api/auth/user"],
     retry: false,
-    staleTime: 0, // Always refetch on mount to ensure we have the latest
+    staleTime: 30000, // Keep user data fresh for 30 seconds
     gcTime: 1000 * 60 * 60,
     refetchOnMount: true,
-    refetchOnWindowFocus: true,
-    refetchInterval: 10000, // Poll every 10 seconds to keep session active
+    refetchOnWindowFocus: false, // Reduce unnecessary auth checks
+    refetchInterval: 30000, // Check every 30 seconds instead of 10
   });
 
   // Login

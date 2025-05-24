@@ -597,8 +597,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createEmployee(insertEmployee: InsertEmployee): Promise<Employee> {
-    const [employee] = await db.insert(employees).values(insertEmployee).returning();
-    return employee;
+    console.log("Storage: Creating employee with data:", insertEmployee);
+    try {
+      const [employee] = await db.insert(employees).values(insertEmployee).returning();
+      console.log("Storage: Employee created successfully:", employee);
+      return employee;
+    } catch (error) {
+      console.error("Storage: Error creating employee:", error);
+      throw error;
+    }
   }
 
   async updateEmployee(id: number, updateEmployee: UpdateEmployee): Promise<Employee | undefined> {

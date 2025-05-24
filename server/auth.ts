@@ -10,8 +10,8 @@ import { User, loginUserSchema, insertUserSchema, InsertUser } from "@shared/sch
 import { fromZodError } from "zod-validation-error";
 
 // Constants
-const SESSION_SECRET = process.env.SESSION_SECRET || 'plant-inventory-secret';
-const SESSION_MAX_AGE = 24 * 60 * 60 * 1000; // 24 hours
+const SESSION_SECRET = process.env.SESSION_SECRET || 'plant-inventory-secret-key-very-long';
+const SESSION_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 // Setup passport local strategy
 passport.use(
