@@ -1,0 +1,97 @@
+To make your **employee creation form** more user-friendly, consider the following UI/UX improvements:
+
+---
+
+### ✅ Layout & Visual Enhancements
+
+#### 1. **Group Fields Visually**
+
+Use cards or fieldsets with titles like:
+
+* **Personal Details** (Full Name, Job Title)
+* **Salary & Payment**
+* **Identification**
+
+#### 2. **Field Hints & Tooltips**
+
+Add placeholder examples or `?` tooltips:
+
+```html
+<input placeholder="e.g., John Papadopoulos">
+```
+
+For example:
+
+* Passport: `e.g., A26540193`
+* ARC: `e.g., 581863693`
+* Salary: show currency symbol with inline hint (`€/month`)
+
+#### 3. **Inline Validation**
+
+Show small, non-intrusive messages when a field is incomplete or malformed, e.g.:
+
+```html
+<div class="text-sm text-red-500 mt-1">Please enter a valid salary</div>
+```
+
+#### 4. **Autofocus & Tab Order**
+
+Use `autofocus` on the first input, and ensure logical `tabindex` for keyboard navigation.
+
+---
+
+### 🖼 Suggested Redesign (Tailwind CSS-like Style)
+
+```html
+<div class="space-y-6 max-w-xl mx-auto">
+  <div class="bg-white p-6 shadow rounded-md">
+    <h2 class="text-lg font-semibold mb-4">Employee Info</h2>
+    
+    <label class="block mb-2">Full Name *</label>
+    <input type="text" class="form-input w-full" placeholder="e.g., Kerlos Sayed Fathy Asaad" required>
+
+    <label class="block mt-4 mb-2">Job Title *</label>
+    <input type="text" class="form-input w-full" placeholder="e.g., Agricultural Worker" required>
+
+    <label class="block mt-4 mb-2">Monthly Salary (€) *</label>
+    <input type="number" class="form-input w-full" placeholder="e.g., 850" required>
+  </div>
+
+  <div class="bg-white p-6 shadow rounded-md">
+    <h2 class="text-lg font-semibold mb-4">Identification & Payroll</h2>
+
+    <label class="block mb-2">Payment Method</label>
+    <select class="form-select w-full">
+      <option>Cash</option>
+      <option>Bank Transfer</option>
+    </select>
+
+    <div class="grid grid-cols-2 gap-4 mt-4">
+      <div>
+        <label class="block mb-2">Passport Number</label>
+        <input type="text" class="form-input w-full">
+      </div>
+      <div>
+        <label class="block mb-2">ARC Number</label>
+        <input type="text" class="form-input w-full">
+      </div>
+      <div>
+        <label class="block mb-2">Social Insurance Number</label>
+        <input type="text" class="form-input w-full">
+      </div>
+      <div>
+        <label class="block mb-2">Tax ID</label>
+        <input type="text" class="form-input w-full">
+      </div>
+    </div>
+  </div>
+
+  <div class="flex justify-end">
+    <button type="submit" class="bg-green-600 text-white px-6 py-2 rounded shadow hover:bg-green-700">Add Employee</button>
+  </div>
+</div>
+```
+
+---
+
+Would you like this integrated into your Replit project as a styled HTML form with live validation? I can generate a full snippet for you.
