@@ -5,7 +5,9 @@ import {
   plantInventory, type PlantInventory, type InsertPlantInventory, type UpdatePlantInventory,
   type PlantView,
   purchasesPy8, type PurchasesPy8, type InsertPurchasesPy8, type UpdatePurchasesPy8,
-  salesPy9, type SalesPy9, type InsertSalesPy9, type UpdateSalesPy9
+  salesPy9, type SalesPy9, type InsertSalesPy9, type UpdateSalesPy9,
+  employees, type Employee, type InsertEmployee, type UpdateEmployee,
+  payslips, type Payslip, type InsertPayslip, type UpdatePayslip, type PayslipCalculation
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql } from "drizzle-orm";
@@ -63,6 +65,22 @@ export interface IStorage {
   createSalePy9(sale: InsertSalesPy9): Promise<SalesPy9>;
   updateSalePy9(id: number, sale: UpdateSalesPy9): Promise<SalesPy9 | undefined>;
   deleteSalePy9(id: number): Promise<boolean>;
+  
+  // Employee methods
+  getAllEmployees(): Promise<Employee[]>;
+  getEmployee(id: number): Promise<Employee | undefined>;
+  createEmployee(employee: InsertEmployee): Promise<Employee>;
+  updateEmployee(id: number, employee: UpdateEmployee): Promise<Employee | undefined>;
+  deleteEmployee(id: number): Promise<boolean>;
+  
+  // Payslip methods
+  getAllPayslips(): Promise<Payslip[]>;
+  getPayslip(id: number): Promise<Payslip | undefined>;
+  getPayslipsForEmployee(employeeId: number): Promise<Payslip[]>;
+  createPayslip(payslip: InsertPayslip): Promise<Payslip>;
+  updatePayslip(id: number, payslip: UpdatePayslip): Promise<Payslip | undefined>;
+  deletePayslip(id: number): Promise<boolean>;
+  calculatePayslipDeductions(grossSalaryCents: number): PayslipCalculation;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -566,6 +584,126 @@ export class DatabaseStorage implements IStorage {
   async deleteSalePy9(id: number): Promise<boolean> {
     const result = await db.delete(salesPy9).where(eq(salesPy9.id, id));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  // Employee methods
+  async getAllEmployees(): Promise<Employee[]> {
+    return await db.select().from(employees).where(eq(employees.isActive, 1)).orderBy(asc(employees.name));
+  }
+
+  async getEmployee(id: number): Promise<Employee | undefined> {
+    const [employee] = await db.select().from(employees).where(eq(employees.id, id));
+    return employee || undefined;
+  }
+
+  async createEmployee(insertEmployee: InsertEmployee): Promise<Employee> {
+    const [employee] = await db.insert(employees).values(insertEmployee).returning();
+    return employee;
+  }
+
+  async updateEmployee(id: number, updateEmployee: UpdateEmployee): Promise<Employee | undefined> {
+    const [employee] = await db
+      .update(employees)
+      .set({ ...updateEmployee, updatedAt: new Date() })
+      .where(eq(employees.id, id))
+      .returning();
+    return employee || undefined;
+  }
+
+  async deleteEmployee(id: number): Promise<boolean> {
+    // Soft delete by setting isActive to 0
+    const [employee] = await db
+      .update(employees)
+      .set({ isActive: 0, updatedAt: new Date() })
+      .where(eq(employees.id, id))
+      .returning();
+    return !!employee;
+  }
+
+  // Payslip methods
+  async getAllPayslips(): Promise<Payslip[]> {
+    return await db.select().from(payslips).orderBy(desc(payslips.createdAt));
+  }
+
+  async getPayslip(id: number): Promise<Payslip | undefined> {
+    const [payslip] = await db.select().from(payslips).where(eq(payslips.id, id));
+    return payslip || undefined;
+  }
+
+  async getPayslipsForEmployee(employeeId: number): Promise<Payslip[]> {
+    return await db
+      .select()
+      .from(payslips)
+      .where(eq(payslips.employeeId, employeeId))
+      .orderBy(desc(payslips.payPeriod));
+  }
+
+  async createPayslip(insertPayslip: InsertPayslip): Promise<Payslip> {
+    // Calculate deductions using the exact formula from your requirements
+    const calculations = this.calculatePayslipDeductions(insertPayslip.grossSalary);
+    
+    const payslipData = {
+      ...insertPayslip,
+      socialInsurance: Math.round(calculations.socialInsurance * 100), // Convert to cents
+      gesy: Math.round(calculations.gesy * 100), // Convert to cents
+      totalDeductions: Math.round(calculations.totalDeductions * 100), // Convert to cents
+      netPay: Math.round(calculations.netPay * 100), // Convert to cents
+    };
+
+    const [payslip] = await db.insert(payslips).values(payslipData).returning();
+    return payslip;
+  }
+
+  async updatePayslip(id: number, updatePayslip: UpdatePayslip): Promise<Payslip | undefined> {
+    // Recalculate deductions if gross salary is being updated
+    let payslipData = { ...updatePayslip };
+    if (updatePayslip.grossSalary !== undefined) {
+      const calculations = this.calculatePayslipDeductions(updatePayslip.grossSalary);
+      payslipData = {
+        ...payslipData,
+        socialInsurance: calculations.socialInsurance,
+        gesy: calculations.gesy,
+        totalDeductions: calculations.totalDeductions,
+        netPay: calculations.netPay,
+      };
+    }
+
+    const [payslip] = await db
+      .update(payslips)
+      .set(payslipData)
+      .where(eq(payslips.id, id))
+      .returning();
+    return payslip || undefined;
+  }
+
+  async deletePayslip(id: number): Promise<boolean> {
+    const result = await db.delete(payslips).where(eq(payslips.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  calculatePayslipDeductions(grossSalaryCents: number): PayslipCalculation {
+    // Cyprus payroll deduction rates
+    const SOCIAL_INSURANCE_RATE = 0.083; // 8.3%
+    const GESY_RATE = 0.0265; // 2.65%
+    
+    // Convert from cents to euros for calculation
+    const grossSalary = grossSalaryCents / 100;
+    
+    // Calculate deductions using your exact formula
+    const socialInsurance = Math.round((grossSalary * SOCIAL_INSURANCE_RATE) * 100); // Convert back to cents
+    const gesy = Math.round((grossSalary * GESY_RATE) * 100); // Convert back to cents
+    const totalDeductions = socialInsurance + gesy;
+    const netPay = grossSalaryCents - totalDeductions;
+    
+    return {
+      grossSalary: grossSalaryCents / 100, // Return in euros for display
+      socialInsurance: socialInsurance / 100, // Return in euros for display
+      gesy: gesy / 100, // Return in euros for display
+      totalDeductions: totalDeductions / 100, // Return in euros for display
+      netPay: netPay / 100, // Return in euros for display
+      socialInsuranceRate: SOCIAL_INSURANCE_RATE,
+      gesyRate: GESY_RATE,
+    };
   }
 }
 

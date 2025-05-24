@@ -179,3 +179,80 @@ export const updateSalesPy9Schema = insertSalesPy9Schema.partial();
 export type SalesPy9 = typeof salesPy9.$inferSelect;
 export type InsertSalesPy9 = z.infer<typeof insertSalesPy9Schema>;
 export type UpdateSalesPy9 = z.infer<typeof updateSalesPy9Schema>;
+
+// Employee table for payslip management
+export const employees = pgTable("employees", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  designation: text("designation").notNull(),
+  paymentMethod: text("payment_method").notNull().default("Bank Transfer"),
+  passport: text("passport"),
+  arc: text("arc"),
+  socialInsurance: text("social_insurance"),
+  taxId: text("tax_id"),
+  monthlySalary: integer("monthly_salary").notNull(), // Store in cents to avoid decimal issues
+  isActive: integer("is_active").notNull().default(1), // 1 for active, 0 for inactive
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertEmployeeSchema = createInsertSchema(employees, {
+  name: z.string().min(1, "Name is required"),
+  designation: z.string().min(1, "Designation is required"),
+  monthlySalary: z.number().int().positive("Monthly salary must be positive"),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updateEmployeeSchema = insertEmployeeSchema.partial();
+
+export type Employee = typeof employees.$inferSelect;
+export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
+export type UpdateEmployee = z.infer<typeof updateEmployeeSchema>;
+
+// Payslip records table
+export const payslips = pgTable("payslips", {
+  id: serial("id").primaryKey(),
+  employeeId: integer("employee_id").notNull().references(() => employees.id),
+  payPeriod: text("pay_period").notNull(), // Format: "YYYY-MM"
+  payDate: text("pay_date").notNull(),
+  grossSalary: integer("gross_salary").notNull(), // Store in cents
+  socialInsurance: integer("social_insurance").notNull(), // Store in cents
+  gesy: integer("gesy").notNull(), // Store in cents
+  totalDeductions: integer("total_deductions").notNull(), // Store in cents
+  netPay: integer("net_pay").notNull(), // Store in cents
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertPayslipSchema = createInsertSchema(payslips, {
+  payPeriod: z.string().regex(/^\d{4}-\d{2}$/, "Pay period must be in YYYY-MM format"),
+  payDate: z.string().min(1, "Pay date is required"),
+  grossSalary: z.number().int().positive("Gross salary must be positive"),
+}).omit({
+  id: true,
+  socialInsurance: true, // These will be calculated automatically
+  gesy: true,
+  totalDeductions: true,
+  netPay: true,
+  createdAt: true,
+});
+
+export const updatePayslipSchema = insertPayslipSchema.partial();
+
+export type Payslip = typeof payslips.$inferSelect;
+export type InsertPayslip = z.infer<typeof insertPayslipSchema>;
+export type UpdatePayslip = z.infer<typeof updatePayslipSchema>;
+
+// Payslip calculation interface for frontend
+export interface PayslipCalculation {
+  grossSalary: number;
+  socialInsurance: number;
+  gesy: number;
+  totalDeductions: number;
+  netPay: number;
+  socialInsuranceRate: number;
+  gesyRate: number;
+}
