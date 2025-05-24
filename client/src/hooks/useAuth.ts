@@ -21,7 +21,7 @@ export function useAuth() {
   // Login
   const login = useMutation({
     mutationFn: async (credentials: LoginUser) => {
-      return apiRequest("POST", "/api/auth/login", credentials);
+      return apiRequest("/api/auth/login", "POST", credentials);
     },
     onSuccess: () => {
       // Force an immediate refetch of the user data
@@ -50,7 +50,7 @@ export function useAuth() {
   // Register
   const register = useMutation({
     mutationFn: async (userData: InsertUser) => {
-      return apiRequest("POST", "/api/auth/register", userData);
+      return apiRequest("/api/auth/register", "POST", userData);
     },
     onSuccess: () => {
       toast({
@@ -70,7 +70,7 @@ export function useAuth() {
   // Logout
   const logout = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", "/api/auth/logout");
+      return apiRequest("/api/auth/logout", "POST");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
