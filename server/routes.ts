@@ -1600,9 +1600,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         compression: true
       });
       
-      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; charset=utf-8");
-      res.setHeader("Content-Disposition", "attachment; filename=py9-sales-template.xlsx");
-      res.send(excelBuffer);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", "attachment; filename=\"py9-sales-template.xlsx\"");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Pragma", "no-cache");
+      res.end(excelBuffer);
     } catch (error) {
       console.error("Error generating ΠΥ9 template:", error);
       res.status(500).json({ message: "Failed to generate ΠΥ9 template" });

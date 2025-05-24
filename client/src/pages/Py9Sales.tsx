@@ -135,8 +135,40 @@ export default function Py9Sales() {
     window.open("/api/reports/py9/pdf", "_blank");
   };
 
-  const handleDownloadTemplate = () => {
-    window.open("/api/sales-py9/template", "_blank");
+  const handleDownloadTemplate = async () => {
+    try {
+      const response = await fetch("/api/sales-py9/template", {
+        method: "GET",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error("Template download failed");
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "py9-sales-template.xlsx";
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Επιτυχής λήψη",
+        description: "Το πρότυπο Excel κατεβάστηκε επιτυχώς",
+      });
+    } catch (error) {
+      console.error("Template download error:", error);
+      toast({
+        title: "Σφάλμα λήψης",
+        description: "Παρουσιάστηκε σφάλμα κατά τη λήψη του προτύπου",
+        variant: "destructive",
+      });
+    }
   };
 
   if (isLoading) {
