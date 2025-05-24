@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import cors from "cors";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
@@ -6,6 +7,16 @@ const app = express();
 
 // Trust proxy - required for secure cookies to work behind proxies in production
 app.set('trust proxy', 1);
+
+// CORS middleware - must come before session setup
+app.use(
+  cors({
+    origin: process.env.NODE_ENV === 'development' 
+      ? 'http://localhost:5173'  // Vite dev server
+      : true,                    // Allow same origin in production
+    credentials: true,           // Allow cookies to be sent
+  })
+);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));

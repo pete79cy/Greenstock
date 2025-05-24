@@ -68,8 +68,8 @@ export function configureSession(app: any) {
       name: 'plant-session',
       cookie: { 
         maxAge: SESSION_MAX_AGE,
-        secure: false,
-        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,  // Prevent XSS attacks
         sameSite: 'lax'
       }
     })
