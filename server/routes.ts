@@ -1686,13 +1686,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/employees", isAuthenticated, async (req: Request, res: Response) => {
     try {
+      console.log("Creating employee with data:", req.body);
       const validationResult = insertEmployeeSchema.safeParse(req.body);
       if (!validationResult.success) {
+        console.log("Validation failed:", validationResult.error);
         const validationError = fromZodError(validationResult.error);
         return res.status(400).json({ message: validationError.message });
       }
 
+      console.log("Validated data:", validationResult.data);
       const employee = await storage.createEmployee(validationResult.data);
+      console.log("Created employee:", employee);
       res.status(201).json(employee);
     } catch (error) {
       console.error("Error creating employee:", error);
