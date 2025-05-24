@@ -14,6 +14,8 @@ import Register from "@/pages/Register";
 import Py8Purchases from "@/pages/Py8Purchases";
 import Py8BatchPurchases from "@/pages/Py8BatchPurchases";
 import Py9Sales from "@/pages/Py9Sales";
+import Employees from "@/pages/Employees";
+import Payslips from "@/pages/Payslips";
 import Layout from "@/components/Layout";
 import { ThemeProvider } from "next-themes";
 import { useAuth } from "@/hooks/useAuth";
@@ -101,6 +103,8 @@ function Router() {
       <Route path="/py8-purchases" component={ProtectedWithLayout(Py8Purchases)} />
       <Route path="/py8-batch-purchases" component={ProtectedWithLayout(Py8BatchPurchases)} />
       <Route path="/py9-sales" component={ProtectedWithLayout(Py9Sales)} />
+      <Route path="/employees" component={ProtectedWithLayout(Employees)} />
+      <Route path="/payslips" component={ProtectedWithLayout(Payslips)} />
       <Route path="/settings" component={ProtectedWithLayout(Settings)} />
       
       {/* Catch-all route for 404 */}

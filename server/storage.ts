@@ -656,15 +656,15 @@ export class DatabaseStorage implements IStorage {
 
   async updatePayslip(id: number, updatePayslip: UpdatePayslip): Promise<Payslip | undefined> {
     // Recalculate deductions if gross salary is being updated
-    let payslipData = { ...updatePayslip };
+    let payslipData: any = { ...updatePayslip };
     if (updatePayslip.grossSalary !== undefined) {
       const calculations = this.calculatePayslipDeductions(updatePayslip.grossSalary);
       payslipData = {
         ...payslipData,
-        socialInsurance: calculations.socialInsurance,
-        gesy: calculations.gesy,
-        totalDeductions: calculations.totalDeductions,
-        netPay: calculations.netPay,
+        socialInsurance: Math.round(calculations.socialInsurance * 100), // Convert to cents
+        gesy: Math.round(calculations.gesy * 100), // Convert to cents
+        totalDeductions: Math.round(calculations.totalDeductions * 100), // Convert to cents
+        netPay: Math.round(calculations.netPay * 100), // Convert to cents
       };
     }
 

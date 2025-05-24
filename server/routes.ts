@@ -1659,6 +1659,183 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Employee management routes
+  app.get("/api/employees", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const employees = await storage.getAllEmployees();
+      res.json(employees);
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+      res.status(500).json({ message: "Failed to fetch employees" });
+    }
+  });
+
+  app.get("/api/employees/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const employee = await storage.getEmployee(id);
+      if (!employee) {
+        return res.status(404).json({ message: "Employee not found" });
+      }
+      res.json(employee);
+    } catch (error) {
+      console.error("Error fetching employee:", error);
+      res.status(500).json({ message: "Failed to fetch employee" });
+    }
+  });
+
+  app.post("/api/employees", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const validationResult = insertEmployeeSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        const validationError = fromZodError(validationResult.error);
+        return res.status(400).json({ message: validationError.message });
+      }
+
+      const employee = await storage.createEmployee(validationResult.data);
+      res.status(201).json(employee);
+    } catch (error) {
+      console.error("Error creating employee:", error);
+      res.status(500).json({ message: "Failed to create employee" });
+    }
+  });
+
+  app.put("/api/employees/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validationResult = updateEmployeeSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        const validationError = fromZodError(validationResult.error);
+        return res.status(400).json({ message: validationError.message });
+      }
+
+      const employee = await storage.updateEmployee(id, validationResult.data);
+      if (!employee) {
+        return res.status(404).json({ message: "Employee not found" });
+      }
+      res.json(employee);
+    } catch (error) {
+      console.error("Error updating employee:", error);
+      res.status(500).json({ message: "Failed to update employee" });
+    }
+  });
+
+  app.delete("/api/employees/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteEmployee(id);
+      if (!success) {
+        return res.status(404).json({ message: "Employee not found" });
+      }
+      res.json({ message: "Employee deactivated successfully" });
+    } catch (error) {
+      console.error("Error deleting employee:", error);
+      res.status(500).json({ message: "Failed to delete employee" });
+    }
+  });
+
+  // Payslip management routes
+  app.get("/api/payslips", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const payslips = await storage.getAllPayslips();
+      res.json(payslips);
+    } catch (error) {
+      console.error("Error fetching payslips:", error);
+      res.status(500).json({ message: "Failed to fetch payslips" });
+    }
+  });
+
+  app.get("/api/payslips/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const payslip = await storage.getPayslip(id);
+      if (!payslip) {
+        return res.status(404).json({ message: "Payslip not found" });
+      }
+      res.json(payslip);
+    } catch (error) {
+      console.error("Error fetching payslip:", error);
+      res.status(500).json({ message: "Failed to fetch payslip" });
+    }
+  });
+
+  app.get("/api/employees/:id/payslips", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const employeeId = parseInt(req.params.id);
+      const payslips = await storage.getPayslipsForEmployee(employeeId);
+      res.json(payslips);
+    } catch (error) {
+      console.error("Error fetching employee payslips:", error);
+      res.status(500).json({ message: "Failed to fetch employee payslips" });
+    }
+  });
+
+  app.post("/api/payslips", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const validationResult = insertPayslipSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        const validationError = fromZodError(validationResult.error);
+        return res.status(400).json({ message: validationError.message });
+      }
+
+      const payslip = await storage.createPayslip(validationResult.data);
+      res.status(201).json(payslip);
+    } catch (error) {
+      console.error("Error creating payslip:", error);
+      res.status(500).json({ message: "Failed to create payslip" });
+    }
+  });
+
+  app.put("/api/payslips/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validationResult = updatePayslipSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        const validationError = fromZodError(validationResult.error);
+        return res.status(400).json({ message: validationError.message });
+      }
+
+      const payslip = await storage.updatePayslip(id, validationResult.data);
+      if (!payslip) {
+        return res.status(404).json({ message: "Payslip not found" });
+      }
+      res.json(payslip);
+    } catch (error) {
+      console.error("Error updating payslip:", error);
+      res.status(500).json({ message: "Failed to update payslip" });
+    }
+  });
+
+  app.delete("/api/payslips/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deletePayslip(id);
+      if (!success) {
+        return res.status(404).json({ message: "Payslip not found" });
+      }
+      res.json({ message: "Payslip deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting payslip:", error);
+      res.status(500).json({ message: "Failed to delete payslip" });
+    }
+  });
+
+  // Payslip calculation utility endpoint
+  app.post("/api/payslips/calculate", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { grossSalary } = req.body;
+      if (typeof grossSalary !== 'number' || grossSalary <= 0) {
+        return res.status(400).json({ message: "Valid gross salary is required" });
+      }
+
+      const calculations = storage.calculatePayslipDeductions(grossSalary * 100); // Convert to cents
+      res.json(calculations);
+    } catch (error) {
+      console.error("Error calculating payslip deductions:", error);
+      res.status(500).json({ message: "Failed to calculate deductions" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

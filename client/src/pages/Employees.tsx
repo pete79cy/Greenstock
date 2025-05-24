@@ -1,0 +1,404 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Plus, Edit, Trash2, DollarSign, User } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { insertEmployeeSchema, updateEmployeeSchema, type Employee, type InsertEmployee, type UpdateEmployee } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+
+export default function Employees() {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const { data: employees = [], isLoading } = useQuery({
+    queryKey: ["/api/employees"],
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data: InsertEmployee) => apiRequest("/api/employees", "POST", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
+      setIsDialogOpen(false);
+      toast({ title: "Success", description: "Employee created successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: UpdateEmployee }) =>
+      apiRequest(`/api/employees/${id}`, "PUT", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
+      setIsDialogOpen(false);
+      setEditingEmployee(null);
+      toast({ title: "Success", description: "Employee updated successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => apiRequest(`/api/employees/${id}`, "DELETE"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
+      toast({ title: "Success", description: "Employee deactivated successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const form = useForm<InsertEmployee | UpdateEmployee>({
+    resolver: zodResolver(editingEmployee ? updateEmployeeSchema : insertEmployeeSchema),
+    defaultValues: {
+      name: "",
+      designation: "",
+      paymentMethod: "Bank Transfer",
+      passport: "",
+      arc: "",
+      socialInsurance: "",
+      taxId: "",
+      monthlySalary: 0,
+    },
+  });
+
+  const onSubmit = (data: InsertEmployee | UpdateEmployee) => {
+    // Convert salary to cents for storage
+    const salaryInCents = Math.round((data.monthlySalary || 0) * 100);
+    const employeeData = { ...data, monthlySalary: salaryInCents };
+
+    if (editingEmployee) {
+      updateMutation.mutate({ id: editingEmployee.id, data: employeeData });
+    } else {
+      createMutation.mutate(employeeData as InsertEmployee);
+    }
+  };
+
+  const handleEdit = (employee: Employee) => {
+    setEditingEmployee(employee);
+    // Convert salary back to euros for display
+    const salaryInEuros = employee.monthlySalary / 100;
+    form.reset({
+      name: employee.name,
+      designation: employee.designation,
+      paymentMethod: employee.paymentMethod,
+      passport: employee.passport || "",
+      arc: employee.arc || "",
+      socialInsurance: employee.socialInsurance || "",
+      taxId: employee.taxId || "",
+      monthlySalary: salaryInEuros,
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleCreate = () => {
+    setEditingEmployee(null);
+    form.reset({
+      name: "",
+      designation: "",
+      paymentMethod: "Bank Transfer",
+      passport: "",
+      arc: "",
+      socialInsurance: "",
+      taxId: "",
+      monthlySalary: 0,
+    });
+    setIsDialogOpen(true);
+  };
+
+  const formatCurrency = (cents: number) => {
+    return `€${(cents / 100).toFixed(2)}`;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold tracking-tight">Employees</h1>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader className="space-y-2">
+                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="h-3 bg-gray-200 rounded"></div>
+                  <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Employee Management</h1>
+          <p className="text-muted-foreground">
+            Manage employee records and payroll information
+          </p>
+        </div>
+        <Button onClick={handleCreate} className="flex items-center gap-2">
+          <Plus className="h-4 w-4" />
+          Add Employee
+        </Button>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {employees.map((employee: Employee) => (
+          <Card key={employee.id} className="relative">
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between">
+                <div className="space-y-1">
+                  <CardTitle className="text-lg">{employee.name}</CardTitle>
+                  <p className="text-sm text-muted-foreground">{employee.designation}</p>
+                </div>
+                <Badge variant={employee.isActive ? "default" : "secondary"}>
+                  {employee.isActive ? "Active" : "Inactive"}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-2 text-sm">
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">{formatCurrency(employee.monthlySalary)}/month</span>
+              </div>
+              
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <User className="h-4 w-4" />
+                <span>{employee.paymentMethod}</span>
+              </div>
+
+              {employee.socialInsurance && (
+                <div className="text-xs text-muted-foreground">
+                  Social Insurance: {employee.socialInsurance}
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleEdit(employee)}
+                  className="flex-1"
+                >
+                  <Edit className="h-3 w-3 mr-1" />
+                  Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => deleteMutation.mutate(employee.id)}
+                  className="text-red-600 hover:text-red-700"
+                  disabled={deleteMutation.isPending}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {employees.length === 0 && (
+        <Card className="text-center py-12">
+          <CardContent>
+            <User className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No employees found</h3>
+            <p className="text-muted-foreground mb-4">
+              Get started by adding your first employee to the system.
+            </p>
+            <Button onClick={handleCreate}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Employee
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingEmployee ? "Edit Employee" : "Add New Employee"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Name *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Employee full name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="designation"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Job Title *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Agricultural Worker" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="monthlySalary"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Monthly Salary (€) *</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="465.00"
+                        {...field}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="paymentMethod"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Payment Method</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select payment method" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                        <SelectItem value="Cash">Cash</SelectItem>
+                        <SelectItem value="Check">Check</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="passport"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Passport Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Passport number" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="arc"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>ARC Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Alien Registration Certificate" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="socialInsurance"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Social Insurance Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Social insurance number" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="taxId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tax ID</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Tax identification number" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex gap-2 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsDialogOpen(false)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={createMutation.isPending || updateMutation.isPending}
+                  className="flex-1"
+                >
+                  {createMutation.isPending || updateMutation.isPending
+                    ? "Saving..."
+                    : editingEmployee
+                    ? "Update"
+                    : "Create"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
