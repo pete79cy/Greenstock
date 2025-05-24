@@ -1,0 +1,97 @@
+The server has done its job (200 OK), so the PDF is getting as far as the HTTP response.
+Everything that happens **after** that is front-end or header-related.
+
+Below is a rapid check-list.
+Run through **§1 & §2** yourself (one-minute tests). If either of them fails, you already know where the fix is.
+If they both pass, please drop the two code snippets I ask for in **§3** and I’ll give you the exact patch.
+
+---
+
+## 1  — Is the server really sending a PDF stream?
+
+```bash
+# from your laptop, not the server
+curl -I -k -L -H "Cookie: sid=<your-session-id>" \
+     https://<host>/api/payslips/1/pdf
+```
+
+**Expect**
+
+```
+HTTP/1.1 200 OK
+Content-Type: application/pdf
+Content-Disposition: inline; filename="payslip-1.pdf"
+...
+```
+
+*Missing `Content-Type` or `Content-Disposition`?*
+Add them on the Express route:
+
+```ts
+res.setHeader("Content-Type", "application/pdf");
+res.setHeader(
+  "Content-Disposition",
+  'inline; filename="payslip-' + id + '.pdf"',
+);
+pdfStream.pipe(res);
+```
+
+*(If you use `res.sendFile()` you can pass `{ headers: { ... } }` instead.)*
+
+---
+
+## 2  — Can the browser open the URL directly?
+
+1. Paste `https://<host>/api/payslips/1/pdf` into a **new tab** (same logged-in session).
+2. Does the built-in PDF viewer appear?
+
+   * **Yes** → the server headers are fine. Problem is the way the React code opens the file.
+   * **Blank tab / download prompt** → still acceptable (depends on browser settings).
+   * **JSON error / download of a tiny file** → front-end proxy or headers are mangling the stream.
+
+---
+
+## 3  — Show me the code that *launches* the PDF
+
+| Why I need it                                                            | File or function                                                                   |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| React/TS code that runs when you click **“Generate PDF / View Payslip”** | likely `PayslipRow.tsx`, `PdfButton.tsx` or a hook in `client/src/pages/payslips/` |
+| Express route that serves `GET /api/payslips/:id/pdf`                    | e.g. `server/routes/payslips.ts`                                                   |
+
+Common front-end pitfalls I’ll look for:
+
+```ts
+// ❌ asking fetch for JSON, then it chokes on binary
+const data = await fetch(url).then(r => r.json());
+
+// ❌ fetch + window.open outside the click handler (popup blocked)
+setTimeout(() => window.open(url), 0);
+
+// ❌ forgetting credentials so session cookie isn’t sent
+fetch(url);                 // should be  { credentials: "include" }
+```
+
+Correct pattern:
+
+```ts
+// option A – simplest: rely on browser viewer / download manager
+window.open(`/api/payslips/${id}/pdf`, "_blank");
+
+// option B – fetch + blob if you need auth header or custom name
+const blob = await fetch(`/api/payslips/${id}/pdf`, {
+  credentials: "include",
+}).then(r => r.blob());
+
+const pdfUrl = URL.createObjectURL(blob);
+window.open(pdfUrl, "_blank");
+```
+
+---
+
+### Next step
+
+* Do the quick `curl -I` and “open in a new tab” checks.
+* If headers look good and a direct tab shows the PDF, paste the front-end click handler code here.
+* If headers are wrong, fix them on the Express route (and tell me if you hit any snags).
+
+Once I see those two short snippets I can give you an exact diff instead of generic advice.
