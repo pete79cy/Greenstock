@@ -1,0 +1,105 @@
+The **red toast** is the browser itself complaining – it never even tried to talk to your server:
+
+```
+Error
+Window.fetch: Invalid request method /api/payslips
+```
+
+That message appears only when **the 2nd argument you pass to `fetch()` is a plain string**.
+The runtime thinks you’re trying to use the string as the HTTP verb, realises that’s illegal, and aborts the call.
+Result: nothing is sent, nothing is deleted/created, no Network-tab entry is recorded.
+
+---
+
+## 1 — Find every mis-wired call
+
+```bash
+# from project root
+grep -R "fetch(" client | grep -E "'(GET|POST|PUT|PATCH|DELETE|HEAD)'" 
+```
+
+You’ll see lines like:
+
+```ts
+// ❌ wrong
+fetch("/api/employees/" + id, "DELETE")
+
+// ❌ wrong
+fetch("/api/payslips", "POST")
+```
+
+(or the same with double quotes).
+
+---
+
+## 2 — Patch them
+
+```ts
+// ✅ correct pattern
+await fetch(`/api/employees/${id}`, {
+  method: "DELETE",
+  credentials: "include",
+  headers: { Accept: "application/json" },
+});
+
+// ✅ payslip creation
+await fetch("/api/payslips", {
+  method: "POST",
+  credentials: "include",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    employeeId,
+    payPeriod,
+    payDate,
+    grossSalary,
+    notes,
+  }),
+});
+```
+
+### Tip – central helper to avoid this again
+
+```ts
+// client/src/lib/api.ts
+export const api = (
+  url: string,
+  options: RequestInit & { method?: string } = {},
+) =>
+  fetch(url, {
+    credentials: "include",
+    headers: { Accept: "application/json", ...options.headers },
+    ...options,
+  });
+```
+
+Then everywhere:
+
+```ts
+await api(`/api/employees/${id}`, { method: "DELETE" });
+await api("/api/payslips", { method: "POST", body: JSON.stringify(data) });
+```
+
+---
+
+## 3 — Quick smoke-test
+
+1. **Chrome DevTools → Network**
+   Click the “Delete” or “Generate Payslip” button again.
+   You should now see a real **DELETE** or **POST** call in the list.
+2. Response comes back 2xx? ✔️  The back-end route works.
+   Response 4xx/5xx?  Show me the route code & we’ll fix the server next.
+
+---
+
+## 4 — If you still get a 405 / 404
+
+*Send me*:
+
+* the React component that calls `fetch()` for deletion/payslip
+* the Express router file that handles `DELETE /api/employees/:id` and `POST /api/payslips`
+
+…and I’ll give you an exact diff.
+
+But nine times out of ten, converting the stray string into a proper **options object** eliminates the “Invalid request method” toast and everything starts working.
+
+Give that a try and let me know the result!
