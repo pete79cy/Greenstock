@@ -21,11 +21,11 @@ export default function Payslips() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const { data: employees = [] } = useQuery({
+  const { data: employees = [] } = useQuery<Employee[]>({
     queryKey: ["/api/employees"],
   });
 
-  const { data: payslips = [], isLoading } = useQuery({
+  const { data: payslips = [], isLoading } = useQuery<Payslip[]>({
     queryKey: ["/api/payslips"],
   });
 
@@ -61,7 +61,7 @@ export default function Payslips() {
     if (salary > 0) {
       try {
         const result = await apiRequest("/api/payslips/calculate", "POST", { grossSalary: salary });
-        setCalculations(result);
+        setCalculations(result as unknown as PayslipCalculation);
       } catch (error) {
         console.error("Error calculating deductions:", error);
       }
@@ -392,7 +392,7 @@ export default function Payslips() {
                   <FormItem>
                     <FormLabel>Notes</FormLabel>
                     <FormControl>
-                      <Input placeholder="Optional notes" {...field} />
+                      <Input placeholder="Optional notes" {...field} value={field.value || ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
