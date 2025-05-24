@@ -62,17 +62,14 @@ export function configureSession(app: any) {
         createTableIfMissing: true,
       }),
       secret: SESSION_SECRET,
-      resave: false,
+      resave: true,
       saveUninitialized: false,
+      rolling: true,
       cookie: { 
         maxAge: SESSION_MAX_AGE,
-        // In production, cookies must be secure for sameSite=none to work
-        secure: process.env.NODE_ENV === 'production',
+        secure: false,
         httpOnly: true,
-        // Allow cross-site cookies for production deployment
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        // Ensure cookies work across subdomains if needed
-        domain: process.env.NODE_ENV === 'production' ? undefined : undefined
+        sameSite: 'lax'
       }
     })
   );
@@ -92,7 +89,7 @@ export function isAuthenticated(req: Request, res: Response, next: NextFunction)
   if (req.isAuthenticated()) {
     return next();
   }
-  res.status(401).json({ message: "Unauthorized" });
+  res.status(401).json({ message: "Not authenticated" });
 }
 
 // Register authentication routes

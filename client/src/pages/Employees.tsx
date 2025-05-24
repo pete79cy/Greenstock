@@ -20,7 +20,7 @@ export default function Employees() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const { data: employees = [], isLoading } = useQuery({
+  const { data: employees = [], isLoading } = useQuery<Employee[]>({
     queryKey: ["/api/employees"],
   });
 
