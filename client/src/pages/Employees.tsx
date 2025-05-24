@@ -25,7 +25,7 @@ export default function Employees() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: InsertEmployee) => apiRequest("/api/employees", "POST", data),
+    mutationFn: (data: InsertEmployee) => apiRequest("POST", "/api/employees", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
       setIsDialogOpen(false);
@@ -38,7 +38,7 @@ export default function Employees() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: UpdateEmployee }) =>
-      apiRequest(`/api/employees/${id}`, "PUT", data),
+      apiRequest("PUT", `/api/employees/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
       setIsDialogOpen(false);
