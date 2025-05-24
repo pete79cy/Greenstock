@@ -1,0 +1,81 @@
+Great! Here's a full implementation roadmap to support all three requests in your Flask app:
+
+---
+
+### ✅ 1. **Payslip Form to Select Employee & Month**
+
+Create a route and template for `/payslip/new`.
+
+#### `routes.py`
+
+```python
+@app.route('/payslip/new', methods=['GET', 'POST'])
+def new_payslip():
+    employees = Employee.query.all()  # Assuming you have an Employee model
+    if request.method == 'POST':
+        employee_id = request.form['employee']
+        month = request.form['month']
+        return redirect(url_for('generate_payslip', employee_id=employee_id, month=month))
+    return render_template('new_payslip.html', employees=employees)
+```
+
+#### `templates/new_payslip.html`
+
+```html
+<form method="post">
+  <label for="employee">Select Employee:</label>
+  <select name="employee" id="employee">
+    {% for emp in employees %}
+      <option value="{{ emp.id }}">{{ emp.name }}</option>
+    {% endfor %}
+  </select>
+
+  <label for="month">Select Month:</label>
+  <input type="month" name="month" required>
+
+  <button type="submit">Generate Payslip</button>
+</form>
+```
+
+---
+
+### ✅ 2. **Backend to Populate and Render Payslip**
+
+#### `routes.py` continued:
+
+```python
+@app.route('/payslip/<int:employee_id>/<month>')
+def generate_payslip(employee_id, month):
+    employee = Employee.query.get_or_404(employee_id)
+    gross_salary = employee.monthly_salary  # or fetch from payroll table
+    pay_date = datetime.now().strftime('%d/%m/%Y')
+    net_pay_words = num2words(gross_salary * 0.8905, lang='en', to='currency', currency='EUR')
+
+    html = render_template(
+        'payslip.html',
+        employee=employee,
+        gross_salary=gross_salary,
+        pay_period=month,
+        pay_date=pay_date,
+        net_pay_words=net_pay_words
+    )
+
+    pdf = HTML(string=html).write_pdf()
+    return send_file(io.BytesIO(pdf), download_name=f"payslip_{employee.name}_{month}.pdf", as_attachment=True)
+```
+
+---
+
+### ✅ 3. **Convert HTML to PDF**
+
+Install:
+
+```bash
+pip install weasyprint num2words
+```
+
+Make sure `WeasyPrint` has its system dependencies installed (e.g., `libpango`, `libcairo`, `libgdk`).
+
+---
+
+Let me know if you'd like the code files bundled or help integrating this with your current Flask project structure.

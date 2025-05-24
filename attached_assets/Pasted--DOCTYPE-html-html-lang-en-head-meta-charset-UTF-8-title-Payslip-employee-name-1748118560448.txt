@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Payslip - {{ employee.name }}</title>
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 10pt; margin: 30px; color: #333; }
+    .header, .footer { text-align: center; margin-bottom: 20px; }
+    .section { margin-bottom: 20px; }
+    .flex-row { display: flex; justify-content: space-between; }
+    .label { font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
+    .totals { font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h2>Payslip</h2>
+    <p>Andreas Pakkoutis & Sons Ltd<br>Griva Digeni 39, 5510 Avgorou</p>
+  </div>
+
+  <div class="section">
+    <div class="flex-row">
+      <div>
+        <div><span class="label">Employee Name:</span> {{ employee.name }}</div>
+        <div><span class="label">Designation:</span> {{ employee.designation }}</div>
+        <div><span class="label">Payment Method:</span> {{ employee.payment_method }}</div>
+      </div>
+      <div>
+        <div><span class="label">Date of Payment:</span> {{ pay_date }}</div>
+        <div><span class="label">Pay Period:</span> {{ pay_period }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="flex-row">
+      <div>
+        <div><span class="label">Passport:</span> {{ employee.passport }}</div>
+        <div><span class="label">ARC:</span> {{ employee.arc }}</div>
+      </div>
+      <div>
+        <div><span class="label">Social Insurance:</span> {{ employee.social_insurance }}</div>
+        <div><span class="label">Tax ID:</span> {{ employee.tax_id }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <table>
+      <thead>
+        <tr><th colspan="2">Earnings</th><th colspan="2">Deductions</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Basic</td><td>{{ "%.2f"|format(gross_salary) }} €</td>
+          <td>Social Insurance (8.3%)</td><td>{{ "%.2f"|format(gross_salary * 0.083) }} €</td>
+        </tr>
+        <tr>
+          <td></td><td></td>
+          <td>GESY (2.65%)</td><td>{{ "%.2f"|format(gross_salary * 0.0265) }} €</td>
+        </tr>
+        <tr class="totals">
+          <td>Total Earnings</td><td>{{ "%.2f"|format(gross_salary) }} €</td>
+          <td>Total Deductions</td><td>{{ "%.2f"|format(gross_salary * 0.1095) }} €</td>
+        </tr>
+        <tr class="totals">
+          <td colspan="2">Net Pay</td><td colspan="2">{{ "%.2f"|format(gross_salary * 0.8905) }} €</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <p>I received from my employer in cash the following amount:</p>
+    <h3>{{ "%.2f"|format(gross_salary * 0.8905) }} €</h3>
+    <p>{{ net_pay_words }}</p>
+  </div>
+
+  <div class="footer">
+    <p>This is a system generated payslip</p>
+    <div class="flex-row">
+      <div>Employer Signature</div>
+      <div>Employee Signature</div>
+    </div>
+  </div>
+</body>
+</html>
