@@ -1,0 +1,80 @@
+That black Vite overlay is React’s runtime error catcher — the front-end crashed before the network request was even made.
+The message is precise:
+
+```
+[plugin:runtime-error-plugin] calculations.grossSalary is undefined
+```
+
+In other words, some component is trying to read `calculations.grossSalary`, but at that moment either
+
+* `calculations` itself is **`undefined`/`null`**, or
+* `calculations` exists but it doesn’t have a `grossSalary` property.
+
+---
+
+## Where to look
+
+From the earlier screenshot and file names I’d expect the culprit in one of these:
+
+```
+client/src/pages/payslips/PayslipModal.tsx
+client/src/pages/payslips/PayslipForm.tsx
+client/src/hooks/usePayslipCalculations.ts   (or similar)
+```
+
+Search for `calculations.grossSalary` or `grossSalary}`.
+
+```bash
+grep -R "calculations.grossSalary" client
+```
+
+---
+
+## Two common patterns that blow up
+
+### 1. Destructuring before the data arrives
+
+```tsx
+// ❌ crashes on first render – `calculations` is undefined
+const { grossSalary, deductions } = calculations;
+```
+
+Fix → guard or default:
+
+```tsx
+if (!calculations) return null;                 // guard clause
+// or
+const { grossSalary = 0, deductions = [] } = calculations ?? {};
+```
+
+### 2. Backend changed its payload, front-end hasn’t
+
+You might be storing the API response in `calculations`, but the server now returns:
+
+```json
+{ "gross_salary": 465, "deductions": [...] }
+```
+
+so `calculations.grossSalary` is indeed `undefined`. Confirm in the Network tab what JSON you get back and either:
+
+* rename the field in the back-end (`grossSalary`), **or**
+* map it in the client:
+
+```ts
+setCalculations({
+  grossSalary: api.gross_salary,
+  deductions: api.deductions,
+});
+```
+
+---
+
+## What would help me give you an exact patch
+
+* **The component** where `calculations` is read (modal / form).
+  *Paste that file or the relevant function.*
+* **The hook / API call** that sets `calculations` after you click “Generate Payslip”.
+  e.g. `usePayslipCalculations`, `createPayslip()`.
+
+Feel free to drag-and-drop those two files here (trim secrets).
+Then I can line-comment exactly where to guard or remap the data.

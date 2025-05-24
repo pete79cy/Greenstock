@@ -367,19 +367,19 @@ export default function Payslips() {
                   <CardContent className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span>Gross Salary:</span>
-                      <span className="font-medium">€{calculations.grossSalary.toFixed(2)}</span>
+                      <span className="font-medium">€{calculations?.grossSalary?.toFixed(2) || '0.00'}</span>
                     </div>
                     <div className="flex justify-between text-red-600">
                       <span>Social Insurance (8.3%):</span>
-                      <span>-€{calculations.socialInsurance.toFixed(2)}</span>
+                      <span>-€{calculations?.socialInsurance?.toFixed(2) || '0.00'}</span>
                     </div>
                     <div className="flex justify-between text-red-600">
                       <span>GESY (2.65%):</span>
-                      <span>-€{calculations.gesy.toFixed(2)}</span>
+                      <span>-€{calculations?.gesy?.toFixed(2) || '0.00'}</span>
                     </div>
                     <div className="border-t pt-2 flex justify-between font-semibold text-green-600">
                       <span>Net Pay:</span>
-                      <span>€{calculations.netPay.toFixed(2)}</span>
+                      <span>€{calculations?.netPay?.toFixed(2) || '0.00'}</span>
                     </div>
                   </CardContent>
                 </Card>
