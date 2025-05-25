@@ -1,0 +1,88 @@
+Below is a **surgical “copy-paste” upgrade** that pulls the four ID fields from the employee record and prints them on the payslip, right under the general employee info.
+
+---
+
+## 1 Extend the Handlebars template
+
+**`/server/templates/payslip.hbs`**
+
+Locate the first `<div class="block">` (the one that now contains Employee / Designation / Pay Period / Pay Date).
+Replace that whole block with the new version below — the added “Identification & Documentation” rows are highlighted:
+
+```hbs
+<div class="block">
+  <div class="row"><span>Employee:</span> {{ employee.name }}</div>
+  <div class="row"><span>Designation:</span> {{ employee.designation }}</div>
+  <div class="row"><span>Pay Period:</span> {{ pay_period }}</div>
+  <div class="row"><span>Pay Date:</span> {{ pay_date }}</div>
+</div>
+
+<!-- 🔽 NEW block starts here --------------------------------------------- -->
+<div class="block">
+  <div class="row"><span>Identification &amp; Documentation</span></div>
+  <div class="row"><span>Passport No.:</span> {{ employee.passport_number }}</div>
+  <div class="row"><span>ARC No.:</span> {{ employee.arc_number }}</div>
+  <div class="row"><span>Social Insurance:</span> {{ employee.social_insurance }}</div>
+  <div class="row"><span>Tax ID:</span> {{ employee.tax_id }}</div>
+</div>
+<!-- 🔼 NEW block ends here ----------------------------------------------- -->
+```
+
+*(CSS already exists; rows inherit the same flex alignment you’re using everywhere else.)*
+
+---
+
+## 2 Pass those fields from the server
+
+**`/server/routes/payslips.ts`** – inside the existing route, update `view`:
+
+```ts
+const emp = payslip.employee;   // shorter alias
+const view = {
+  employee: {
+    name: emp.fullName,
+    designation: emp.position,
+
+    // 🔽 NEW extra fields -----------------------------------
+    passport_number: emp.passportNumber ?? "—",
+    arc_number: emp.arcNumber ?? "—",
+    social_insurance: emp.socialInsurance ?? "—",
+    tax_id: emp.taxId ?? "—",
+    // 🔼 -----------------------------------------------------
+  },
+
+  pay_period: payslip.payPeriod,
+  pay_date: payslip.payDate.toLocaleDateString("en-GB"),
+
+  gross_salary_fmt: gross.toFixed(2),
+  si_fmt: si.toFixed(2),
+  gesy_fmt: gesy.toFixed(2),
+  net_fmt: net.toFixed(2),
+};
+```
+
+> **Note**
+> *If you’re on Prisma or Drizzle, make sure the `include: { employee: true }` call already selects those columns. If not, add them (Prisma selects all scalar fields by default; Drizzle needs no extra work unless you `select` explicitly).*
+
+---
+
+## 3 Nothing else to change
+
+* **Front-end** stays the same. When the user clicks “View PDF”, the server now embeds the extra block in the HTML → Puppeteer renders → PDF streams back.
+* **Database** is unchanged; we’re simply exposing existing columns.
+
+---
+
+### 🧪 Quick smoke test
+
+```bash
+# restart the dev server so it recompiles the template
+npm run dev
+
+# browser
+https://<your-host>/api/payslips/1/pdf    # or via the UI button
+```
+
+You should now see the Passport, ARC, Social Insurance, and Tax ID rows exactly as in the UI card you posted.
+
+Let me know if you’d like any further tweaks (e.g., hide empty rows automatically, reorder fields, translate labels, etc.).
