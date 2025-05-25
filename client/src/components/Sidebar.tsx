@@ -144,6 +144,19 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             </Link>
           </li>
           <li>
+            <Link href="/backup-restore">
+              <div className={cn(
+                "flex items-center p-2 rounded-md cursor-pointer",
+                location === "/backup-restore" 
+                  ? "bg-primary bg-opacity-10 text-primary" 
+                  : "hover:bg-gray-100"
+              )}>
+                <Shield className="mr-3 h-5 w-5" />
+                <span>Backup & Restore</span>
+              </div>
+            </Link>
+          </li>
+          <li>
             <Link href="/settings">
               <div className={cn(
                 "flex items-center p-2 rounded-md cursor-pointer",
