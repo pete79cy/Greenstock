@@ -78,7 +78,7 @@ export default function Payslips() {
   };
 
   const handleEmployeeChange = (employeeId: string) => {
-    const employee = employees.find((emp: Employee) => emp.id === parseInt(employeeId));
+    const employee = employees.find((emp: Employee) => emp.passport === employeeId);
     setSelectedEmployee(employee || null);
     
     if (employee) {
@@ -122,11 +122,11 @@ export default function Payslips() {
   };
 
   // Group payslips by employee
-  const payslipsByEmployee = payslips.reduce((acc: Record<number, Payslip[]>, payslip: Payslip) => {
-    if (!acc[payslip.employeeId]) {
-      acc[payslip.employeeId] = [];
+  const payslipsByEmployee = payslips.reduce((acc: Record<string, Payslip[]>, payslip: Payslip) => {
+    if (!acc[payslip.employeePassport]) {
+      acc[payslip.employeePassport] = [];
     }
-    acc[payslip.employeeId].push(payslip);
+    acc[payslip.employeePassport].push(payslip);
     return acc;
   }, {});
 
