@@ -15,6 +15,7 @@ import { eq, and, asc, desc, sql } from "drizzle-orm";
 // Modify the interface with CRUD methods for plants
 export interface IStorage {
   // User methods
+  getAllUsers(): Promise<User[]>;
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
@@ -34,6 +35,7 @@ export interface IStorage {
   deletePlantBase(id: number): Promise<boolean>;
   
   // PlantInventory methods
+  getAllPlantInventories(): Promise<PlantInventory[]>;
   getInventoryForPlant(plantId: number): Promise<PlantInventory[]>;
   getInventoryEntry(id: number): Promise<PlantInventory | undefined>;
   createInventoryEntry(entry: InsertPlantInventory): Promise<PlantInventory>;
@@ -88,6 +90,10 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   // User methods
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users).orderBy(asc(users.id));
+  }
+
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;
@@ -205,6 +211,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   // PlantInventory methods
+  async getAllPlantInventories(): Promise<PlantInventory[]> {
+    return await db.select().from(plantInventory).orderBy(asc(plantInventory.id));
+  }
+
   async getInventoryForPlant(plantId: number): Promise<PlantInventory[]> {
     return await db
       .select()

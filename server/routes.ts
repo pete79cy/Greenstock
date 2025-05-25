@@ -34,6 +34,199 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Backup and Restore Routes - Critical for data protection
+  app.get("/api/backup", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      console.log("Starting full database backup...");
+      
+      // Get all critical data from all tables
+      const [
+        users,
+        employees,
+        payslips,
+        plantBases,
+        plantInventories,
+        plants,
+        purchasesPy8,
+        salesPy9
+      ] = await Promise.all([
+        storage.getAllUsers(),
+        storage.getAllEmployees(),
+        storage.getAllPayslips(),
+        storage.getAllPlantBases(),
+        storage.getAllPlantInventories(),
+        storage.getAllPlants(),
+        storage.getAllPurchasesPy8(),
+        storage.getAllSalesPy9()
+      ]);
+
+      const backupData = {
+        version: "1.0",
+        timestamp: new Date().toISOString(),
+        data: {
+          users: users.map((user: any) => ({...user, password: "[PROTECTED]"})), // Don't export passwords
+          employees,
+          payslips,
+          plantBases,
+          plantInventories,
+          plants,
+          purchasesPy8,
+          salesPy9
+        },
+        metadata: {
+          totalRecords: users.length + employees.length + payslips.length + 
+                       plantBases.length + plantInventories.length + plants.length +
+                       purchasesPy8.length + salesPy9.length,
+          tables: ["users", "employees", "payslips", "plant_base", "plant_inventory", "plants", "purchases_py8", "sales_py9"]
+        }
+      };
+
+      const filename = `payroll_backup_${new Date().toISOString().split('T')[0]}_${Date.now()}.json`;
+      
+      res.setHeader("Content-Type", "application/json");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.json(backupData);
+      
+      console.log(`Backup completed successfully: ${backupData.metadata.totalRecords} records exported`);
+    } catch (error: any) {
+      console.error("Backup failed:", error);
+      res.status(500).json({ message: "Failed to create backup", error: error.message });
+    }
+  });
+
+  app.post("/api/restore", isAuthenticated, upload.single("backupFile"), async (req: MulterRequest, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No backup file provided" });
+      }
+
+      console.log("Starting database restoration...");
+      
+      // Parse the backup file
+      const backupContent = req.file.buffer.toString('utf8');
+      const backupData = JSON.parse(backupContent);
+      
+      // Validate backup format
+      if (!backupData.version || !backupData.data) {
+        return res.status(400).json({ message: "Invalid backup file format" });
+      }
+
+      console.log(`Restoring backup from ${backupData.timestamp}`);
+      console.log(`Total records to restore: ${backupData.metadata?.totalRecords || 'unknown'}`);
+      
+      // Start restoration process
+      let restoredCounts = {
+        employees: 0,
+        payslips: 0,
+        plantBases: 0,
+        plantInventories: 0,
+        plants: 0,
+        purchasesPy8: 0,
+        salesPy9: 0
+      };
+
+      // Restore employees (critical payroll data)
+      if (backupData.data.employees) {
+        for (const employee of backupData.data.employees) {
+          try {
+            await storage.createEmployee(employee);
+            restoredCounts.employees++;
+          } catch (error) {
+            console.warn(`Failed to restore employee ${employee.passport}:`, error.message);
+          }
+        }
+      }
+
+      // Restore payslips (critical financial data)
+      if (backupData.data.payslips) {
+        for (const payslip of backupData.data.payslips) {
+          try {
+            await storage.createPayslip(payslip);
+            restoredCounts.payslips++;
+          } catch (error) {
+            console.warn(`Failed to restore payslip ${payslip.id}:`, error.message);
+          }
+        }
+      }
+
+      // Restore plant data
+      if (backupData.data.plantBases) {
+        for (const plantBase of backupData.data.plantBases) {
+          try {
+            await storage.createPlantBase(plantBase);
+            restoredCounts.plantBases++;
+          } catch (error) {
+            console.warn(`Failed to restore plant base ${plantBase.id}:`, error.message);
+          }
+        }
+      }
+
+      if (backupData.data.plantInventories) {
+        for (const inventory of backupData.data.plantInventories) {
+          try {
+            await storage.createInventoryEntry(inventory);
+            restoredCounts.plantInventories++;
+          } catch (error) {
+            console.warn(`Failed to restore plant inventory ${inventory.id}:`, error.message);
+          }
+        }
+      }
+
+      if (backupData.data.plants) {
+        for (const plant of backupData.data.plants) {
+          try {
+            await storage.createPlant(plant);
+            restoredCounts.plants++;
+          } catch (error) {
+            console.warn(`Failed to restore plant ${plant.id}:`, error.message);
+          }
+        }
+      }
+
+      // Restore purchase and sales data
+      if (backupData.data.purchasesPy8) {
+        for (const purchase of backupData.data.purchasesPy8) {
+          try {
+            await storage.createPurchasePy8(purchase);
+            restoredCounts.purchasesPy8++;
+          } catch (error) {
+            console.warn(`Failed to restore purchase ${purchase.id}:`, error.message);
+          }
+        }
+      }
+
+      if (backupData.data.salesPy9) {
+        for (const sale of backupData.data.salesPy9) {
+          try {
+            await storage.createSalePy9(sale);
+            restoredCounts.salesPy9++;
+          } catch (error) {
+            console.warn(`Failed to restore sale ${sale.id}:`, error.message);
+          }
+        }
+      }
+
+      const totalRestored = Object.values(restoredCounts).reduce((sum, count) => sum + count, 0);
+      
+      console.log("Restoration completed:", restoredCounts);
+      console.log(`Total records restored: ${totalRestored}`);
+      
+      res.json({
+        message: "Data restoration completed successfully",
+        restoredCounts,
+        totalRestored,
+        backupTimestamp: backupData.timestamp
+      });
+      
+    } catch (error) {
+      console.error("Restoration failed:", error);
+      res.status(500).json({ 
+        message: "Failed to restore data", 
+        error: error.message 
+      });
+    }
+  });
+
   // Configure CORS for handling cross-origin requests in production
   const corsOptions = {
     origin: function(origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
