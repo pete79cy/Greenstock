@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Download, Calendar, DollarSign, Calculator } from "lucide-react";
+import { Plus, Download, Calendar, DollarSign, Calculator, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -206,15 +206,33 @@ export default function Payslips() {
                 </div>
               </div>
 
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full"
-                onClick={() => window.open(`/api/payslips/${payslip.id}/pdf`, '_blank')}
-              >
-                <Download className="h-3 w-3 mr-2" />
-                Download PDF
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex-1"
+                  onClick={() => window.open(`/api/payslips/${payslip.id}/pdf`, '_blank')}
+                >
+                  <Download className="h-3 w-3 mr-2" />
+                  Download
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex-1"
+                  onClick={() => {
+                    const printWindow = window.open(`/api/payslips/${payslip.id}/pdf`, '_blank');
+                    if (printWindow) {
+                      printWindow.onload = () => {
+                        printWindow.print();
+                      };
+                    }
+                  }}
+                >
+                  <Printer className="h-3 w-3 mr-2" />
+                  Print
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ))}
