@@ -1858,6 +1858,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Employee not found" });
       }
 
+      console.log("Employee data for PDF:", JSON.stringify(employee, null, 2));
+
       const grossSalary = payslip.grossSalary / 100;
       const socialInsurance = payslip.socialInsurance / 100;
       const gesy = payslip.gesy / 100;
