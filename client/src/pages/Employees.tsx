@@ -100,7 +100,6 @@ export default function Employees() {
       designation: employee.designation,
       paymentMethod: employee.paymentMethod,
       dateOfBirth: employee.dateOfBirth || "",
-      passport: employee.passport || "",
       arc: employee.arc || "",
       socialInsurance: employee.socialInsurance || "",
       taxId: employee.taxId || "",

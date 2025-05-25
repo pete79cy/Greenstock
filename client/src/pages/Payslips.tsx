@@ -46,7 +46,7 @@ export default function Payslips() {
   const form = useForm<InsertPayslip>({
     resolver: zodResolver(insertPayslipSchema),
     defaultValues: {
-      employeeId: 0,
+      employeePassport: "",
       payPeriod: new Date().toISOString().slice(0, 7), // YYYY-MM format
       payDate: new Date().toISOString().slice(0, 10), // YYYY-MM-DD format
       grossSalary: 0,
