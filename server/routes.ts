@@ -121,7 +121,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
       res.json(backupData);
       
-      console.log(`Backup completed successfully: ${backupData.metadata.totalRecords} records exported`);
+      console.log(`Backup completed successfully: ${backupData.metadata?.totalRecords || 0} records exported`);
+      console.log(`Backup includes: Employees (${employees?.length || 0}), Payslips (${payslips?.length || 0}), Plants (${plants?.length || 0})`);
     } catch (error: any) {
       console.error("Backup failed:", error);
       res.status(500).json({ message: "Failed to create backup", error: error.message });

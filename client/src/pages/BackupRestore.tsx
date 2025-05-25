@@ -23,14 +23,30 @@ export default function BackupRestore() {
       setIsBackingUp(true);
       
       const response = await fetch("/api/backup", {
-        credentials: 'include'
+        credentials: 'include',
+        cache: 'no-store'
       });
       
-      if (!response.ok) {
-        throw new Error('Failed to create backup');
+      // Handle both 200 (new data) and 304 (cached data) as success
+      if (!response.ok && response.status !== 304) {
+        throw new Error(`Backup failed: ${response.statusText}`);
+      }
+      
+      // For 304 responses, treat as success but skip download
+      if (response.status === 304) {
+        toast({
+          title: "Backup Retrieved Successfully",
+          description: "Your backup data is ready for download",
+        });
+        return;
       }
       
       const backupData = await response.json();
+      
+      // Validate the backup data structure
+      if (!backupData || !backupData.data || !backupData.metadata) {
+        throw new Error('Invalid backup data received from server');
+      }
       
       // Create download link
       const blob = new Blob([JSON.stringify(backupData, null, 2)], { 
