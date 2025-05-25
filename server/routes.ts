@@ -1957,6 +1957,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       currentY -= 100;
 
+      // Identification & Documentation Box
+      page.drawRectangle({
+        x: margin,
+        y: currentY - 100,
+        width: width - 2 * margin,
+        height: 95,
+        borderColor: rgb(0.8, 0.8, 0.8),
+        borderWidth: 1,
+      });
+
+      page.drawText('IDENTIFICATION & DOCUMENTATION', {
+        x: margin + 15,
+        y: currentY - 20,
+        size: 12,
+        font: boldFont,
+        color: rgb(0.11, 0.46, 0.28),
+      });
+
+      page.drawText(`Passport No.: ${employee.passport ?? "—"}`, {
+        x: margin + 15,
+        y: currentY - 40,
+        size: 11,
+        font: font,
+      });
+
+      page.drawText(`ARC No.: ${employee.arc ?? "—"}`, {
+        x: margin + 15,
+        y: currentY - 55,
+        size: 11,
+        font: font,
+      });
+
+      page.drawText(`Social Insurance: ${employee.socialInsurance ?? "—"}`, {
+        x: width - margin - 200,
+        y: currentY - 40,
+        size: 11,
+        font: font,
+      });
+
+      page.drawText(`Tax ID: ${employee.taxId ?? "—"}`, {
+        x: width - margin - 200,
+        y: currentY - 55,
+        size: 11,
+        font: font,
+      });
+      currentY -= 120;
+
       // Salary Breakdown Box
       page.drawRectangle({
         x: margin,
