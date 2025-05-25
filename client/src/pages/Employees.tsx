@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Edit, Trash2, DollarSign, User, Eye } from "lucide-react";
+import { Plus, Edit, Trash2, DollarSign, User, Eye, UserX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,8 +17,11 @@ import { apiRequest } from "@/lib/queryClient";
 export default function Employees() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
+  const [leavingEmployee, setLeavingEmployee] = useState<Employee | null>(null);
+  const [employeeFilter, setEmployeeFilter] = useState<"ALL" | "ACTIVE" | "FORMER">("ACTIVE");
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -57,6 +60,20 @@ export default function Employees() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
       toast({ title: "Success", description: "Employee deactivated successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const markAsLeftMutation = useMutation({
+    mutationFn: ({ passport, date }: { passport: string; date: string }) =>
+      apiRequest(`/api/employees/${passport}/leave`, "PUT", { date }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
+      setIsLeaveDialogOpen(false);
+      setLeavingEmployee(null);
+      toast({ title: "Success", description: "Employee marked as left successfully" });
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -131,6 +148,19 @@ export default function Employees() {
     setViewingEmployee(employee);
     setIsViewDialogOpen(true);
   };
+
+  const handleMarkAsLeft = (employee: Employee) => {
+    setLeavingEmployee(employee);
+    setIsLeaveDialogOpen(true);
+  };
+
+  // Filter employees based on status
+  const filteredEmployees = employees.filter((employee) => {
+    if (employeeFilter === "ALL") return true;
+    if (employeeFilter === "ACTIVE") return employee.status === "ACTIVE";
+    if (employeeFilter === "FORMER") return employee.status === "FORMER";
+    return true;
+  });
 
   const formatCurrency = (cents: number) => {
     return `€${(cents / 100).toFixed(2)}`;

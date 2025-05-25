@@ -1710,14 +1710,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/employees/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const passport = req.params.id;
       const validationResult = updateEmployeeSchema.safeParse(req.body);
       if (!validationResult.success) {
         const validationError = fromZodError(validationResult.error);
         return res.status(400).json({ message: validationError.message });
       }
 
-      const employee = await storage.updateEmployee(id, validationResult.data);
+      const employee = await storage.updateEmployee(passport, validationResult.data);
       if (!employee) {
         return res.status(404).json({ message: "Employee not found" });
       }
@@ -1730,8 +1730,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/employees/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
-      const success = await storage.deleteEmployee(id);
+      const passport = req.params.id;
+      const success = await storage.deleteEmployee(passport);
       if (!success) {
         return res.status(404).json({ message: "Employee not found" });
       }
@@ -1739,6 +1739,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting employee:", error);
       res.status(500).json({ message: "Failed to delete employee" });
+    }
+  });
+
+  // New endpoint for marking employee as left
+  app.put("/api/employees/:id/leave", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const passport = req.params.id;
+      const { date } = req.body as { date: string };
+      
+      if (!date) {
+        return res.status(400).json({ message: "Left date is required" });
+      }
+
+      const employee = await storage.markEmployeeAsLeft(passport, date);
+      if (!employee) {
+        return res.status(404).json({ message: "Employee not found" });
+      }
+      
+      res.json(employee);
+    } catch (error) {
+      console.error("Error marking employee as left:", error);
+      res.status(500).json({ message: "Failed to mark employee as left" });
+    }
+  });
+
+  // New endpoints for filtered employee lists
+  app.get("/api/employees/active", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const employees = await storage.getActiveEmployees();
+      res.json(employees);
+    } catch (error) {
+      console.error("Error fetching active employees:", error);
+      res.status(500).json({ message: "Failed to fetch active employees" });
+    }
+  });
+
+  app.get("/api/employees/former", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const employees = await storage.getFormerEmployees();
+      res.json(employees);
+    } catch (error) {
+      console.error("Error fetching former employees:", error);
+      res.status(500).json({ message: "Failed to fetch former employees" });
     }
   });
 
