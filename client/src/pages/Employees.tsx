@@ -207,8 +207,23 @@ export default function Employees() {
         </Button>
       </div>
 
+      {/* Employee Filter */}
+      <div className="flex items-center gap-4">
+        <label className="text-sm font-medium">Show:</label>
+        <Select value={employeeFilter} onValueChange={(value: "ALL" | "ACTIVE" | "FORMER") => setEmployeeFilter(value)}>
+          <SelectTrigger className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ACTIVE">Active Employees</SelectItem>
+            <SelectItem value="FORMER">Former Employees</SelectItem>
+            <SelectItem value="ALL">All Employees</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {employees.map((employee: Employee) => (
+        {filteredEmployees.map((employee: Employee) => (
           <Card key={employee.passport} className="relative">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
@@ -216,8 +231,11 @@ export default function Employees() {
                   <CardTitle className="text-lg">{employee.name}</CardTitle>
                   <p className="text-sm text-muted-foreground">{employee.designation}</p>
                 </div>
-                <Badge variant={employee.isActive ? "default" : "secondary"}>
-                  {employee.isActive ? "Active" : "Inactive"}
+                <Badge 
+                  variant={employee.status === "ACTIVE" ? "default" : "secondary"}
+                  className={employee.status === "ACTIVE" ? "bg-sky-600 text-white" : "bg-gray-400 text-white"}
+                >
+                  {employee.status === "ACTIVE" ? "Active" : "Former"}
                 </Badge>
               </div>
             </CardHeader>
@@ -263,6 +281,17 @@ export default function Employees() {
                   <Edit className="h-3 w-3 mr-1" />
                   Edit
                 </Button>
+                {employee.status === "ACTIVE" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleMarkAsLeft(employee)}
+                    className="text-orange-600 hover:text-orange-700"
+                    disabled={markAsLeftMutation.isPending}
+                  >
+                    <UserX className="h-3 w-3" />
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
@@ -576,6 +605,23 @@ export default function Employees() {
                 <h3 className="text-lg font-semibold text-foreground">Employment Details</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
+                    <label className="text-sm font-medium text-muted-foreground">Status</label>
+                    <p className="text-sm">
+                      <Badge 
+                        variant={viewingEmployee.status === "ACTIVE" ? "default" : "secondary"}
+                        className={viewingEmployee.status === "ACTIVE" ? "bg-sky-600 text-white" : "bg-gray-400 text-white"}
+                      >
+                        {viewingEmployee.status === "ACTIVE" ? "Active" : "Former"}
+                      </Badge>
+                    </p>
+                  </div>
+                  {viewingEmployee.leftOn && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Left On</label>
+                      <p className="text-sm">{new Date(viewingEmployee.leftOn).toLocaleDateString()}</p>
+                    </div>
+                  )}
+                  <div>
                     <label className="text-sm font-medium text-muted-foreground">Monthly Salary</label>
                     <p className="text-sm font-medium">{formatCurrency(viewingEmployee.monthlySalary)}</p>
                   </div>
@@ -622,6 +668,63 @@ export default function Employees() {
               <div className="flex justify-end pt-4">
                 <Button onClick={() => setIsViewDialogOpen(false)}>
                   Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Leave Employee Modal */}
+      <Dialog open={isLeaveDialogOpen} onOpenChange={setIsLeaveDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>End Employment</DialogTitle>
+          </DialogHeader>
+          {leavingEmployee && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Choose the last working day for <strong>{leavingEmployee.name}</strong>.
+              </p>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Last Working Date</label>
+                <Input
+                  type="date"
+                  defaultValue={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => {
+                    const date = e.target.value;
+                    const confirmLeave = () => {
+                      markAsLeftMutation.mutate({ 
+                        passport: leavingEmployee.passport, 
+                        date 
+                      });
+                    };
+                    // Store the function for later use
+                    (e.target as any).confirmLeave = confirmLeave;
+                  }}
+                />
+              </div>
+              <div className="flex justify-end gap-3">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsLeaveDialogOpen(false)}
+                  disabled={markAsLeftMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  variant="destructive"
+                  onClick={() => {
+                    const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+                    const date = dateInput?.value || new Date().toISOString().split('T')[0];
+                    markAsLeftMutation.mutate({ 
+                      passport: leavingEmployee.passport, 
+                      date 
+                    });
+                  }}
+                  disabled={markAsLeftMutation.isPending}
+                >
+                  {markAsLeftMutation.isPending ? "Processing..." : "Confirm"}
                 </Button>
               </div>
             </div>
