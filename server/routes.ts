@@ -1666,6 +1666,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/employees", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const employees = await storage.getAllEmployees();
+      console.log("Employees being returned:", JSON.stringify(employees[0], null, 2));
       res.json(employees);
     } catch (error) {
       console.error("Error fetching employees:", error);
