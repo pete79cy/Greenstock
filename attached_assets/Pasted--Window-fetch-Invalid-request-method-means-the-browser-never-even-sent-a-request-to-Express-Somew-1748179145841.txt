@@ -1,0 +1,136 @@
+`Window.fetch: Invalid request method` means the browser never even sent a request to Express.
+Somewhere in the **“Add Employee”** handler you still have the old pattern
+
+```ts
+fetch("/api/employees", "POST");        // ❌ second arg is a plain string
+```
+
+The runtime treats that string as the HTTP verb and aborts with *“invalid request method.”*
+Nothing on the back-end can help until the front-end sends a proper `RequestInit` object.
+
+---
+
+## ① Patch the front-end call once and for all
+
+### a. Create a tiny wrapper (if you don’t already have one)
+
+```ts
+// client/src/lib/api.ts
+export const api = (
+  url: string,
+  options: RequestInit & { method?: string } = {},
+) =>
+  fetch(url, {
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
+```
+
+### b. Use it in **AddEmployeeModal.tsx**
+
+```tsx
+import { api } from "@/lib/api";
+
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  const payload = {
+    fullName,
+    jobTitle,
+    dateOfBirth,             // "YYYY-MM-DD" from <input type="date">
+    monthlySalary: Number(monthlySalary),
+    paymentMethod,
+    passportNumber,
+    arcNumber,
+    socialInsurance,
+    taxId,
+  };
+
+  const res = await api("/api/employees", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const msg = await res.text();
+    toast.error(`Server said: ${msg}`);
+    return;
+  }
+
+  mutate();          // SWR / React-Query refetch
+  closeModal();
+};
+```
+
+*(If you aren’t using a wrapper, do the same directly in `fetch(...)`:
+`fetch(url, { method:"POST", ... })`.)*
+
+---
+
+## ② Make sure the server expects the same field names
+
+`server/routes.ts` ➜ POST `/api/employees`
+
+```ts
+router.post("/api/employees", isAuth, async (req, res, next) => {
+  try {
+    const {
+      fullName,
+      jobTitle,
+      dateOfBirth,        //  <-- THIS must match the front-end
+      monthlySalary,
+      paymentMethod,
+      passportNumber,
+      arcNumber,
+      socialInsurance,
+      taxId,
+    } = req.body as any;
+
+    await db.insert(employees).values({
+      fullName,
+      jobTitle,
+      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+      monthlySalary,
+      paymentMethod,
+      passportNumber,
+      arcNumber,
+      socialInsurance,
+      taxId,
+    });
+
+    res.sendStatus(201);
+  } catch (err) {
+    next(err);
+  }
+});
+```
+
+---
+
+## ③ Quick validation flow
+
+1. **Open DevTools → Network**
+   Click **Add Employee**
+   *You should now see* **POST /api/employees** with a 201/204 status.
+2. **Response 400/422?** → server validation error; read the JSON body.
+3. **No Network entry & same toast?** → you missed a stray `"POST"` string; grep the repo:
+
+   ```bash
+   grep -R "fetch(.*\"POST\"" client/src | cut -c1-160
+   ```
+
+   Fix every occurrence.
+
+---
+
+### Summary
+
+* The crash is 100 % on the front-end: **second argument to `fetch` must be an object, not a string.**
+* Wrap all your API calls in a helper like `api()` so this bug never sneaks back.
+* Ensure field names (`dateOfBirth`) match between client payload and server route.
+
+Apply that small change, test once more, and the red toast will disappear. If another server-side error surfaces after this, send me the exact `res.text()` or JSON payload and we’ll handle it next.
