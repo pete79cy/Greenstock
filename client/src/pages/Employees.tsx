@@ -523,8 +523,8 @@ export default function Employees() {
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Date of Birth</label>
                     <p className="text-sm">
-                      {viewingEmployee.dateOfBirth 
-                        ? new Date(viewingEmployee.dateOfBirth).toLocaleDateString()
+                      {viewingEmployee.dateOfBirth || (viewingEmployee as any)['date_of_birth']
+                        ? new Date(viewingEmployee.dateOfBirth || (viewingEmployee as any)['date_of_birth']).toLocaleDateString()
                         : "Not specified"
                       }
                     </p>
