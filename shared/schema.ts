@@ -182,12 +182,11 @@ export type UpdateSalesPy9 = z.infer<typeof updateSalesPy9Schema>;
 
 // Employee table for payslip management
 export const employees = pgTable("employees", {
-  id: serial("id").primaryKey(),
+  passport: text("passport").primaryKey(), // Passport number as unique identifier
   name: text("name").notNull(),
   designation: text("designation").notNull(),
   paymentMethod: text("payment_method").notNull().default("Bank Transfer"),
   dateOfBirth: date("date_of_birth"),
-  passport: text("passport"),
   arc: text("arc"),
   socialInsurance: text("social_insurance"),
   taxId: text("tax_id"),
@@ -198,15 +197,13 @@ export const employees = pgTable("employees", {
 });
 
 export const insertEmployeeSchema = createInsertSchema(employees, {
+  passport: z.string().min(1, "Passport number is required"),
   name: z.string().min(1, "Name is required"),
   designation: z.string().min(1, "Designation is required"),
   monthlySalary: z.number().int().positive("Monthly salary must be positive"),
 }).omit({
-  id: true,
   createdAt: true,
   updatedAt: true,
-}).extend({
-  dateOfBirth: z.string().or(z.literal("")).optional().transform(val => val === "" ? undefined : val),
 });
 
 export const updateEmployeeSchema = insertEmployeeSchema.partial();
@@ -218,7 +215,7 @@ export type UpdateEmployee = z.infer<typeof updateEmployeeSchema>;
 // Payslip records table
 export const payslips = pgTable("payslips", {
   id: serial("id").primaryKey(),
-  employeeId: integer("employee_id").notNull().references(() => employees.id),
+  employeePassport: text("employee_passport").notNull().references(() => employees.passport),
   payPeriod: text("pay_period").notNull(), // Format: "YYYY-MM"
   payDate: text("pay_date").notNull(),
   grossSalary: integer("gross_salary").notNull(), // Store in cents

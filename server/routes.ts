@@ -1854,7 +1854,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Payslip not found" });
       }
 
-      const employee = await storage.getEmployee(payslip.employeeId);
+      const employee = await storage.getEmployee(payslip.employeePassport);
       if (!employee) {
         return res.status(404).json({ message: "Employee not found" });
       }
