@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Edit, Trash2, DollarSign, User } from "lucide-react";
+import { Plus, Edit, Trash2, DollarSign, User, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +16,9 @@ import { apiRequest } from "@/lib/queryClient";
 
 export default function Employees() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -112,6 +114,7 @@ export default function Employees() {
       name: "",
       designation: "",
       paymentMethod: "Bank Transfer",
+      dateOfBirth: "",
       passport: "",
       arc: "",
       socialInsurance: "",
@@ -119,6 +122,11 @@ export default function Employees() {
       monthlySalary: 0,
     });
     setIsDialogOpen(true);
+  };
+
+  const handleView = (employee: Employee) => {
+    setViewingEmployee(employee);
+    setIsViewDialogOpen(true);
   };
 
   const formatCurrency = (cents: number) => {
@@ -204,6 +212,15 @@ export default function Employees() {
               )}
 
               <div className="flex gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleView(employee)}
+                  className="flex-1"
+                >
+                  <Eye className="h-3 w-3 mr-1" />
+                  View
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -475,6 +492,100 @@ export default function Employees() {
               </div>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Employee Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Employee Details</DialogTitle>
+          </DialogHeader>
+          
+          {viewingEmployee && (
+            <div className="space-y-6">
+              {/* Personal Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-foreground">Personal Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Full Name</label>
+                    <p className="text-sm font-medium">{viewingEmployee.name}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Job Title</label>
+                    <p className="text-sm">{viewingEmployee.designation}</p>
+                  </div>
+                  {viewingEmployee.dateOfBirth && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Date of Birth</label>
+                      <p className="text-sm">{new Date(viewingEmployee.dateOfBirth).toLocaleDateString()}</p>
+                    </div>
+                  )}
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Status</label>
+                    <Badge variant={viewingEmployee.isActive ? "default" : "secondary"}>
+                      {viewingEmployee.isActive ? "Active" : "Inactive"}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              {/* Employment Details */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-foreground">Employment Details</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Monthly Salary</label>
+                    <p className="text-sm font-medium">{formatCurrency(viewingEmployee.monthlySalary)}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Payment Method</label>
+                    <p className="text-sm">{viewingEmployee.paymentMethod}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Documentation */}
+              {(viewingEmployee.passport || viewingEmployee.arc || viewingEmployee.socialInsurance || viewingEmployee.taxId) && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-foreground">Documentation</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    {viewingEmployee.passport && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Passport</label>
+                        <p className="text-sm">{viewingEmployee.passport}</p>
+                      </div>
+                    )}
+                    {viewingEmployee.arc && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">ARC Number</label>
+                        <p className="text-sm">{viewingEmployee.arc}</p>
+                      </div>
+                    )}
+                    {viewingEmployee.socialInsurance && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Social Insurance</label>
+                        <p className="text-sm">{viewingEmployee.socialInsurance}</p>
+                      </div>
+                    )}
+                    {viewingEmployee.taxId && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Tax ID</label>
+                        <p className="text-sm">{viewingEmployee.taxId}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-4">
+                <Button onClick={() => setIsViewDialogOpen(false)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
