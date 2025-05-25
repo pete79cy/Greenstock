@@ -1845,10 +1845,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Generate payslip PDF with enhanced design
   app.get("/api/payslips/:id/pdf", isAuthenticated, async (req: Request, res: Response) => {
+    console.log("=== STARTING ENHANCED PDF GENERATION ===");
     try {
       const id = parseInt(req.params.id);
-      const payslip = await storage.getPayslip(id);
+      console.log("Generating PDF for payslip ID:", id);
       
+      const payslip = await storage.getPayslip(id);
       if (!payslip) {
         return res.status(404).json({ message: "Payslip not found" });
       }
@@ -1857,6 +1859,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!employee) {
         return res.status(404).json({ message: "Employee not found" });
       }
+
+      console.log("Employee found:", employee.name);
 
       // Prepare template context
       const gross = payslip.grossSalary / 100;
@@ -1878,17 +1882,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         notes: payslip.notes || null,
       };
 
+      console.log("Template data prepared:", view);
+
       // Set up Handlebars with prototype access
       const hbs = allowInsecurePrototypeAccess(Handlebars);
       
       // Read and compile template
       const templatePath = path.join(process.cwd(), "server", "templates", "payslip.hbs");
       console.log("Looking for template at:", templatePath);
+      
       const templateSrc = await fs.promises.readFile(templatePath, "utf8");
+      console.log("Template read successfully, length:", templateSrc.length);
+      
       const compile = hbs.compile(templateSrc);
       const html = compile(view);
+      console.log("HTML compiled successfully, length:", html.length);
 
       // Generate PDF with Puppeteer
+      console.log("Launching Puppeteer...");
       const browser = await puppeteer.launch({
         args: ["--no-sandbox", "--disable-setuid-sandbox"],
         headless: true,
@@ -1896,19 +1907,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const page = await browser.newPage();
       await page.setContent(html, { waitUntil: "networkidle0" });
+      console.log("Content set in Puppeteer page");
+      
       const pdf = await page.pdf({ 
         format: "A4", 
         printBackground: true,
         margin: { top: '20px', bottom: '20px', left: '20px', right: '20px' }
       });
+      console.log("PDF generated successfully, size:", pdf.length);
+      
       await browser.close();
 
       // Send PDF response
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", `inline; filename="payslip-${employee.name.replace(/\s+/g, '-')}-${payslip.payPeriod}.pdf"`);
       res.send(pdf);
+      console.log("=== PDF SENT SUCCESSFULLY ===");
     } catch (error) {
-      console.error("Error generating payslip PDF:", error);
+      console.error("=== ERROR GENERATING PAYSLIP PDF ===", error);
       res.status(500).json({ message: "Failed to generate PDF" });
     }
   });
