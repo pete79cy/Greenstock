@@ -68,10 +68,13 @@ export interface IStorage {
   
   // Employee methods
   getAllEmployees(): Promise<Employee[]>;
+  getActiveEmployees(): Promise<Employee[]>;
+  getFormerEmployees(): Promise<Employee[]>;
   getEmployee(passport: string): Promise<Employee | undefined>;
   createEmployee(employee: InsertEmployee): Promise<Employee>;
   updateEmployee(passport: string, employee: UpdateEmployee): Promise<Employee | undefined>;
   deleteEmployee(passport: string): Promise<boolean>;
+  markEmployeeAsLeft(passport: string, leftDate: string): Promise<Employee | undefined>;
   
   // Payslip methods
   getAllPayslips(): Promise<Payslip[]>;
@@ -588,7 +591,15 @@ export class DatabaseStorage implements IStorage {
 
   // Employee methods
   async getAllEmployees(): Promise<Employee[]> {
-    return await db.select().from(employees).where(eq(employees.isActive, 1)).orderBy(asc(employees.name));
+    return await db.select().from(employees).orderBy(asc(employees.name));
+  }
+
+  async getActiveEmployees(): Promise<Employee[]> {
+    return await db.select().from(employees).where(eq(employees.status, "ACTIVE")).orderBy(asc(employees.name));
+  }
+
+  async getFormerEmployees(): Promise<Employee[]> {
+    return await db.select().from(employees).where(eq(employees.status, "FORMER")).orderBy(asc(employees.name));
   }
 
   async getEmployee(passport: string): Promise<Employee | undefined> {
@@ -625,6 +636,20 @@ export class DatabaseStorage implements IStorage {
       .where(eq(employees.passport, passport))
       .returning();
     return !!employee;
+  }
+
+  async markEmployeeAsLeft(passport: string, leftDate: string): Promise<Employee | undefined> {
+    const [employee] = await db
+      .update(employees)
+      .set({ 
+        status: "FORMER", 
+        leftOn: leftDate, 
+        isActive: 0, // Also update legacy field for compatibility
+        updatedAt: new Date() 
+      })
+      .where(eq(employees.passport, passport))
+      .returning();
+    return employee || undefined;
   }
 
   // Payslip methods

@@ -1676,8 +1676,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/employees/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
-      const employee = await storage.getEmployee(id);
+      const passport = req.params.id;
+      const employee = await storage.getEmployee(passport);
       if (!employee) {
         return res.status(404).json({ message: "Employee not found" });
       }

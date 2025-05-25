@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, foreignKey, varchar, jsonb, index, date } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, foreignKey, varchar, jsonb, index, date, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -180,6 +180,9 @@ export type SalesPy9 = typeof salesPy9.$inferSelect;
 export type InsertSalesPy9 = z.infer<typeof insertSalesPy9Schema>;
 export type UpdateSalesPy9 = z.infer<typeof updateSalesPy9Schema>;
 
+// Employment status enum
+export const employmentStatusEnum = pgEnum("employment_status", ["ACTIVE", "FORMER"]);
+
 // Employee table for payslip management
 export const employees = pgTable("employees", {
   passport: text("passport").primaryKey(), // Passport number as unique identifier
@@ -191,7 +194,9 @@ export const employees = pgTable("employees", {
   socialInsurance: text("social_insurance"),
   taxId: text("tax_id"),
   monthlySalary: integer("monthly_salary").notNull(), // Store in cents to avoid decimal issues
-  isActive: integer("is_active").notNull().default(1), // 1 for active, 0 for inactive
+  isActive: integer("is_active").notNull().default(1), // 1 for active, 0 for inactive (legacy field)
+  status: employmentStatusEnum("status").default("ACTIVE").notNull(),
+  leftOn: date("left_on"), // Date when employee left (null if still working)
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
