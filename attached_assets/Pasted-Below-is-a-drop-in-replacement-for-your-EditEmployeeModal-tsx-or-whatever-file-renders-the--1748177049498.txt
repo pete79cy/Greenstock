@@ -1,0 +1,231 @@
+Below is a **drop-in replacement** for your **EditEmployeeModal.tsx** (or whatever file renders the edit form).
+It keeps all the inputs you need, but restructures them so the dialog **looks identical to the read-only “View” modal**: headline sections, two-column grid, uniform paddings.
+
+> **Assumptions**
+>
+> * React + TypeScript
+> * Tailwind CSS (same classes you use for the View modal)
+> * Your parent passes `employee` data, an `onSave()` callback, and `onClose()`.
+
+```tsx
+import { useState } from "react";
+import type { Employee } from "~/types";
+
+interface Props {
+  employee: Employee;
+  onSave: (data: Partial<Employee>) => Promise<void>;
+  onClose: () => void;
+}
+
+export default function EditEmployeeModal({ employee, onSave, onClose }: Props) {
+  /* ------------------------------------------------------------- */
+  /* local state – initialise with existing employee values         */
+  /* ------------------------------------------------------------- */
+  const [form, setForm] = useState({
+    fullName: employee.fullName ?? "",
+    jobTitle: employee.jobTitle ?? "",
+    dateOfBirth: employee.dateOfBirth
+      ? employee.dateOfBirth.slice(0, 10) // YYYY-MM-DD for <input type="date">
+      : "",
+    monthlySalary: employee.monthlySalary ?? 0,
+    paymentMethod: employee.paymentMethod ?? "Cash",
+    passportNumber: employee.passportNumber ?? "",
+    arcNumber: employee.arcNumber ?? "",
+    socialInsurance: employee.socialInsurance ?? "",
+    taxId: employee.taxId ?? "",
+  });
+
+  const handleChange = (k: keyof typeof form) => (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) => setForm({ ...form, [k]: e.target.value });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await onSave({
+      ...form,
+      monthlySalary: Number(form.monthlySalary),   // cast string → number
+    });
+  };
+
+  /* ------------------------------------------------------------- */
+  /* UI                                                             */
+  /* ------------------------------------------------------------- */
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={onClose}
+    >
+      <form
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={handleSubmit}
+        className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl"
+      >
+        <h2 className="mb-4 text-xl font-semibold">Employee Details</h2>
+
+        {/* ---------- Personal Information ----------------------- */}
+        <section className="mb-6">
+          <h3 className="mb-2 font-medium">Personal Information</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <label className="label">Full Name</label>
+              <input
+                type="text"
+                className="input"
+                value={form.fullName}
+                onChange={handleChange("fullName")}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="label">Job Title</label>
+              <input
+                type="text"
+                className="input"
+                value={form.jobTitle}
+                onChange={handleChange("jobTitle")}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="label">Date of Birth</label>
+              <input
+                type="date"
+                className="input"
+                value={form.dateOfBirth}
+                onChange={handleChange("dateOfBirth")}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* ---------- Employment Details ------------------------ */}
+        <section className="mb-6">
+          <h3 className="mb-2 font-medium">Employment Details</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Monthly Salary (€)</label>
+              <input
+                type="number"
+                className="input"
+                value={form.monthlySalary}
+                onChange={handleChange("monthlySalary")}
+                min={0}
+                step="0.01"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="label">Payment Method</label>
+              <select
+                className="input"
+                value={form.paymentMethod}
+                onChange={handleChange("paymentMethod")}
+              >
+                <option>Cash</option>
+                <option>Bank Transfer</option>
+                <option>Cheque</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        {/* ---------- Documentation ----------------------------- */}
+        <section className="mb-6">
+          <h3 className="mb-2 font-medium">Documentation</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Passport Number</label>
+              <input
+                className="input"
+                value={form.passportNumber}
+                onChange={handleChange("passportNumber")}
+              />
+            </div>
+
+            <div>
+              <label className="label">ARC Number</label>
+              <input
+                className="input"
+                value={form.arcNumber}
+                onChange={handleChange("arcNumber")}
+              />
+            </div>
+
+            <div>
+              <label className="label">Social Insurance</label>
+              <input
+                className="input"
+                value={form.socialInsurance}
+                onChange={handleChange("socialInsurance")}
+              />
+            </div>
+
+            <div>
+              <label className="label">Tax ID</label>
+              <input
+                className="input"
+                value={form.taxId}
+                onChange={handleChange("taxId")}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* ---------- Actions ----------------------------------- */}
+        <div className="mt-6 flex justify-end gap-3">
+          <button
+            type="button"
+            className="rounded border border-gray-300 px-4 py-2 text-sm"
+            onClick={onClose}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="rounded bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700"
+          >
+            Update Employee
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+/* Tailwind shortcuts used above
+   .label { @apply mb-1 block text-xs font-semibold text-gray-600; }
+   .input { @apply w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none; }
+*/
+```
+
+### 🔧 How this matches the View modal
+
+| View modal                                                               | New Edit modal                       |
+| ------------------------------------------------------------------------ | ------------------------------------ |
+| Section titles (Personal Information, Employment Details, Documentation) | Same H3 titles                       |
+| Two-column grid for key–value pairs                                      | Same grid; labels left, inputs right |
+| Consistent padding & fonts                                               | Re-used Tailwind classes             |
+
+---
+
+### Wiring it in
+
+1. Replace your existing edit component with the snippet (or merge bits into your file).
+2. Ensure the parent passes `employee`, `onSave`, and `onClose`.
+3. Inside `onSave`, make the **PUT /api/employees/\:id** call we fixed earlier and then refresh state/UI.
+
+```ts
+const onSave = async (data: Partial<Employee>) => {
+  await api(`/api/employees/${employee.id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+  mutate();        // re-fetch SWR / React-Query or however you refresh list
+  setShowEdit(false);
+};
+```
+
+Now your **Edit** dialog should look visually identical to the **View** dialog, but with editable fields. Let me know if you need tweaks (icons, validation messages, RTL layout, etc.).
