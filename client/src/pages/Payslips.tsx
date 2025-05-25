@@ -77,8 +77,8 @@ export default function Payslips() {
     createMutation.mutate(payslipData);
   };
 
-  const handleEmployeeChange = (employeeId: string) => {
-    const employee = employees.find((emp: Employee) => emp.id === parseInt(employeeId));
+  const handleEmployeeChange = (employeePassport: string) => {
+    const employee = employees.find((emp: Employee) => emp.passport === employeePassport);
     setSelectedEmployee(employee || null);
     
     if (employee) {
@@ -91,7 +91,7 @@ export default function Payslips() {
 
   const handleCreate = () => {
     form.reset({
-      employeeId: 0,
+      employeePassport: "",
       payPeriod: new Date().toISOString().slice(0, 7),
       payDate: new Date().toISOString().slice(0, 10),
       grossSalary: 0,
@@ -116,17 +116,17 @@ export default function Payslips() {
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };
 
-  const getEmployeeName = (employeeId: number) => {
-    const employee = employees.find((emp: Employee) => emp.id === employeeId);
+  const getEmployeeName = (employeePassport: string) => {
+    const employee = employees.find((emp: Employee) => emp.passport === employeePassport);
     return employee?.name || 'Unknown Employee';
   };
 
   // Group payslips by employee
-  const payslipsByEmployee = payslips.reduce((acc: Record<number, Payslip[]>, payslip: Payslip) => {
-    if (!acc[payslip.employeeId]) {
-      acc[payslip.employeeId] = [];
+  const payslipsByEmployee = payslips.reduce((acc: Record<string, Payslip[]>, payslip: Payslip) => {
+    if (!acc[payslip.employeePassport]) {
+      acc[payslip.employeePassport] = [];
     }
-    acc[payslip.employeeId].push(payslip);
+    acc[payslip.employeePassport].push(payslip);
     return acc;
   }, {});
 
@@ -178,7 +178,7 @@ export default function Payslips() {
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
-                  <CardTitle className="text-lg">{getEmployeeName(payslip.employeeId)}</CardTitle>
+                  <CardTitle className="text-lg">{getEmployeeName(payslip.employeePassport)}</CardTitle>
                   <p className="text-sm text-muted-foreground">{formatPeriod(payslip.payPeriod)}</p>
                 </div>
                 <Badge variant="outline">
@@ -240,10 +240,10 @@ export default function Payslips() {
       {Object.keys(payslipsByEmployee).length > 0 && (
         <div className="space-y-4">
           <h2 className="text-xl font-semibold">Payslips by Employee</h2>
-          {Object.entries(payslipsByEmployee).map(([employeeId, employeePayslips]) => (
-            <Card key={employeeId}>
+          {Object.entries(payslipsByEmployee).map(([employeePassport, employeePayslips]) => (
+            <Card key={employeePassport}>
               <CardHeader>
-                <CardTitle className="text-lg">{getEmployeeName(parseInt(employeeId))}</CardTitle>
+                <CardTitle className="text-lg">{getEmployeeName(employeePassport)}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
@@ -279,12 +279,12 @@ export default function Payslips() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
-                name="employeeId"
+                name="employeePassport"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Employee *</FormLabel>
                     <Select onValueChange={(value) => {
-                      field.onChange(parseInt(value));
+                      field.onChange(value);
                       handleEmployeeChange(value);
                     }}>
                       <FormControl>
@@ -294,7 +294,7 @@ export default function Payslips() {
                       </FormControl>
                       <SelectContent>
                         {employees.map((employee: Employee) => (
-                          <SelectItem key={employee.id} value={employee.id.toString()}>
+                          <SelectItem key={employee.passport} value={employee.passport}>
                             {employee.name} - {employee.designation}
                           </SelectItem>
                         ))}
