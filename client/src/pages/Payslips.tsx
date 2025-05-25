@@ -78,7 +78,7 @@ export default function Payslips() {
   };
 
   const handleEmployeeChange = (employeeId: string) => {
-    const employee = employees.find((emp: Employee) => emp.passport === employeeId);
+    const employee = employees.find((emp: Employee) => emp.id === parseInt(employeeId));
     setSelectedEmployee(employee || null);
     
     if (employee) {
@@ -122,11 +122,11 @@ export default function Payslips() {
   };
 
   // Group payslips by employee
-  const payslipsByEmployee = payslips.reduce((acc: Record<string, Payslip[]>, payslip: Payslip) => {
-    if (!acc[payslip.employeePassport]) {
-      acc[payslip.employeePassport] = [];
+  const payslipsByEmployee = payslips.reduce((acc: Record<number, Payslip[]>, payslip: Payslip) => {
+    if (!acc[payslip.employeeId]) {
+      acc[payslip.employeeId] = [];
     }
-    acc[payslip.employeePassport].push(payslip);
+    acc[payslip.employeeId].push(payslip);
     return acc;
   }, {});
 
@@ -178,7 +178,7 @@ export default function Payslips() {
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
-                  <CardTitle className="text-lg">{getEmployeeName(payslip.employeePassport)}</CardTitle>
+                  <CardTitle className="text-lg">{getEmployeeName(payslip.employeeId)}</CardTitle>
                   <p className="text-sm text-muted-foreground">{formatPeriod(payslip.payPeriod)}</p>
                 </div>
                 <Badge variant="outline">
@@ -294,7 +294,7 @@ export default function Payslips() {
                       </FormControl>
                       <SelectContent>
                         {employees.map((employee: Employee) => (
-                          <SelectItem key={employee.passport} value={employee.passport}>
+                          <SelectItem key={employee.id} value={employee.id.toString()}>
                             {employee.name} - {employee.designation}
                           </SelectItem>
                         ))}
