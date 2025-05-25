@@ -45,11 +45,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const plants = await storage.getAllPlants();
       
       // Get other data with fallbacks for missing methods
-      let users = [];
-      let plantBases = [];
-      let plantInventories = [];
-      let purchasesPy8 = [];
-      let salesPy9 = [];
+      let users: any[] = [];
+      let plantBases: any[] = [];
+      let plantInventories: any[] = [];
+      let purchasesPy8: any[] = [];
+      let salesPy9: any[] = [];
       
       try {
         users = await storage.getAllUsers();
@@ -81,24 +81,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("PY9 sales method not available");
       }
 
+      // Calculate total records safely
+      const totalRecords = (users?.length || 0) + (employees?.length || 0) + (payslips?.length || 0) + 
+                          (plantBases?.length || 0) + (plantInventories?.length || 0) + (plants?.length || 0) +
+                          (purchasesPy8?.length || 0) + (salesPy9?.length || 0);
+
       const backupData = {
         version: "1.0",
         timestamp: new Date().toISOString(),
         data: {
-          users: users.map((user: any) => ({...user, password: "[PROTECTED]"})), // Don't export passwords
-          employees,
-          payslips,
-          plantBases,
-          plantInventories,
-          plants,
-          purchasesPy8,
-          salesPy9
+          users: users?.map((user: any) => ({...user, password: "[PROTECTED]"})) || [], // Don't export passwords
+          employees: employees || [],
+          payslips: payslips || [],
+          plantBases: plantBases || [],
+          plantInventories: plantInventories || [],
+          plants: plants || [],
+          purchasesPy8: purchasesPy8 || [],
+          salesPy9: salesPy9 || []
         },
         metadata: {
-          totalRecords: users.length + employees.length + payslips.length + 
-                       plantBases.length + plantInventories.length + plants.length +
-                       purchasesPy8.length + salesPy9.length,
-          tables: ["users", "employees", "payslips", "plant_base", "plant_inventory", "plants", "purchases_py8", "sales_py9"]
+          totalRecords,
+          tables: ["users", "employees", "payslips", "plant_base", "plant_inventory", "plants", "purchases_py8", "sales_py9"],
+          exportedTables: {
+            users: users?.length || 0,
+            employees: employees?.length || 0,
+            payslips: payslips?.length || 0,
+            plantBases: plantBases?.length || 0,
+            plantInventories: plantInventories?.length || 0,
+            plants: plants?.length || 0,
+            purchasesPy8: purchasesPy8?.length || 0,
+            salesPy9: salesPy9?.length || 0
+          }
         }
       };
 
