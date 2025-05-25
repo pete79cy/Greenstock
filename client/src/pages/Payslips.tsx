@@ -274,9 +274,34 @@ export default function Payslips() {
                           <p className="text-sm text-muted-foreground">Paid on {formatDate(payslip.payDate)}</p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-green-600">{formatCurrency(payslip.netPay)}</p>
-                        <p className="text-xs text-muted-foreground">Net Pay</p>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <p className="font-semibold text-green-600">{formatCurrency(payslip.netPay)}</p>
+                          <p className="text-xs text-muted-foreground">Net Pay</p>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(`/api/payslips/${payslip.id}/pdf`, '_blank')}
+                          >
+                            <Download className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const printWindow = window.open(`/api/payslips/${payslip.id}/pdf`, '_blank');
+                              if (printWindow) {
+                                printWindow.onload = () => {
+                                  printWindow.print();
+                                };
+                              }
+                            }}
+                          >
+                            <Printer className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
