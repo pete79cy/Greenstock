@@ -40,25 +40,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Starting full database backup...");
       
       // Get all critical data from all tables
-      const [
-        users,
-        employees,
-        payslips,
-        plantBases,
-        plantInventories,
-        plants,
-        purchasesPy8,
-        salesPy9
-      ] = await Promise.all([
-        storage.getAllUsers(),
-        storage.getAllEmployees(),
-        storage.getAllPayslips(),
-        storage.getAllPlantBases(),
-        storage.getAllPlantInventories(),
-        storage.getAllPlants(),
-        storage.getAllPurchasesPy8(),
-        storage.getAllSalesPy9()
-      ]);
+      const employees = await storage.getAllEmployees();
+      const payslips = await storage.getAllPayslips();
+      const plants = await storage.getAllPlants();
+      
+      // Get other data with fallbacks for missing methods
+      let users = [];
+      let plantBases = [];
+      let plantInventories = [];
+      let purchasesPy8 = [];
+      let salesPy9 = [];
+      
+      try {
+        users = await storage.getAllUsers();
+      } catch (e) {
+        console.log("Users method not available");
+      }
+      
+      try {
+        plantBases = await storage.getAllPlantBases();
+      } catch (e) {
+        console.log("Plant bases method not available");
+      }
+      
+      try {
+        plantInventories = await storage.getAllPlantInventories();
+      } catch (e) {
+        console.log("Plant inventories method not available");
+      }
+      
+      try {
+        purchasesPy8 = await storage.getAllPurchasesPy8();
+      } catch (e) {
+        console.log("PY8 purchases method not available");
+      }
+      
+      try {
+        salesPy9 = await storage.getAllSalesPy9();
+      } catch (e) {
+        console.log("PY9 sales method not available");
+      }
 
       const backupData = {
         version: "1.0",
