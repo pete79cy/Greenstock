@@ -201,11 +201,12 @@ export const insertEmployeeSchema = createInsertSchema(employees, {
   name: z.string().min(1, "Name is required"),
   designation: z.string().min(1, "Designation is required"),
   monthlySalary: z.number().int().positive("Monthly salary must be positive"),
-  dateOfBirth: z.string().optional(),
 }).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  dateOfBirth: z.string().or(z.literal("")).optional().transform(val => val === "" ? undefined : val),
 });
 
 export const updateEmployeeSchema = insertEmployeeSchema.partial();
