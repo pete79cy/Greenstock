@@ -294,7 +294,7 @@ export default function Payslips() {
                       </FormControl>
                       <SelectContent>
                         {employees.map((employee: Employee) => (
-                          <SelectItem key={employee.id} value={employee.id.toString()}>
+                          <SelectItem key={employee.passport} value={employee.passport}>
                             {employee.name} - {employee.designation}
                           </SelectItem>
                         ))}

@@ -1674,10 +1674,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/employees/:id", isAuthenticated, async (req: Request, res: Response) => {
+  app.get("/api/employees/:passport", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
-      const employee = await storage.getEmployee(id);
+      const passport = req.params.passport;
+      const employee = await storage.getEmployee(passport);
       if (!employee) {
         return res.status(404).json({ message: "Employee not found" });
       }
@@ -1717,7 +1717,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: validationError.message });
       }
 
-      const employee = await storage.updateEmployee(id, validationResult.data);
+      const employee = await storage.updateEmployee(passport, validationResult.data);
       if (!employee) {
         return res.status(404).json({ message: "Employee not found" });
       }
@@ -1728,10 +1728,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/employees/:id", isAuthenticated, async (req: Request, res: Response) => {
+  app.delete("/api/employees/:passport", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
-      const success = await storage.deleteEmployee(id);
+      const passport = req.params.passport;
+      const success = await storage.deleteEmployee(passport);
       if (!success) {
         return res.status(404).json({ message: "Employee not found" });
       }
@@ -1767,10 +1767,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/employees/:id/payslips", isAuthenticated, async (req: Request, res: Response) => {
+  app.get("/api/employees/:passport/payslips", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const employeeId = parseInt(req.params.id);
-      const payslips = await storage.getPayslipsForEmployee(employeeId);
+      const employeePassport = req.params.passport;
+      const payslips = await storage.getPayslipsForEmployee(employeePassport);
       res.json(payslips);
     } catch (error) {
       console.error("Error fetching employee payslips:", error);
