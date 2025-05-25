@@ -1,0 +1,143 @@
+The **red toast** is still the same core problem we fixed for DELETE/POST earlier—your **update** call is being made like this:
+
+```ts
+fetch("/api/employees/3", "PUT");   // second arg = plain string  ❌
+```
+
+Because the runtime treats that string as “HTTP method”, it throws *“Invalid request method”* before the request ever leaves the browser.
+Nothing you do to the back-end will change that symptom—you need to fix the front-end call first.
+
+---
+
+## 1 Front-end — make the `UPDATE` call correctly
+
+Find the handler in your **Edit Employee modal** (likely `EmployeeForm.tsx` or `EditEmployeeModal.tsx`):
+
+```tsx
+// ❌ current
+await fetch(`/api/employees/${id}`, "PUT");
+
+// ✅ patched
+await fetch(`/api/employees/${id}`, {
+  method: "PUT",               // or PATCH
+  credentials: "include",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    fullName,
+    jobTitle,
+    monthlySalary: Number(monthlySalary),
+    paymentMethod,
+    passportNumber,
+    arcNumber,
+    socialInsurance,
+    taxId,
+    dateOfBirth,               // <-- new field
+  }),
+});
+```
+
+*(If you’ve centralised a helper `api()` function, use that instead—just be sure it builds the options object.)*
+
+---
+
+## 2 Back-end — accept the Date of Birth field
+
+### a) Route
+
+```ts
+// server/routes/employees.ts
+router.put("/:id", isAuth, async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const {
+      fullName,
+      jobTitle,
+      monthlySalary,
+      paymentMethod,
+      passportNumber,
+      arcNumber,
+      socialInsurance,
+      taxId,
+      dateOfBirth,          // <-- new
+    } = req.body;
+
+    await db.employee.update({
+      where: { id },
+      data: {
+        fullName,
+        jobTitle,
+        monthlySalary,
+        paymentMethod,
+        passportNumber,
+        arcNumber,
+        socialInsurance,
+        taxId,
+        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+      },
+    });
+
+    res.sendStatus(204);
+  } catch (err) {
+    next(err);
+  }
+});
+```
+
+(Replace with Drizzle / Prisma syntax you use. ISO-date string from the HTML date picker parses cleanly with `new Date()`.)
+
+### b) Database
+
+You said the migration ran, but double-check:
+
+```sql
+ALTER TABLE employees
+  ADD COLUMN date_of_birth DATE;
+```
+
+In Drizzle:
+
+```ts
+export const employees = pgTable("employees", {
+  // …
+  dateOfBirth: date("date_of_birth").nullable(),
+});
+```
+
+---
+
+## 3 Show Date of Birth everywhere
+
+### Employee card & view modal
+
+```tsx
+{employee.dateOfBirth && (
+  <div className="text-sm text-gray-500">
+    🎂 {new Date(employee.dateOfBirth).toLocaleDateString()}
+  </div>
+)}
+```
+
+*(Add in both the small card and the detailed “View” modal.)*
+
+### Payslip (optional)
+
+If you want DOB on the payslip, just expose `employee.date_of_birth` in the template exactly like we did for passport / ARC earlier.
+
+---
+
+## 4 Quick test flow
+
+1. **Browser DevTools → Network**
+   Click **Update Employee**. You should now see a `PUT /api/employees/3` entry.
+2. Response `204` or `200` ⇒ success; UI should re-render with the new DOB.
+   Response `4xx/5xx` ⇒ copy the JSON error and we’ll fix the server side.
+
+---
+
+### If you still hit problems
+
+* **No network call visible** → front-end handler still wrong (search for the call—you may have two copies).
+* **Network 400/422** → server validation error; paste the error payload here.
+* **Network 500** → check server logs; likely date parsing or null value.
+
+Send me the tiny snippet of the failing code / error and I’ll pinpoint the next fix, but in 90 % of cases replacing the rogue `"PUT"` string with the proper `options` object unblocks everything.
