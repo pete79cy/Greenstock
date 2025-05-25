@@ -121,6 +121,7 @@ export default function Employees() {
       socialInsurance: employee.socialInsurance || "",
       taxId: employee.taxId || "",
       monthlySalary: salaryInEuros,
+      status: employee.status || (employee.isActive ? "ACTIVE" : "FORMER"),
     });
     setIsDialogOpen(true);
   };
@@ -157,8 +158,8 @@ export default function Employees() {
   // Filter employees based on status
   const filteredEmployees = employees.filter((employee) => {
     if (employeeFilter === "ALL") return true;
-    if (employeeFilter === "ACTIVE") return employee.status === "ACTIVE";
-    if (employeeFilter === "FORMER") return employee.status === "FORMER";
+    if (employeeFilter === "ACTIVE") return (employee.status === "ACTIVE" || (!employee.status && employee.isActive));
+    if (employeeFilter === "FORMER") return (employee.status === "FORMER" || (!employee.status && !employee.isActive));
     return true;
   });
 
@@ -232,10 +233,10 @@ export default function Employees() {
                   <p className="text-sm text-muted-foreground">{employee.designation}</p>
                 </div>
                 <Badge 
-                  variant={employee.status === "ACTIVE" ? "default" : "secondary"}
-                  className={employee.status === "ACTIVE" ? "bg-sky-600 text-white" : "bg-gray-400 text-white"}
+                  variant={(employee.status === "ACTIVE" || (!employee.status && employee.isActive)) ? "default" : "secondary"}
+                  className={(employee.status === "ACTIVE" || (!employee.status && employee.isActive)) ? "bg-sky-600 text-white" : "bg-gray-400 text-white"}
                 >
-                  {employee.status === "ACTIVE" ? "Active" : "Former"}
+                  {(employee.status === "ACTIVE" || (!employee.status && employee.isActive)) ? "Active" : "Former"}
                 </Badge>
               </div>
             </CardHeader>
@@ -281,7 +282,7 @@ export default function Employees() {
                   <Edit className="h-3 w-3 mr-1" />
                   Edit
                 </Button>
-                {employee.status === "ACTIVE" && (
+                {(employee.status === "ACTIVE" || (!employee.status && employee.isActive)) && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -441,6 +442,28 @@ export default function Employees() {
                             <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
                             <SelectItem value="Cash">Cash</SelectItem>
                             <SelectItem value="Check">Check</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Employment Status</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value || "ACTIVE"}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select employment status" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="ACTIVE">Active</SelectItem>
+                            <SelectItem value="FORMER">Former</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -608,10 +631,10 @@ export default function Employees() {
                     <label className="text-sm font-medium text-muted-foreground">Status</label>
                     <p className="text-sm">
                       <Badge 
-                        variant={viewingEmployee.status === "ACTIVE" ? "default" : "secondary"}
-                        className={viewingEmployee.status === "ACTIVE" ? "bg-sky-600 text-white" : "bg-gray-400 text-white"}
+                        variant={(viewingEmployee.status === "ACTIVE" || (!viewingEmployee.status && viewingEmployee.isActive)) ? "default" : "secondary"}
+                        className={(viewingEmployee.status === "ACTIVE" || (!viewingEmployee.status && viewingEmployee.isActive)) ? "bg-sky-600 text-white" : "bg-gray-400 text-white"}
                       >
-                        {viewingEmployee.status === "ACTIVE" ? "Active" : "Former"}
+                        {(viewingEmployee.status === "ACTIVE" || (!viewingEmployee.status && viewingEmployee.isActive)) ? "Active" : "Former"}
                       </Badge>
                     </p>
                   </div>
