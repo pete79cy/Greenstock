@@ -178,7 +178,7 @@ export default function Payslips() {
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
-                  <CardTitle className="text-lg">{getEmployeeName(payslip.employeeId)}</CardTitle>
+                  <CardTitle className="text-lg">{getEmployeeName(payslip.employeePassport)}</CardTitle>
                   <p className="text-sm text-muted-foreground">{formatPeriod(payslip.payPeriod)}</p>
                 </div>
                 <Badge variant="outline">

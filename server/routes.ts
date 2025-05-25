@@ -1708,9 +1708,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/employees/:id", isAuthenticated, async (req: Request, res: Response) => {
+  app.put("/api/employees/:passport", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const passport = req.params.passport;
       const validationResult = updateEmployeeSchema.safeParse(req.body);
       if (!validationResult.success) {
         const validationError = fromZodError(validationResult.error);
