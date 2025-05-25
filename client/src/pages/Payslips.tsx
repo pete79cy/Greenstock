@@ -210,37 +210,7 @@ export default function Payslips() {
                 variant="outline" 
                 size="sm" 
                 className="w-full"
-                onClick={async () => {
-                  try {
-                    const response = await fetch(`/api/payslips/${payslip.id}/pdf`, {
-                      credentials: 'include',
-                    });
-                    
-                    if (response.ok) {
-                      const blob = await response.blob();
-                      const url = URL.createObjectURL(blob);
-                      const link = document.createElement('a');
-                      link.href = url;
-                      link.download = `payslip-${payslip.payPeriod}-${payslip.id}.pdf`;
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-                      URL.revokeObjectURL(url);
-                    } else {
-                      toast({ 
-                        title: "Error", 
-                        description: "Failed to download PDF", 
-                        variant: "destructive" 
-                      });
-                    }
-                  } catch (error) {
-                    toast({ 
-                      title: "Error", 
-                      description: "Failed to download PDF", 
-                      variant: "destructive" 
-                    });
-                  }
-                }}
+                onClick={() => window.open(`/api/payslips/${payslip.id}/pdf`, '_blank')}
               >
                 <Download className="h-3 w-3 mr-2" />
                 Download PDF

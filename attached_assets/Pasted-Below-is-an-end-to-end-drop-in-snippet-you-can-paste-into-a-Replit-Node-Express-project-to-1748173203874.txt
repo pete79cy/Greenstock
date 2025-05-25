@@ -1,0 +1,190 @@
+Below is an **end-to-end “drop-in” snippet** you can paste into a Replit (Node + Express) project to serve the redesigned payslip as a PDF.
+
+---
+
+## 1  Add the Handlebars template
+
+**`/server/templates/payslip.hbs`**
+
+```hbs
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Payslip – {{ employee.name }}</title>
+  <style>
+    body { font-family: 'Arial', sans-serif; font-size: 10pt; margin: 30px; color: #2B2B2B; }
+    .header, .footer { text-align: center; margin-bottom: 20px; }
+    .title { font-size: 18pt; font-weight: bold; color: #1B7547; margin-bottom: 10px; }
+    .meta { font-size: 9pt; color: #555; margin-bottom: 5px; }
+    .block { border: 1px solid #ccc; border-radius: 4px; padding: 12px; margin-bottom: 20px; }
+    .row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+    .row span { font-weight: bold; }
+    .amounts { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    .amounts td { padding: 8px; border-bottom: 1px solid #ddd; }
+    .amounts .label { text-align: left; }
+    .amounts .value { text-align: right; }
+    .net { font-size: 12pt; font-weight: bold; color: #1B7547; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="title">Payslip</div>
+    <div class="meta">Andreas Pakkoutis &amp; Sons Ltd – Griva Digeni 39, Avgorou</div>
+  </div>
+
+  <div class="block">
+    <div class="row"><span>Employee:</span> {{ employee.name }}</div>
+    <div class="row"><span>Designation:</span> {{ employee.designation }}</div>
+    <div class="row"><span>Pay Period:</span> {{ pay_period }}</div>
+    <div class="row"><span>Pay Date:</span> {{ pay_date }}</div>
+  </div>
+
+  <div class="block">
+    <div class="row"><span>SALARY BREAKDOWN</span></div>
+    <table class="amounts">
+      <tr><td class="label">Gross Salary</td><td class="value">€{{ gross_salary_fmt }}</td></tr>
+      <tr><td class="label">Social Insurance (8.3%)</td><td class="value">-€{{ si_fmt }}</td></tr>
+      <tr><td class="label">GESY (2.65%)</td><td class="value">-€{{ gesy_fmt }}</td></tr>
+      <tr class="net"><td class="label">NET PAY</td><td class="value">€{{ net_fmt }}</td></tr>
+    </table>
+  </div>
+
+  <div class="footer">
+    <div>This is a system-generated payslip.</div>
+    <div>Employee Signature: _____________________</div>
+  </div>
+
+</body>
+</html>
+```
+
+---
+
+## 2  Install the helper libs
+
+```bash
+npm i puppeteer @handlebars/allow-prototype-access handlebars
+```
+
+*(`puppeteer` ships Chromium; Replit allows `--no-sandbox` launches.)*
+
+---
+
+## 3  Express route that streams the PDF
+
+**`/server/routes/payslips.ts`**
+
+```ts
+import { Router } from "express";
+import puppeteer from "puppeteer";
+import * as fs from "node:fs/promises";
+import path from "node:path";
+import Handlebars from "handlebars";
+import { allowInsecurePrototypeAccess } from "@handlebars/allow-prototype-access";
+
+const hbs = allowInsecurePrototypeAccess(Handlebars as any);
+const router = Router();
+
+// GET  /api/payslips/:id/pdf
+router.get("/:id/pdf", async (req, res, next) => {
+  const id = Number(req.params.id);
+
+  try {
+    /* ---------------------------------------------
+     * 1. Fetch payslip + employee data from DB
+     *    (replace with your own ORM call)
+     * ------------------------------------------- */
+    const payslip = await db.payslip.findUnique({
+      where: { id },
+      include: { employee: true },
+    });
+    if (!payslip) return res.status(404).json({ message: "Not found" });
+
+    /* ---------------------------------------------
+     * 2. Prepare template context
+     * ------------------------------------------- */
+    const gross = payslip.grossSalary;
+    const si = gross * 0.083;
+    const gesy = gross * 0.0265;
+    const net = gross - si - gesy;
+
+    const view = {
+      employee: {
+        name: payslip.employee.fullName,
+        designation: payslip.employee.position,
+      },
+      pay_period: payslip.payPeriod,                 // e.g. "2025-05"
+      pay_date: payslip.payDate.toLocaleDateString("en-GB"),
+      gross_salary_fmt: gross.toFixed(2),
+      si_fmt: si.toFixed(2),
+      gesy_fmt: gesy.toFixed(2),
+      net_fmt: net.toFixed(2),
+    };
+
+    /* ---------------------------------------------
+     * 3. Compile Handlebars template
+     * ------------------------------------------- */
+    const tplPath = path.join(__dirname, "..", "templates", "payslip.hbs");
+    const templateSrc = await fs.readFile(tplPath, "utf8");
+    const compile = hbs.compile(templateSrc);
+    const html = compile(view);
+
+    /* ---------------------------------------------
+     * 4. Render to PDF with Puppeteer
+     * ------------------------------------------- */
+    const browser = await puppeteer.launch({
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: "networkidle0" });
+    const pdf = await page.pdf({ format: "A4", printBackground: true });
+    await browser.close();
+
+    /* ---------------------------------------------
+     * 5. Stream back to client
+     * ------------------------------------------- */
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="payslip-${id}.pdf"`,
+    );
+    res.send(pdf);
+  } catch (err) {
+    next(err);
+  }
+});
+
+export default router;
+```
+
+Then mount it in your main server file:
+
+```ts
+import payslipRouter from "./routes/payslips";
+app.use("/api/payslips", payslipRouter);
+```
+
+---
+
+## 4  Open it from the React side
+
+```ts
+// PayslipRow.tsx (button handler)
+const openPdf = (id: number) => {
+  window.open(`/api/payslips/${id}/pdf`, "_blank");
+};
+```
+
+*(No `fetch()` needed — let the browser’s PDF viewer handle it.)*
+
+---
+
+### ✅  What this gives you
+
+* **Clean HTML payslip** that prints beautifully on A4 or exports to PDF.
+* **Single endpoint** (`/api/payslips/:id/pdf`) that compiles → renders → streams, so no temp files.
+* Works on **Replit** (Puppeteer with `--no-sandbox`) and locally.
+
+Plug it in, hit `/api/payslips/1/pdf`, and you should see the redesigned payslip in a new tab. If anything’s unclear, let me know and I’ll tweak the snippet.

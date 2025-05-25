@@ -14,6 +14,9 @@ import * as fs from "fs";
 import path from "path";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
+import puppeteer from "puppeteer";
+import Handlebars from "handlebars";
+import { allowInsecurePrototypeAccess } from "@handlebars/allow-prototype-access";
 import { configureSession, registerAuthRoutes, isAuthenticated } from "./auth";
 import cors from "cors";
 
@@ -1840,7 +1843,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Generate payslip PDF
+  // Generate payslip PDF with enhanced design
   app.get("/api/payslips/:id/pdf", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
@@ -1855,154 +1858,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Employee not found" });
       }
 
-      const pdfDoc = await PDFDocument.create();
-      const page = pdfDoc.addPage([595, 842]);
-      const { width, height } = page.getSize();
-
-      const grossSalary = payslip.grossSalary / 100;
-      const socialInsurance = payslip.socialInsurance / 100;
+      // Prepare template context
+      const gross = payslip.grossSalary / 100;
+      const si = payslip.socialInsurance / 100;
       const gesy = payslip.gesy / 100;
-      const netPay = payslip.netPay / 100;
+      const net = payslip.netPay / 100;
 
-      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const view = {
+        employee: {
+          name: employee.name,
+          designation: employee.designation,
+        },
+        pay_period: payslip.payPeriod,
+        pay_date: new Date(payslip.payDate).toLocaleDateString("en-GB"),
+        gross_salary_fmt: gross.toFixed(2),
+        si_fmt: si.toFixed(2),
+        gesy_fmt: gesy.toFixed(2),
+        net_fmt: net.toFixed(2),
+        notes: payslip.notes || null,
+      };
+
+      // Set up Handlebars with prototype access
+      const hbs = allowInsecurePrototypeAccess(Handlebars);
       
-      const margin = 50;
-      let currentY = height - margin;
-      
-      page.drawText('PAYSLIP', {
-        x: width / 2 - 30,
-        y: currentY,
-        size: 20,
-        font: boldFont,
-      });
-      currentY -= 40;
+      // Read and compile template
+      const templatePath = path.join(__dirname, "templates", "payslip.hbs");
+      const templateSrc = await fs.promises.readFile(templatePath, "utf8");
+      const compile = hbs.compile(templateSrc);
+      const html = compile(view);
 
-      page.drawText(`Employee: ${employee.name}`, {
-        x: margin,
-        y: currentY,
-        size: 12,
-        font: boldFont,
-      });
-      currentY -= 20;
-
-      page.drawText(`Designation: ${employee.designation}`, {
-        x: margin,
-        y: currentY,
-        size: 11,
-        font: font,
-      });
-      currentY -= 20;
-
-      page.drawText(`Pay Period: ${payslip.payPeriod}`, {
-        x: margin,
-        y: currentY,
-        size: 11,
-        font: font,
+      // Generate PDF with Puppeteer
+      const browser = await puppeteer.launch({
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        headless: true,
       });
       
-      page.drawText(`Pay Date: ${payslip.payDate}`, {
-        x: width - margin - 120,
-        y: currentY,
-        size: 11,
-        font: font,
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: "networkidle0" });
+      const pdf = await page.pdf({ 
+        format: "A4", 
+        printBackground: true,
+        margin: { top: '20px', bottom: '20px', left: '20px', right: '20px' }
       });
-      currentY -= 40;
+      await browser.close();
 
-      page.drawText('SALARY BREAKDOWN', {
-        x: margin,
-        y: currentY,
-        size: 14,
-        font: boldFont,
-      });
-      currentY -= 25;
-
-      page.drawText('Gross Salary:', {
-        x: margin,
-        y: currentY,
-        size: 11,
-        font: font,
-      });
-      page.drawText(`€${grossSalary.toFixed(2)}`, {
-        x: width - margin - 80,
-        y: currentY,
-        size: 11,
-        font: font,
-      });
-      currentY -= 20;
-
-      page.drawText('DEDUCTIONS', {
-        x: margin,
-        y: currentY,
-        size: 12,
-        font: boldFont,
-      });
-      currentY -= 20;
-
-      page.drawText('Social Insurance (8.3%):', {
-        x: margin + 20,
-        y: currentY,
-        size: 11,
-        font: font,
-      });
-      page.drawText(`-€${socialInsurance.toFixed(2)}`, {
-        x: width - margin - 80,
-        y: currentY,
-        size: 11,
-        font: font,
-      });
-      currentY -= 18;
-
-      page.drawText('GESY (2.65%):', {
-        x: margin + 20,
-        y: currentY,
-        size: 11,
-        font: font,
-      });
-      page.drawText(`-€${gesy.toFixed(2)}`, {
-        x: width - margin - 80,
-        y: currentY,
-        size: 11,
-        font: font,
-      });
-      currentY -= 30;
-
-      page.drawText('NET PAY:', {
-        x: margin,
-        y: currentY,
-        size: 14,
-        font: boldFont,
-      });
-      page.drawText(`€${netPay.toFixed(2)}`, {
-        x: width - margin - 80,
-        y: currentY,
-        size: 14,
-        font: boldFont,
-      });
-
-      if (payslip.notes) {
-        currentY -= 40;
-        page.drawText('Notes:', {
-          x: margin,
-          y: currentY,
-          size: 11,
-          font: boldFont,
-        });
-        currentY -= 20;
-        page.drawText(payslip.notes, {
-          x: margin,
-          y: currentY,
-          size: 10,
-          font: font,
-        });
-      }
-
-      const pdfBytes = await pdfDoc.save();
-      
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `inline; filename="payslip-${employee.name.replace(/\s+/g, '-')}-${payslip.payPeriod}.pdf"`);
-      res.setHeader('Content-Length', pdfBytes.length.toString());
-      res.send(Buffer.from(pdfBytes));
+      // Send PDF response
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="payslip-${employee.name.replace(/\s+/g, '-')}-${payslip.payPeriod}.pdf"`);
+      res.send(pdf);
     } catch (error) {
       console.error("Error generating payslip PDF:", error);
       res.status(500).json({ message: "Failed to generate PDF" });

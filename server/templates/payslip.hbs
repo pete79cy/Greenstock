@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Payslip – {{ employee.name }}</title>
+  <style>
+    body { font-family: 'Arial', sans-serif; font-size: 10pt; margin: 30px; color: #2B2B2B; }
+    .header, .footer { text-align: center; margin-bottom: 20px; }
+    .title { font-size: 18pt; font-weight: bold; color: #1B7547; margin-bottom: 10px; }
+    .meta { font-size: 9pt; color: #555; margin-bottom: 5px; }
+    .block { border: 1px solid #ccc; border-radius: 4px; padding: 12px; margin-bottom: 20px; }
+    .row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+    .row span { font-weight: bold; }
+    .amounts { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    .amounts td { padding: 8px; border-bottom: 1px solid #ddd; }
+    .amounts .label { text-align: left; }
+    .amounts .value { text-align: right; }
+    .net { font-size: 12pt; font-weight: bold; color: #1B7547; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="title">Payslip</div>
+    <div class="meta">Andreas Pakkoutis &amp; Sons Ltd – Griva Digeni 39, Avgorou</div>
+  </div>
+
+  <div class="block">
+    <div class="row"><span>Employee:</span> {{ employee.name }}</div>
+    <div class="row"><span>Designation:</span> {{ employee.designation }}</div>
+    <div class="row"><span>Pay Period:</span> {{ pay_period }}</div>
+    <div class="row"><span>Pay Date:</span> {{ pay_date }}</div>
+  </div>
+
+  <div class="block">
+    <div class="row"><span>SALARY BREAKDOWN</span></div>
+    <table class="amounts">
+      <tr><td class="label">Gross Salary</td><td class="value">€{{ gross_salary_fmt }}</td></tr>
+      <tr><td class="label">Social Insurance (8.3%)</td><td class="value">-€{{ si_fmt }}</td></tr>
+      <tr><td class="label">GESY (2.65%)</td><td class="value">-€{{ gesy_fmt }}</td></tr>
+      <tr class="net"><td class="label">NET PAY</td><td class="value">€{{ net_fmt }}</td></tr>
+    </table>
+  </div>
+
+  {{#if notes}}
+  <div class="block">
+    <div class="row"><span>Notes:</span></div>
+    <div style="margin-top: 8px; font-style: italic;">{{ notes }}</div>
+  </div>
+  {{/if}}
+
+  <div class="footer">
+    <div>This is a system-generated payslip.</div>
+    <div>Employee Signature: _____________________</div>
+  </div>
+
+</body>
+</html>
