@@ -186,6 +186,7 @@ export const employees = pgTable("employees", {
   name: text("name").notNull(),
   designation: text("designation").notNull(),
   paymentMethod: text("payment_method").notNull().default("Bank Transfer"),
+  dateOfBirth: date("date_of_birth"),
   passport: text("passport"),
   arc: text("arc"),
   socialInsurance: text("social_insurance"),
@@ -200,6 +201,7 @@ export const insertEmployeeSchema = createInsertSchema(employees, {
   name: z.string().min(1, "Name is required"),
   designation: z.string().min(1, "Designation is required"),
   monthlySalary: z.number().int().positive("Monthly salary must be positive"),
+  dateOfBirth: z.string().optional(),
 }).omit({
   id: true,
   createdAt: true,

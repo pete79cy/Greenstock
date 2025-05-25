@@ -67,6 +67,7 @@ export default function Employees() {
       name: "",
       designation: "",
       paymentMethod: "Bank Transfer",
+      dateOfBirth: "",
       passport: "",
       arc: "",
       socialInsurance: "",
@@ -95,6 +96,7 @@ export default function Employees() {
       name: employee.name,
       designation: employee.designation,
       paymentMethod: employee.paymentMethod,
+      dateOfBirth: employee.dateOfBirth || "",
       passport: employee.passport || "",
       arc: employee.arc || "",
       socialInsurance: employee.socialInsurance || "",
@@ -189,6 +191,12 @@ export default function Employees() {
                 <span>{employee.paymentMethod}</span>
               </div>
 
+              {employee.dateOfBirth && (
+                <div className="text-xs text-muted-foreground">
+                  Date of Birth: {new Date(employee.dateOfBirth).toLocaleDateString()}
+                </div>
+              )}
+
               {employee.socialInsurance && (
                 <div className="text-xs text-muted-foreground">
                   Social Insurance: {employee.socialInsurance}
@@ -278,6 +286,24 @@ export default function Employees() {
                         <FormLabel>Job Title *</FormLabel>
                         <FormControl>
                           <Input placeholder="e.g., Agricultural Worker" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="dateOfBirth"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Date of Birth</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="date" 
+                            {...field}
+                            value={field.value || ""}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
