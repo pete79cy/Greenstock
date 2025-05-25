@@ -84,7 +84,7 @@ export default function Employees() {
     const employeeData = { ...data, monthlySalary: salaryInCents };
 
     if (editingEmployee) {
-      updateMutation.mutate({ id: editingEmployee.id, data: employeeData });
+      updateMutation.mutate({ passport: editingEmployee.passport, data: employeeData });
     } else {
       createMutation.mutate(employeeData as InsertEmployee);
     }
@@ -95,6 +95,7 @@ export default function Employees() {
     // Convert salary back to euros for display
     const salaryInEuros = employee.monthlySalary / 100;
     form.reset({
+      passport: employee.passport,
       name: employee.name,
       designation: employee.designation,
       paymentMethod: employee.paymentMethod,

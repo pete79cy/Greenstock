@@ -68,15 +68,15 @@ export interface IStorage {
   
   // Employee methods
   getAllEmployees(): Promise<Employee[]>;
-  getEmployee(id: number): Promise<Employee | undefined>;
+  getEmployee(passport: string): Promise<Employee | undefined>;
   createEmployee(employee: InsertEmployee): Promise<Employee>;
-  updateEmployee(id: number, employee: UpdateEmployee): Promise<Employee | undefined>;
-  deleteEmployee(id: number): Promise<boolean>;
+  updateEmployee(passport: string, employee: UpdateEmployee): Promise<Employee | undefined>;
+  deleteEmployee(passport: string): Promise<boolean>;
   
   // Payslip methods
   getAllPayslips(): Promise<Payslip[]>;
   getPayslip(id: number): Promise<Payslip | undefined>;
-  getPayslipsForEmployee(employeeId: number): Promise<Payslip[]>;
+  getPayslipsForEmployee(employeePassport: string): Promise<Payslip[]>;
   createPayslip(payslip: InsertPayslip): Promise<Payslip>;
   updatePayslip(id: number, payslip: UpdatePayslip): Promise<Payslip | undefined>;
   deletePayslip(id: number): Promise<boolean>;
@@ -591,8 +591,8 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(employees).where(eq(employees.isActive, 1)).orderBy(asc(employees.name));
   }
 
-  async getEmployee(id: number): Promise<Employee | undefined> {
-    const [employee] = await db.select().from(employees).where(eq(employees.id, id));
+  async getEmployee(passport: string): Promise<Employee | undefined> {
+    const [employee] = await db.select().from(employees).where(eq(employees.passport, passport));
     return employee || undefined;
   }
 
@@ -608,21 +608,21 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async updateEmployee(id: number, updateEmployee: UpdateEmployee): Promise<Employee | undefined> {
+  async updateEmployee(passport: string, updateEmployee: UpdateEmployee): Promise<Employee | undefined> {
     const [employee] = await db
       .update(employees)
       .set({ ...updateEmployee, updatedAt: new Date() })
-      .where(eq(employees.id, id))
+      .where(eq(employees.passport, passport))
       .returning();
     return employee || undefined;
   }
 
-  async deleteEmployee(id: number): Promise<boolean> {
+  async deleteEmployee(passport: string): Promise<boolean> {
     // Soft delete by setting isActive to 0
     const [employee] = await db
       .update(employees)
       .set({ isActive: 0, updatedAt: new Date() })
-      .where(eq(employees.id, id))
+      .where(eq(employees.passport, passport))
       .returning();
     return !!employee;
   }
