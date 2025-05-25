@@ -1882,7 +1882,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hbs = allowInsecurePrototypeAccess(Handlebars);
       
       // Read and compile template
-      const templatePath = path.join(__dirname, "templates", "payslip.hbs");
+      const templatePath = path.join(process.cwd(), "server", "templates", "payslip.hbs");
+      console.log("Looking for template at:", templatePath);
       const templateSrc = await fs.promises.readFile(templatePath, "utf8");
       const compile = hbs.compile(templateSrc);
       const html = compile(view);
