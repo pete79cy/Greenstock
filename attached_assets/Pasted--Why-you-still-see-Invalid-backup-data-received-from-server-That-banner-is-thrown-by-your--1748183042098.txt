@@ -1,0 +1,103 @@
+### Why you still see **“Invalid backup data received from server”**
+
+That banner is thrown by your **BackupButton / BackupPage** component whenever the response payload fails a very small schema check:
+
+```ts
+if (!payload?.fileName || !payload?.size) {
+  throw new Error("Invalid backup data received from server");
+}
+```
+
+During a **successful** backup the server is *streaming the archive itself* (`application/gzip` or `application/octet-stream`) instead of a JSON object that contains `fileName`/`size`.
+When React tries to `await res.json()` it gets **either** an empty string (if you’re calling `res.text() → JSON.parse('')`) **or** blows up immediately because binary data isn’t valid JSON, so your generic error handler shows the red banner.
+
+---
+
+## Two ways to fix it
+
+| Option                                                     | When to choose                                                                                                           | What to change                                                                                                                                                           |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **A. Return JSON first, then redirect to the file**        | You want a *separate* metadata step (file size, SHA-256, etc.) and to keep your current front-end code basically intact. | 1️⃣ Server responds **200 application/json** with `{fileName, size, url}`.<br>2️⃣ Front-end downloads `url` in a second fetch or just sets `window.location.href = url`. |
+| **B. Let the UI treat 200 = “file download”** ✔ (simplest) | You don’t actually need that JSON; the browser download itself is enough feedback.                                       | 1️⃣ Server keeps streaming the file (current behaviour).<br>2️⃣ Front-end switches to `res.blob()` and builds a download link.                                           |
+
+Below is the *Option B* patch because it’s only a couple lines and removes the false error forever.
+
+---
+
+### **Front-end patch (React + TS)**
+
+```diff
+// src/components/BackupButton.tsx
+- const res = await fetch("/api/backup/full");
+-
+- if (!res.ok) {
+-   throw new Error(`Backup failed: ${res.statusText}`);
+- }
+-
+- const payload = await res.json();   // 🚫 fails on binary
+- if (!payload?.fileName || !payload?.size) {
+-   throw new Error("Invalid backup data received from server");
+- }
+-
+- toast.success(`Backup ${payload.fileName} (${formatBytes(payload.size)}) downloaded`);
++ const res = await fetch("/api/backup/full", { cache: "no-store" });
++
++ // 304 means “nothing new” — still a success
++ if (res.status === 304) {
++   toast.success("No changes – latest backup is still current.");
++   return;
++ }
++
++ if (!res.ok) throw new Error(`Backup failed: ${res.statusText}`);
++
++ // ----- we got the archive -----
++ const blob = await res.blob();
++ const url  = window.URL.createObjectURL(blob);
++ const a    = document.createElement("a");
++ a.href     = url;
++ a.download = res.headers.get("Content-Disposition")?.match(/filename="(.+)"/)?.[1]
++               ?? `backup_${Date.now()}.tar.gz`;
++ document.body.appendChild(a);
++ a.click();
++ a.remove();
++ window.URL.revokeObjectURL(url);
++
++ toast.success("Full backup downloaded successfully");
+```
+
+**What changed**
+
+1. **Stop trying to `res.json()`** – we treat every successful response as a blob.
+2. **Handle 304 gracefully** – present it as “nothing changed” instead of an error.
+3. **Create a temporary `<a>` to trigger the download** so the user still sees the browser’s save-file dialog.
+
+*No more schema check means no more “Invalid backup data” banner.*
+
+---
+
+### **Optional – server tweak for better UX**
+
+Add `Content-Disposition` so the browser suggests a friendly file name:
+
+```ts
+res.setHeader("Content-Type", "application/gzip");
+res.setHeader(
+  "Content-Disposition",
+  `attachment; filename="payroll_backup_${dayjs().format("YYYY-MM-DD_HHmmss")}.tar.gz"`
+);
+```
+
+---
+
+## Quick verification checklist
+
+1. **Network tab** – after clicking **Create Full Backup**, you should see a single request that returns **200** (or **304**) and “content-type: application/gzip”.
+2. **No red banner** – instead you get the green toast.
+3. **File appears in Downloads** with the expected name/size.
+4. **Try again immediately** – you should now see the “No changes” toast (304 path).
+
+If all four pass, the issue’s resolved.
+
+---
+
+Let me know if you’d rather adopt the “JSON-then-download” pattern instead, or if anything else pops up while testing!
