@@ -520,12 +520,15 @@ export default function Employees() {
                     <label className="text-sm font-medium text-muted-foreground">Job Title</label>
                     <p className="text-sm">{viewingEmployee.designation}</p>
                   </div>
-                  {viewingEmployee.dateOfBirth && (
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Date of Birth</label>
-                      <p className="text-sm">{new Date(viewingEmployee.dateOfBirth).toLocaleDateString()}</p>
-                    </div>
-                  )}
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Date of Birth</label>
+                    <p className="text-sm">
+                      {viewingEmployee.dateOfBirth 
+                        ? new Date(viewingEmployee.dateOfBirth).toLocaleDateString()
+                        : "Not specified"
+                      }
+                    </p>
+                  </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Status</label>
                     <Badge variant={viewingEmployee.isActive ? "default" : "secondary"}>
