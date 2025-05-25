@@ -125,6 +125,9 @@ export default function Employees() {
   };
 
   const handleView = (employee: Employee) => {
+    console.log("Employee data in view:", employee);
+    console.log("dateOfBirth field:", employee.dateOfBirth);
+    console.log("date_of_birth field:", (employee as any)['date_of_birth']);
     setViewingEmployee(employee);
     setIsViewDialogOpen(true);
   };
