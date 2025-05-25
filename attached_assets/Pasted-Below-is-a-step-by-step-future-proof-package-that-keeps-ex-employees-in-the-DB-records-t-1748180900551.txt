@@ -1,0 +1,219 @@
+Below is a **step-by-step “future-proof” package** that
+
+* keeps ex-employees in the DB,
+* records the day they stopped working,
+* shows a blue **Active** badge or a gray **Former** badge, and
+* lets HR toggle the status with a one-click “Mark as Left” dialog.
+
+Everything is framed so you can later grow this screen into a full HR module without rewriting the plumbing.
+
+---
+
+## 1 Database – add two columns and an enum
+
+### a. Drizzle migration `20240525_add_employee_status.ts`
+
+```ts
+import { sql } from "drizzle-orm";
+
+export async function up(db: any) {
+  await db.execute(sql`
+    CREATE TYPE employment_status AS ENUM ('ACTIVE', 'FORMER');
+  `);
+  await db.execute(sql`
+    ALTER TABLE employees
+      ADD COLUMN status employment_status NOT NULL DEFAULT 'ACTIVE',
+      ADD COLUMN left_on DATE;
+  `);
+}
+
+export async function down(db: any) {
+  await db.execute(sql`ALTER TABLE employees DROP COLUMN left_on`);
+  await db.execute(sql`ALTER TABLE employees DROP COLUMN status`);
+  await db.execute(sql`DROP TYPE employment_status`);
+}
+```
+
+```bash
+npm run drizzle:migrate      # or the Replit button
+```
+
+### b. Schema update (shared)
+
+```ts
+export const employees = pgTable("employees", {
+  // …
+  status: pgEnum("employment_status", ["ACTIVE", "FORMER"])
+            .default("ACTIVE")
+            .notNull(),
+  leftOn: date("left_on"),               // null if still working
+});
+```
+
+---
+
+## 2 API additions
+
+### a. Toggle endpoint
+
+```ts
+// server/routes/employees.ts
+router.put("/:id/leave", isAuth, async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const { date } = req.body as { date: string };       // "YYYY-MM-DD"
+
+    await db.update(employees)
+      .set({ status: "FORMER", leftOn: date ? new Date(date) : new Date() })
+      .where(eq(employees.id, id));
+
+    res.sendStatus(204);
+  } catch (err) {
+    next(err);
+  }
+});
+```
+
+*(If you prefer a single “regular” update route, just allow `status` and `leftOn`
+in the PUT payload instead of a dedicated `/leave` path.)*
+
+---
+
+## 3 Front-end changes
+
+### a. API helper
+
+```ts
+// src/lib/api.ts
+export const markAsLeft = (id: number, date: string) =>
+  api(`/api/employees/${id}/leave`, {
+    method: "PUT",
+    body: JSON.stringify({ date }),
+  });
+```
+
+### b. Employee card badges
+
+```tsx
+{/* in EmployeeCard.tsx */}
+const badge =
+  employee.status === "ACTIVE"
+    ? <span className="rounded-full bg-sky-600 px-2 py-0.5 text-xs text-white">Active</span>
+    : <span className="rounded-full bg-gray-400 px-2 py-0.5 text-xs text-white">Former</span>;
+```
+
+### c. Card footer buttons
+
+```tsx
+{employee.status === "ACTIVE" ? (
+  <button
+    className="btn-danger"
+    onClick={() => setShowLeaveModal(employee)}
+  >
+    Mark as Left
+  </button>
+) : null}
+```
+
+### d. Leave modal (tiny)
+
+```tsx
+// LeaveEmployeeModal.tsx
+export const LeaveEmployeeModal: FC<{ emp: Employee; onClose(): void }> = ({ emp, onClose }) => {
+  const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));  // today
+  const leave = async () => {
+    await markAsLeft(emp.id, date);
+    mutate("/api/employees");   // SWR / React-Query refetch
+    onClose();
+  };
+  return (
+    <Modal onClose={onClose}>
+      <h2 className="mb-4 text-lg font-medium">End Employment</h2>
+      <p className="mb-2 text-sm">
+        Choose the last working day for <strong>{emp.fullName}</strong>.
+      </p>
+      <input
+        type="date"
+        className="input mb-4"
+        value={date}
+        onChange={(e) => setDate(e.target.value)}
+      />
+      <div className="flex justify-end gap-3">
+        <button className="btn-light" onClick={onClose}>Cancel</button>
+        <button className="btn-danger" onClick={leave}>Confirm</button>
+      </div>
+    </Modal>
+  );
+};
+```
+
+### e. Filtering (optional but handy)
+
+Add a little dropdown above the card grid:
+
+```tsx
+const [filter, setFilter] = useState<"ALL" | "ACTIVE" | "FORMER">("ACTIVE");
+
+const employeesToShow = employees.filter((e) =>
+  filter === "ALL" ? true : e.status === filter,
+);
+```
+
+```html
+<select
+  className="mb-4 rounded border px-2 py-1 text-sm"
+  value={filter}
+  onChange={(e) => setFilter(e.target.value as any)}
+>
+  <option value="ACTIVE">Active</option>
+  <option value="FORMER">Former</option>
+  <option value="ALL">All</option>
+</select>
+```
+
+---
+
+## 4 View & Edit modals
+
+* View modal: add two rows
+
+```tsx
+<Row label="Status" value={emp.status === "ACTIVE" ? "Active" : "Former"} />
+<Row label="Left on" value={emp.leftOn ? fmt(emp.leftOn) : "—"} />
+```
+
+* Edit modal: **do not** expose `status` or `leftOn` (HR sets them via the Leave modal).
+
+---
+
+## 5 Quick sanity test
+
+```bash
+# create dummy
+curl -X POST http://localhost:3000/api/employees \
+  -H "Content-Type: application/json" \
+  -d '{"fullName":"Alice","jobTitle":"Picker","monthlySalary":1000,"paymentMethod":"Cash"}' --cookie "sid=…"
+
+# mark as left
+curl -X PUT http://localhost:3000/api/employees/1/leave \
+  -H "Content-Type: application/json" \
+  -d '{"date":"2025-05-24"}' --cookie "sid=…"
+
+# fetch list
+curl http://localhost:3000/api/employees --cookie "sid=…"
+```
+
+You should see `"status":"FORMER","leftOn":"2025-05-24"` in the JSON and a gray
+*Former* badge on the UI card.
+
+---
+
+### 🟢 Result
+
+* HR keeps a clean grid of **current** workers by default.
+* One click moves a person to **Former**, recording the departure date.
+* Historical data (payslips, etc.) stays intact because the row is never deleted.
+* You now have the base fields (`status`, `leftOn`) you’ll need when this grows
+  into a full “HR employees” module.
+
+If you need help wiring the modal into your existing component tree, just let me know which UI library you’re using (shadcn, HeadlessUI, MUI, etc.) and I’ll send the exact import lines.
