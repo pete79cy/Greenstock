@@ -81,7 +81,15 @@ export default function Employees() {
   const onSubmit = (data: InsertEmployee | UpdateEmployee) => {
     // Convert salary to cents for storage
     const salaryInCents = Math.round((data.monthlySalary || 0) * 100);
-    const employeeData = { ...data, monthlySalary: salaryInCents };
+    
+    // Handle date of birth - convert empty string to undefined
+    const dateOfBirth = data.dateOfBirth && data.dateOfBirth.trim() !== "" ? data.dateOfBirth : undefined;
+    
+    const employeeData = { 
+      ...data, 
+      monthlySalary: salaryInCents,
+      dateOfBirth 
+    };
 
     if (editingEmployee) {
       updateMutation.mutate({ id: editingEmployee.id, data: employeeData });
