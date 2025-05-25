@@ -131,7 +131,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           try {
             await storage.createEmployee(employee);
             restoredCounts.employees++;
-          } catch (error) {
+          } catch (error: any) {
             console.warn(`Failed to restore employee ${employee.passport}:`, error.message);
           }
         }
@@ -143,7 +143,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           try {
             await storage.createPayslip(payslip);
             restoredCounts.payslips++;
-          } catch (error) {
+          } catch (error: any) {
             console.warn(`Failed to restore payslip ${payslip.id}:`, error.message);
           }
         }
@@ -155,7 +155,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           try {
             await storage.createPlantBase(plantBase);
             restoredCounts.plantBases++;
-          } catch (error) {
+          } catch (error: any) {
             console.warn(`Failed to restore plant base ${plantBase.id}:`, error.message);
           }
         }
@@ -166,7 +166,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           try {
             await storage.createInventoryEntry(inventory);
             restoredCounts.plantInventories++;
-          } catch (error) {
+          } catch (error: any) {
             console.warn(`Failed to restore plant inventory ${inventory.id}:`, error.message);
           }
         }
@@ -177,7 +177,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           try {
             await storage.createPlant(plant);
             restoredCounts.plants++;
-          } catch (error) {
+          } catch (error: any) {
             console.warn(`Failed to restore plant ${plant.id}:`, error.message);
           }
         }
@@ -189,7 +189,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           try {
             await storage.createPurchasePy8(purchase);
             restoredCounts.purchasesPy8++;
-          } catch (error) {
+          } catch (error: any) {
             console.warn(`Failed to restore purchase ${purchase.id}:`, error.message);
           }
         }
@@ -200,7 +200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           try {
             await storage.createSalePy9(sale);
             restoredCounts.salesPy9++;
-          } catch (error) {
+          } catch (error: any) {
             console.warn(`Failed to restore sale ${sale.id}:`, error.message);
           }
         }
@@ -218,7 +218,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         backupTimestamp: backupData.timestamp
       });
       
-    } catch (error) {
+    } catch (error: any) {
       console.error("Restoration failed:", error);
       res.status(500).json({ 
         message: "Failed to restore data", 

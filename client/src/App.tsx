@@ -16,6 +16,7 @@ import Py8BatchPurchases from "@/pages/Py8BatchPurchases";
 import Py9Sales from "@/pages/Py9Sales";
 import Employees from "@/pages/Employees";
 import Payslips from "@/pages/Payslips";
+import BackupRestore from "@/pages/BackupRestore";
 import Layout from "@/components/Layout";
 import { ThemeProvider } from "next-themes";
 import { useAuth } from "@/hooks/useAuth";
@@ -105,6 +106,7 @@ function Router() {
       <Route path="/py9-sales" component={ProtectedWithLayout(Py9Sales)} />
       <Route path="/employees" component={ProtectedWithLayout(Employees)} />
       <Route path="/payslips" component={ProtectedWithLayout(Payslips)} />
+      <Route path="/backup-restore" component={ProtectedWithLayout(BackupRestore)} />
       <Route path="/settings" component={ProtectedWithLayout(Settings)} />
       
       {/* Catch-all route for 404 */}
