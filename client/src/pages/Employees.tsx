@@ -39,8 +39,8 @@ export default function Employees() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: UpdateEmployee }) =>
-      apiRequest(`/api/employees/${id}`, "PUT", data),
+    mutationFn: ({ passport, data }: { passport: string; data: UpdateEmployee }) =>
+      apiRequest(`/api/employees/${passport}`, "PUT", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
       setIsDialogOpen(false);
@@ -53,7 +53,7 @@ export default function Employees() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => apiRequest(`/api/employees/${id}`, "DELETE"),
+    mutationFn: (passport: string) => apiRequest(`/api/employees/${passport}`, "DELETE"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
       toast({ title: "Success", description: "Employee deactivated successfully" });
@@ -179,7 +179,7 @@ export default function Employees() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {employees.map((employee: Employee) => (
-          <Card key={employee.id} className="relative">
+          <Card key={employee.passport} className="relative">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
@@ -236,7 +236,7 @@ export default function Employees() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => deleteMutation.mutate(employee.id)}
+                  onClick={() => deleteMutation.mutate(employee.passport)}
                   className="text-red-600 hover:text-red-700"
                   disabled={deleteMutation.isPending}
                 >
