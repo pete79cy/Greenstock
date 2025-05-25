@@ -27,7 +27,7 @@ export default function Employees() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: InsertEmployee) => apiRequest("POST", "/api/employees", data),
+    mutationFn: (data: InsertEmployee) => apiRequest("/api/employees", "POST", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
       setIsDialogOpen(false);
