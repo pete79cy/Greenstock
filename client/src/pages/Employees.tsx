@@ -138,6 +138,7 @@ export default function Employees() {
       socialInsurance: "",
       taxId: "",
       monthlySalary: 0,
+      status: "ACTIVE",
     });
     setIsDialogOpen(true);
   };
