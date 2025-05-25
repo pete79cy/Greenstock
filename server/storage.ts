@@ -637,11 +637,11 @@ export class DatabaseStorage implements IStorage {
     return payslip || undefined;
   }
 
-  async getPayslipsForEmployee(employeeId: number): Promise<Payslip[]> {
+  async getPayslipsForEmployee(employeePassport: string): Promise<Payslip[]> {
     return await db
       .select()
       .from(payslips)
-      .where(eq(payslips.employeeId, employeeId))
+      .where(eq(payslips.employeePassport, employeePassport))
       .orderBy(desc(payslips.payPeriod));
   }
 
