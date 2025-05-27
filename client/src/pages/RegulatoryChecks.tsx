@@ -259,12 +259,12 @@ export default function RegulatoryChecks() {
 
             <div>
               <Label htmlFor="filterFormType">Filter by Document Type</Label>
-              <Select value={filterFormType} onValueChange={setFilterFormType}>
+              <Select value={filterFormType || "all"} onValueChange={(value) => setFilterFormType(value === "all" ? "" : value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="All types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Types</SelectItem>
+                  <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="ΦΥ/ΠΥ 3">ΦΥ/ΠΥ 3</SelectItem>
                   <SelectItem value="Lab Analysis">Lab Analysis</SelectItem>
                   <SelectItem value="Passport">Passport</SelectItem>
