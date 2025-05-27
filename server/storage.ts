@@ -7,7 +7,8 @@ import {
   purchasesPy8, type PurchasesPy8, type InsertPurchasesPy8, type UpdatePurchasesPy8,
   salesPy9, type SalesPy9, type InsertSalesPy9, type UpdateSalesPy9,
   employees, type Employee, type InsertEmployee, type UpdateEmployee,
-  payslips, type Payslip, type InsertPayslip, type UpdatePayslip, type PayslipCalculation
+  payslips, type Payslip, type InsertPayslip, type UpdatePayslip, type PayslipCalculation,
+  regulatoryChecks, type RegulatoryCheck, type InsertRegulatoryCheck, type UpdateRegulatoryCheck
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql } from "drizzle-orm";
@@ -86,6 +87,15 @@ export interface IStorage {
   updatePayslip(id: number, payslip: UpdatePayslip): Promise<Payslip | undefined>;
   deletePayslip(id: number): Promise<boolean>;
   calculatePayslipDeductions(grossSalaryCents: number): PayslipCalculation;
+  
+  // Regulatory check methods
+  getAllRegulatoryChecks(): Promise<RegulatoryCheck[]>;
+  getRegulatoryCheck(id: number): Promise<RegulatoryCheck | undefined>;
+  getRegulatoryChecksByProducer(producerId: string): Promise<RegulatoryCheck[]>;
+  getRegulatoryChecksByFormType(formType: string): Promise<RegulatoryCheck[]>;
+  createRegulatoryCheck(check: InsertRegulatoryCheck): Promise<RegulatoryCheck>;
+  updateRegulatoryCheck(id: number, check: UpdateRegulatoryCheck): Promise<RegulatoryCheck | undefined>;
+  deleteRegulatoryCheck(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -746,6 +756,50 @@ export class DatabaseStorage implements IStorage {
       socialInsuranceRate: SOCIAL_INSURANCE_RATE,
       gesyRate: GESY_RATE,
     };
+  }
+
+  // Regulatory check methods
+  async getAllRegulatoryChecks(): Promise<RegulatoryCheck[]> {
+    return await db.select().from(regulatoryChecks).orderBy(desc(regulatoryChecks.createdAt));
+  }
+
+  async getRegulatoryCheck(id: number): Promise<RegulatoryCheck | undefined> {
+    const [check] = await db.select().from(regulatoryChecks).where(eq(regulatoryChecks.id, id));
+    return check || undefined;
+  }
+
+  async getRegulatoryChecksByProducer(producerId: string): Promise<RegulatoryCheck[]> {
+    return await db.select().from(regulatoryChecks)
+      .where(eq(regulatoryChecks.producerId, producerId))
+      .orderBy(desc(regulatoryChecks.createdAt));
+  }
+
+  async getRegulatoryChecksByFormType(formType: string): Promise<RegulatoryCheck[]> {
+    return await db.select().from(regulatoryChecks)
+      .where(eq(regulatoryChecks.formType, formType as any))
+      .orderBy(desc(regulatoryChecks.createdAt));
+  }
+
+  async createRegulatoryCheck(insertCheck: InsertRegulatoryCheck): Promise<RegulatoryCheck> {
+    const [check] = await db
+      .insert(regulatoryChecks)
+      .values(insertCheck)
+      .returning();
+    return check;
+  }
+
+  async updateRegulatoryCheck(id: number, updateCheck: UpdateRegulatoryCheck): Promise<RegulatoryCheck | undefined> {
+    const [check] = await db
+      .update(regulatoryChecks)
+      .set(updateCheck)
+      .where(eq(regulatoryChecks.id, id))
+      .returning();
+    return check || undefined;
+  }
+
+  async deleteRegulatoryCheck(id: number): Promise<boolean> {
+    const result = await db.delete(regulatoryChecks).where(eq(regulatoryChecks.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 }
 

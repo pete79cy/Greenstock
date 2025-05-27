@@ -261,3 +261,32 @@ export interface PayslipCalculation {
   socialInsuranceRate: number;
   gesyRate: number;
 }
+
+// Regulatory check form types enum
+export const formTypeEnum = pgEnum("form_type", ["ΦΥ/ΠΥ 3", "Lab Analysis", "Passport"]);
+
+// Regulatory checks table for compliance document tracking
+export const regulatoryChecks = pgTable("regulatory_checks", {
+  id: serial("id").primaryKey(),
+  producerId: text("producer_id").notNull(), // ID of the producer/company
+  date: text("date").notNull(), // Date of the check/document
+  formType: formTypeEnum("form_type").notNull(), // Type of regulatory form
+  documentUrl: text("document_url").notNull(), // Path to uploaded document
+  notes: text("notes"), // Optional notes about the check
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertRegulatoryCheckSchema = createInsertSchema(regulatoryChecks, {
+  producerId: z.string().min(1, "Producer ID is required"),
+  date: z.string().min(1, "Date is required"),
+  documentUrl: z.string().min(1, "Document is required"),
+}).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const updateRegulatoryCheckSchema = insertRegulatoryCheckSchema.partial();
+
+export type RegulatoryCheck = typeof regulatoryChecks.$inferSelect;
+export type InsertRegulatoryCheck = z.infer<typeof insertRegulatoryCheckSchema>;
+export type UpdateRegulatoryCheck = z.infer<typeof updateRegulatoryCheckSchema>;

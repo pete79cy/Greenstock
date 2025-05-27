@@ -17,6 +17,7 @@ import Py9Sales from "@/pages/Py9Sales";
 import Employees from "@/pages/Employees";
 import Payslips from "@/pages/Payslips";
 import BackupRestore from "@/pages/BackupRestore";
+import RegulatoryChecks from "@/pages/RegulatoryChecks";
 import Layout from "@/components/Layout";
 import { ThemeProvider } from "next-themes";
 import { useAuth } from "@/hooks/useAuth";

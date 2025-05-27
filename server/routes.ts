@@ -6,7 +6,7 @@ import { plants } from "@shared/schema";
 import { sql } from "drizzle-orm";
 import multer from "multer";
 import * as XLSX from "xlsx";
-import { insertPlantSchema, updatePlantSchema, insertPurchasesPy8Schema, insertSalesPy9Schema, insertEmployeeSchema, updateEmployeeSchema, insertPayslipSchema, updatePayslipSchema } from "@shared/schema";
+import { insertPlantSchema, updatePlantSchema, insertPurchasesPy8Schema, insertSalesPy9Schema, insertEmployeeSchema, updateEmployeeSchema, insertPayslipSchema, updatePayslipSchema, insertRegulatoryCheckSchema, updateRegulatoryCheckSchema } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -2439,6 +2439,138 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error generating payslip PDF:", error);
       res.status(500).json({ message: "Failed to generate PDF" });
     }
+  });
+
+  // Regulatory check management routes for compliance document tracking
+  app.get("/api/regulatory-checks", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { producerId, formType } = req.query;
+      let checks;
+      
+      if (producerId && typeof producerId === 'string') {
+        checks = await storage.getRegulatoryChecksByProducer(producerId);
+      } else if (formType && typeof formType === 'string') {
+        checks = await storage.getRegulatoryChecksByFormType(formType);
+      } else {
+        checks = await storage.getAllRegulatoryChecks();
+      }
+      
+      res.json(checks);
+    } catch (error) {
+      console.error("Error fetching regulatory checks:", error);
+      res.status(500).json({ message: "Failed to fetch regulatory checks" });
+    }
+  });
+
+  app.get("/api/regulatory-checks/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const check = await storage.getRegulatoryCheck(id);
+      if (!check) {
+        return res.status(404).json({ message: "Regulatory check not found" });
+      }
+      res.json(check);
+    } catch (error) {
+      console.error("Error fetching regulatory check:", error);
+      res.status(500).json({ message: "Failed to fetch regulatory check" });
+    }
+  });
+
+  app.post("/api/regulatory-checks", isAuthenticated, upload.single("document"), async (req: MulterRequest, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "Document file is required" });
+      }
+
+      // Create uploads directory if it doesn't exist
+      const uploadsDir = path.join(process.cwd(), "uploads");
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+
+      // Generate unique filename
+      const fileExtension = path.extname(req.file.originalname);
+      const fileName = `regulatory-${Date.now()}-${Math.round(Math.random() * 1E9)}${fileExtension}`;
+      const filePath = path.join(uploadsDir, fileName);
+
+      // Save file to disk
+      fs.writeFileSync(filePath, req.file.buffer);
+
+      const checkData = {
+        ...req.body,
+        documentUrl: `/uploads/${fileName}`
+      };
+
+      const validationResult = insertRegulatoryCheckSchema.safeParse(checkData);
+      if (!validationResult.success) {
+        // Clean up uploaded file if validation fails
+        fs.unlinkSync(filePath);
+        const validationError = fromZodError(validationResult.error);
+        return res.status(400).json({ message: validationError.message });
+      }
+
+      const check = await storage.createRegulatoryCheck(validationResult.data);
+      res.status(201).json(check);
+    } catch (error) {
+      console.error("Error creating regulatory check:", error);
+      res.status(500).json({ message: "Failed to create regulatory check" });
+    }
+  });
+
+  app.put("/api/regulatory-checks/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validationResult = updateRegulatoryCheckSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        const validationError = fromZodError(validationResult.error);
+        return res.status(400).json({ message: validationError.message });
+      }
+
+      const check = await storage.updateRegulatoryCheck(id, validationResult.data);
+      if (!check) {
+        return res.status(404).json({ message: "Regulatory check not found" });
+      }
+      res.json(check);
+    } catch (error) {
+      console.error("Error updating regulatory check:", error);
+      res.status(500).json({ message: "Failed to update regulatory check" });
+    }
+  });
+
+  app.delete("/api/regulatory-checks/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      // Get the check to find the document file
+      const check = await storage.getRegulatoryCheck(id);
+      if (check && check.documentUrl) {
+        const filePath = path.join(process.cwd(), check.documentUrl);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+
+      const success = await storage.deleteRegulatoryCheck(id);
+      if (!success) {
+        return res.status(404).json({ message: "Regulatory check not found" });
+      }
+      res.json({ message: "Regulatory check deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting regulatory check:", error);
+      res.status(500).json({ message: "Failed to delete regulatory check" });
+    }
+  });
+
+  // Serve uploaded documents
+  app.get("/uploads/:filename", (req: Request, res: Response) => {
+    const filename = req.params.filename;
+    const filePath = path.join(process.cwd(), "uploads", filename);
+    
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: "File not found" });
+    }
+    
+    res.sendFile(filePath);
   });
 
   const httpServer = createServer(app);
