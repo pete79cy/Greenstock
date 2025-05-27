@@ -1,0 +1,159 @@
+// === Backend Implementation ===
+
+// server/models/RegulatoryCheck.ts
+export interface RegulatoryCheck {
+  id: string;
+  producerId: string;
+  date: string;
+  formType: "ΦΥ/ΠΥ 3" | "Lab Analysis" | "Passport";
+  documentUrl: string;
+  notes?: string;
+  createdAt: Date;
+}
+
+// server/routes/checks.ts
+import express from "express";
+import multer from "multer";
+import { v4 as uuidv4 } from "uuid";
+import path from "path";
+import fs from "fs";
+
+const router = express.Router();
+const storage = multer.diskStorage({
+  destination: "uploads/",
+  filename: (req, file, cb) => {
+    cb(null, uuidv4() + path.extname(file.originalname));
+  }
+});
+const upload = multer({ storage });
+
+let checks: RegulatoryCheck[] = [];
+
+router.post("/", upload.single("document"), (req, res) => {
+  const { producerId, date, formType, notes } = req.body;
+  const newCheck = {
+    id: uuidv4(),
+    producerId,
+    date,
+    formType,
+    documentUrl: `/uploads/${req.file.filename}`,
+    notes,
+    createdAt: new Date()
+  };
+  checks.push(newCheck);
+  res.status(201).json(newCheck);
+});
+
+router.get("/", (req, res) => {
+  const { producerId, formType } = req.query;
+  let result = checks;
+  if (producerId) result = result.filter(c => c.producerId === producerId);
+  if (formType) result = result.filter(c => c.formType === formType);
+  res.json(result);
+});
+
+router.get("/:id", (req, res) => {
+  const check = checks.find(c => c.id === req.params.id);
+  if (!check) return res.status(404).send("Not Found");
+  res.json(check);
+});
+
+router.delete("/:id", (req, res) => {
+  checks = checks.filter(c => c.id !== req.params.id);
+  res.status(204).send();
+});
+
+export default router;
+
+// Add to server/index.ts
+import checksRoutes from "./routes/checks";
+app.use("/api/checks", checksRoutes);
+
+
+// === Frontend Implementation ===
+
+// client/src/components/CheckUploader.tsx
+import { useState, useEffect } from "react";
+import axios from "axios";
+
+export default function CheckUploader() {
+  const [formData, setFormData] = useState({
+    producerId: "",
+    date: "",
+    formType: "ΦΥ/ΠΥ 3",
+    notes: "",
+    document: null
+  });
+  const [checks, setChecks] = useState([]);
+  const [filter, setFilter] = useState({ producerId: "", formType: "" });
+
+  const handleChange = (e: any) => {
+    const { name, value, files } = e.target;
+    if (name === "document") {
+      setFormData({ ...formData, document: files[0] });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
+  };
+
+  const handleSubmit = async (e: any) => {
+    e.preventDefault();
+    const data = new FormData();
+    Object.entries(formData).forEach(([key, value]) => {
+      if (value) data.append(key, value);
+    });
+    await axios.post("/api/checks", data);
+    fetchChecks();
+  };
+
+  const fetchChecks = async () => {
+    const params = new URLSearchParams(filter as any).toString();
+    const res = await axios.get(`/api/checks?${params}`);
+    setChecks(res.data);
+  };
+
+  useEffect(() => {
+    fetchChecks();
+  }, [filter]);
+
+  return (
+    <div className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <input type="text" name="producerId" placeholder="Producer ID" onChange={handleChange} />
+        <input type="date" name="date" onChange={handleChange} />
+        <select name="formType" onChange={handleChange}>
+          <option value="ΦΥ/ΠΥ 3">ΦΥ/ΠΥ 3</option>
+          <option value="Lab Analysis">Lab Analysis</option>
+          <option value="Passport">Passport</option>
+        </select>
+        <textarea name="notes" placeholder="Notes" onChange={handleChange}></textarea>
+        <input type="file" name="document" onChange={handleChange} />
+        <button type="submit">Upload Check</button>
+      </form>
+
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold">Uploaded Checks</h2>
+        <input type="text" placeholder="Filter by Producer ID" onChange={e => setFilter(f => ({ ...f, producerId: e.target.value }))} />
+        <select onChange={e => setFilter(f => ({ ...f, formType: e.target.value }))}>
+          <option value="">All Types</option>
+          <option value="ΦΥ/ΠΥ 3">ΦΥ/ΠΥ 3</option>
+          <option value="Lab Analysis">Lab Analysis</option>
+          <option value="Passport">Passport</option>
+        </select>
+        <ul className="space-y-2">
+          {checks.map((check: any) => (
+            <li key={check.id} className="border p-2 rounded">
+              <div><strong>Type:</strong> {check.formType}</div>
+              <div><strong>Producer:</strong> {check.producerId}</div>
+              <div><strong>Date:</strong> {check.date}</div>
+              <div><strong>Notes:</strong> {check.notes}</div>
+              <a href={check.documentUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500">Download</a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+// Include <CheckUploader /> in a relevant page like Dashboard or AdminPanel
