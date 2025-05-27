@@ -107,6 +107,7 @@ function Router() {
       <Route path="/py9-sales" component={ProtectedWithLayout(Py9Sales)} />
       <Route path="/employees" component={ProtectedWithLayout(Employees)} />
       <Route path="/payslips" component={ProtectedWithLayout(Payslips)} />
+      <Route path="/regulatory-checks" component={ProtectedWithLayout(RegulatoryChecks)} />
       <Route path="/backup-restore" component={ProtectedWithLayout(BackupRestore)} />
       <Route path="/settings" component={ProtectedWithLayout(Settings)} />
       

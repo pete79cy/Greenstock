@@ -2040,8 +2040,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/employees/:id/payslips", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const employeeId = parseInt(req.params.id);
-      const payslips = await storage.getPayslipsForEmployee(employeeId);
+      const employeePassport = req.params.id;
+      const payslips = await storage.getPayslipsForEmployee(employeePassport);
       res.json(payslips);
     } catch (error) {
       console.error("Error fetching employee payslips:", error);

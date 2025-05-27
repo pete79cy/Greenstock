@@ -39,10 +39,15 @@ export default function RegulatoryChecks() {
 
   const createCheckMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      return apiRequest('/api/regulatory-checks', {
+      const response = await fetch('/api/regulatory-checks', {
         method: 'POST',
         body: data
       });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to upload regulatory check');
+      }
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/regulatory-checks'] });
@@ -63,7 +68,14 @@ export default function RegulatoryChecks() {
   });
 
   const deleteCheckMutation = useMutation({
-    mutationFn: (id: number) => apiRequest(`/api/regulatory-checks/${id}`, { method: 'DELETE' }),
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/regulatory-checks/${id}`, { method: 'DELETE' });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to delete regulatory check');
+      }
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/regulatory-checks'] });
       toast({
