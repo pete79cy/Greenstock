@@ -1595,6 +1595,156 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Employee document upload routes
+  app.post("/api/employees/:id/documents", isAuthenticated, upload.single("document"), async (req: MulterRequest, res: Response) => {
+    try {
+      const employeePassport = req.params.id;
+      const { documentType } = req.body;
+      
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+      
+      if (!documentType || !["passport", "contract", "visa", "plane_ticket"].includes(documentType)) {
+        return res.status(400).json({ message: "Invalid document type" });
+      }
+      
+      // Create uploads directory if it doesn't exist
+      const uploadsDir = path.join(process.cwd(), "uploads", "employee-documents");
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+      
+      // Generate unique filename
+      const fileExtension = path.extname(req.file.originalname);
+      const fileName = `${employeePassport}_${documentType}_${Date.now()}${fileExtension}`;
+      const filePath = path.join(uploadsDir, fileName);
+      
+      // Save file to disk
+      fs.writeFileSync(filePath, req.file.buffer);
+      
+      // Save document info to database
+      const documentData = {
+        employeePassport,
+        documentType,
+        fileName: req.file.originalname,
+        filePath: `/uploads/employee-documents/${fileName}`,
+        fileSize: req.file.size
+      };
+      
+      const document = await storage.createEmployeeDocument(documentData);
+      res.status(201).json(document);
+    } catch (error) {
+      console.error("Error uploading employee document:", error);
+      res.status(500).json({ message: "Failed to upload document" });
+    }
+  });
+  
+  app.get("/api/employees/:id/documents", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const employeePassport = req.params.id;
+      const documents = await storage.getEmployeeDocuments(employeePassport);
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching employee documents:", error);
+      res.status(500).json({ message: "Failed to fetch documents" });
+    }
+  });
+  
+  app.delete("/api/employees/:id/documents/:docId", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const docId = parseInt(req.params.docId);
+      const document = await storage.getEmployeeDocument(docId);
+      
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      
+      // Delete file from disk
+      const fullPath = path.join(process.cwd(), document.filePath);
+      if (fs.existsSync(fullPath)) {
+        fs.unlinkSync(fullPath);
+      }
+      
+      // Delete from database
+      const success = await storage.deleteEmployeeDocument(docId);
+      if (!success) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      
+      res.json({ message: "Document deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting employee document:", error);
+      res.status(500).json({ message: "Failed to delete document" });
+    }
+  });
+
+  // Employee leave management routes
+  app.get("/api/employees/:id/leaves", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const employeePassport = req.params.id;
+      const leaves = await storage.getEmployeeLeaves(employeePassport);
+      res.json(leaves);
+    } catch (error) {
+      console.error("Error fetching employee leaves:", error);
+      res.status(500).json({ message: "Failed to fetch leaves" });
+    }
+  });
+  
+  app.post("/api/employees/:id/leaves", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const employeePassport = req.params.id;
+      const leaveData = { ...req.body, employeePassport };
+      
+      const leave = await storage.createEmployeeLeave(leaveData);
+      res.status(201).json(leave);
+    } catch (error) {
+      console.error("Error creating employee leave:", error);
+      res.status(500).json({ message: "Failed to create leave request" });
+    }
+  });
+  
+  app.put("/api/leaves/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const leaveId = parseInt(req.params.id);
+      const leave = await storage.updateEmployeeLeave(leaveId, req.body);
+      
+      if (!leave) {
+        return res.status(404).json({ message: "Leave request not found" });
+      }
+      
+      res.json(leave);
+    } catch (error) {
+      console.error("Error updating employee leave:", error);
+      res.status(500).json({ message: "Failed to update leave request" });
+    }
+  });
+  
+  app.get("/api/employees/:id/leave-balances", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const employeePassport = req.params.id;
+      const year = parseInt(req.query.year as string) || new Date().getFullYear();
+      const balances = await storage.getEmployeeLeaveBalances(employeePassport, year);
+      res.json(balances);
+    } catch (error) {
+      console.error("Error fetching employee leave balances:", error);
+      res.status(500).json({ message: "Failed to fetch leave balances" });
+    }
+  });
+  
+  app.post("/api/employees/:id/leave-balances", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const employeePassport = req.params.id;
+      const balanceData = { ...req.body, employeePassport };
+      
+      const balance = await storage.createEmployeeLeaveBalance(balanceData);
+      res.status(201).json(balance);
+    } catch (error) {
+      console.error("Error creating employee leave balance:", error);
+      res.status(500).json({ message: "Failed to create leave balance" });
+    }
+  });
+
   // ΠΥ8 - Purchase entry routes
   app.get("/api/purchases-py8", isAuthenticated, async (req: Request, res: Response) => {
     try {

@@ -290,3 +290,95 @@ export const updateRegulatoryCheckSchema = insertRegulatoryCheckSchema.partial()
 export type RegulatoryCheck = typeof regulatoryChecks.$inferSelect;
 export type InsertRegulatoryCheck = z.infer<typeof insertRegulatoryCheckSchema>;
 export type UpdateRegulatoryCheck = z.infer<typeof updateRegulatoryCheckSchema>;
+
+// Employee documents table for storing uploaded files
+export const employeeDocuments = pgTable("employee_documents", {
+  id: serial("id").primaryKey(),
+  employeePassport: text("employee_passport").notNull().references(() => employees.passport),
+  documentType: text("document_type").notNull(), // passport, contract, visa, plane_ticket
+  fileName: text("file_name").notNull(),
+  filePath: text("file_path").notNull(),
+  fileSize: integer("file_size").notNull(),
+  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
+});
+
+export const insertEmployeeDocumentSchema = createInsertSchema(employeeDocuments, {
+  employeePassport: z.string().min(1, "Employee passport is required"),
+  documentType: z.enum(["passport", "contract", "visa", "plane_ticket"]),
+  fileName: z.string().min(1, "File name is required"),
+  filePath: z.string().min(1, "File path is required"),
+  fileSize: z.number().int().positive("File size must be positive"),
+}).omit({
+  id: true,
+  uploadedAt: true,
+});
+
+export type EmployeeDocument = typeof employeeDocuments.$inferSelect;
+export type InsertEmployeeDocument = z.infer<typeof insertEmployeeDocumentSchema>;
+
+// Leave types enum
+export const leaveTypeEnum = pgEnum("leave_type", ["annual", "sick", "maternity", "paternity", "personal", "bereavement"]);
+
+// Employee leave records table
+export const employeeLeaves = pgTable("employee_leaves", {
+  id: serial("id").primaryKey(),
+  employeePassport: text("employee_passport").notNull().references(() => employees.passport),
+  leaveType: leaveTypeEnum("leave_type").notNull(),
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date").notNull(),
+  days: integer("days").notNull(), // Total days of leave
+  reason: text("reason"),
+  status: text("status").notNull().default("pending"), // pending, approved, rejected
+  approvedBy: text("approved_by"),
+  approvedAt: timestamp("approved_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertEmployeeLeaveSchema = createInsertSchema(employeeLeaves, {
+  employeePassport: z.string().min(1, "Employee passport is required"),
+  startDate: z.string().min(1, "Start date is required"),
+  endDate: z.string().min(1, "End date is required"),
+  days: z.number().int().positive("Days must be positive"),
+  reason: z.string().optional(),
+}).omit({
+  id: true,
+  status: true,
+  approvedBy: true,
+  approvedAt: true,
+  createdAt: true,
+});
+
+export const updateEmployeeLeaveSchema = insertEmployeeLeaveSchema.extend({
+  status: z.enum(["pending", "approved", "rejected"]),
+  approvedBy: z.string().optional(),
+}).partial();
+
+export type EmployeeLeave = typeof employeeLeaves.$inferSelect;
+export type InsertEmployeeLeave = z.infer<typeof insertEmployeeLeaveSchema>;
+export type UpdateEmployeeLeave = z.infer<typeof updateEmployeeLeaveSchema>;
+
+// Employee leave balance tracking
+export const employeeLeaveBalances = pgTable("employee_leave_balances", {
+  id: serial("id").primaryKey(),
+  employeePassport: text("employee_passport").notNull().references(() => employees.passport),
+  year: integer("year").notNull(),
+  leaveType: leaveTypeEnum("leave_type").notNull(),
+  totalEntitlement: integer("total_entitlement").notNull(), // Total days entitled per year
+  usedDays: integer("used_days").notNull().default(0),
+  remainingDays: integer("remaining_days").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertEmployeeLeaveBalanceSchema = createInsertSchema(employeeLeaveBalances, {
+  employeePassport: z.string().min(1, "Employee passport is required"),
+  year: z.number().int().min(2020).max(2050),
+  totalEntitlement: z.number().int().positive("Total entitlement must be positive"),
+}).omit({
+  id: true,
+  usedDays: true,
+  remainingDays: true,
+  updatedAt: true,
+});
+
+export type EmployeeLeaveBalance = typeof employeeLeaveBalances.$inferSelect;
+export type InsertEmployeeLeaveBalance = z.infer<typeof insertEmployeeLeaveBalanceSchema>;

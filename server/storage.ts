@@ -8,7 +8,10 @@ import {
   salesPy9, type SalesPy9, type InsertSalesPy9, type UpdateSalesPy9,
   employees, type Employee, type InsertEmployee, type UpdateEmployee,
   payslips, type Payslip, type InsertPayslip, type UpdatePayslip, type PayslipCalculation,
-  regulatoryChecks, type RegulatoryCheck, type InsertRegulatoryCheck, type UpdateRegulatoryCheck
+  regulatoryChecks, type RegulatoryCheck, type InsertRegulatoryCheck, type UpdateRegulatoryCheck,
+  employeeDocuments, type EmployeeDocument, type InsertEmployeeDocument,
+  employeeLeaves, type EmployeeLeave, type InsertEmployeeLeave, type UpdateEmployeeLeave,
+  employeeLeaveBalances, type EmployeeLeaveBalance, type InsertEmployeeLeaveBalance
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql } from "drizzle-orm";
@@ -96,6 +99,21 @@ export interface IStorage {
   createRegulatoryCheck(check: InsertRegulatoryCheck): Promise<RegulatoryCheck>;
   updateRegulatoryCheck(id: number, check: UpdateRegulatoryCheck): Promise<RegulatoryCheck | undefined>;
   deleteRegulatoryCheck(id: number): Promise<boolean>;
+  
+  // Employee document methods
+  getEmployeeDocuments(employeePassport: string): Promise<EmployeeDocument[]>;
+  getEmployeeDocument(id: number): Promise<EmployeeDocument | undefined>;
+  createEmployeeDocument(document: InsertEmployeeDocument): Promise<EmployeeDocument>;
+  deleteEmployeeDocument(id: number): Promise<boolean>;
+  
+  // Employee leave methods
+  getEmployeeLeaves(employeePassport: string): Promise<EmployeeLeave[]>;
+  createEmployeeLeave(leave: InsertEmployeeLeave): Promise<EmployeeLeave>;
+  updateEmployeeLeave(id: number, leave: UpdateEmployeeLeave): Promise<EmployeeLeave | undefined>;
+  
+  // Employee leave balance methods
+  getEmployeeLeaveBalances(employeePassport: string, year: number): Promise<EmployeeLeaveBalance[]>;
+  createEmployeeLeaveBalance(balance: InsertEmployeeLeaveBalance): Promise<EmployeeLeaveBalance>;
 }
 
 export class DatabaseStorage implements IStorage {
