@@ -819,6 +819,87 @@ export class DatabaseStorage implements IStorage {
     const result = await db.delete(regulatoryChecks).where(eq(regulatoryChecks.id, id));
     return (result.rowCount ?? 0) > 0;
   }
+
+  // Employee document methods
+  async getEmployeeDocuments(employeePassport: string): Promise<EmployeeDocument[]> {
+    return await db
+      .select()
+      .from(employeeDocuments)
+      .where(eq(employeeDocuments.employeePassport, employeePassport))
+      .orderBy(desc(employeeDocuments.uploadedAt));
+  }
+
+  async getEmployeeDocument(id: number): Promise<EmployeeDocument | undefined> {
+    const [document] = await db
+      .select()
+      .from(employeeDocuments)
+      .where(eq(employeeDocuments.id, id));
+    return document || undefined;
+  }
+
+  async createEmployeeDocument(insertDocument: InsertEmployeeDocument): Promise<EmployeeDocument> {
+    const [document] = await db
+      .insert(employeeDocuments)
+      .values(insertDocument)
+      .returning();
+    return document;
+  }
+
+  async deleteEmployeeDocument(id: number): Promise<boolean> {
+    const result = await db.delete(employeeDocuments).where(eq(employeeDocuments.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // Employee leave methods
+  async getEmployeeLeaves(employeePassport: string): Promise<EmployeeLeave[]> {
+    return await db
+      .select()
+      .from(employeeLeaves)
+      .where(eq(employeeLeaves.employeePassport, employeePassport))
+      .orderBy(desc(employeeLeaves.createdAt));
+  }
+
+  async createEmployeeLeave(insertLeave: InsertEmployeeLeave): Promise<EmployeeLeave> {
+    const [leave] = await db
+      .insert(employeeLeaves)
+      .values(insertLeave)
+      .returning();
+    return leave;
+  }
+
+  async updateEmployeeLeave(id: number, updateLeave: UpdateEmployeeLeave): Promise<EmployeeLeave | undefined> {
+    const [leave] = await db
+      .update(employeeLeaves)
+      .set(updateLeave)
+      .where(eq(employeeLeaves.id, id))
+      .returning();
+    return leave || undefined;
+  }
+
+  // Employee leave balance methods
+  async getEmployeeLeaveBalances(employeePassport: string, year: number): Promise<EmployeeLeaveBalance[]> {
+    return await db
+      .select()
+      .from(employeeLeaveBalances)
+      .where(
+        and(
+          eq(employeeLeaveBalances.employeePassport, employeePassport),
+          eq(employeeLeaveBalances.year, year)
+        )
+      )
+      .orderBy(asc(employeeLeaveBalances.leaveType));
+  }
+
+  async createEmployeeLeaveBalance(insertBalance: InsertEmployeeLeaveBalance): Promise<EmployeeLeaveBalance> {
+    const [balance] = await db
+      .insert(employeeLeaveBalances)
+      .values({
+        ...insertBalance,
+        remainingDays: insertBalance.totalEntitlement
+      })
+      .returning();
+    return balance;
+  }
 }
 
 // Create a singleton instance of the storage
