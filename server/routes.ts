@@ -19,6 +19,7 @@ import Handlebars from "handlebars";
 import { allowInsecurePrototypeAccess } from "@handlebars/allow-prototype-access";
 import { configureSession, registerAuthRoutes, isAuthenticated } from "./auth";
 import cors from "cors";
+import { encryptFile, decryptFile, generateSecureFilename, secureDeleteFile, validateEncryptionSetup } from "./encryption";
 
 // Define a type for the request with file
 interface MulterRequest extends Request {
@@ -1595,11 +1596,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Employee document upload routes
+  // Employee document upload routes (with encryption)
   app.post("/api/employees/:id/documents", isAuthenticated, upload.single("document"), async (req: MulterRequest, res: Response) => {
     try {
       const employeePassport = req.params.id;
-      const { documentType } = req.body;
+      const { documentType, notes } = req.body;
       
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
@@ -1609,42 +1610,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid document type" });
       }
       
-      // Create uploads directory if it doesn't exist
-      const uploadsDir = path.join(process.cwd(), "uploads", "employee-documents");
+      // Create encrypted uploads directory
+      const uploadsDir = path.join(process.cwd(), "uploads", "employee-documents", "encrypted");
       if (!fs.existsSync(uploadsDir)) {
         fs.mkdirSync(uploadsDir, { recursive: true });
       }
       
-      // Generate unique filename
-      const fileExtension = path.extname(req.file.originalname);
-      const fileName = `${employeePassport}_${documentType}_${Date.now()}${fileExtension}`;
-      const filePath = path.join(uploadsDir, fileName);
+      // Generate secure encrypted filename
+      const secureFileName = generateSecureFilename(req.file.originalname, employeePassport, documentType);
+      const encryptedFilePath = path.join(uploadsDir, secureFileName);
       
-      // Save file to disk
-      fs.writeFileSync(filePath, req.file.buffer);
+      // Encrypt and save file
+      const encryptionResult = encryptFile(req.file.buffer, encryptedFilePath);
       
-      // Save document info to database
+      console.log(`Encrypted document uploaded for employee ${employeePassport}: ${documentType}`);
+      
+      // Save document info to database (including encryption metadata)
       const documentData = {
         employeePassport,
         documentType,
-        fileName: fileName, // stored filename
-        filePath: `/uploads/employee-documents/${fileName}`,
-        fileSize: req.file.size
+        fileName: secureFileName, // encrypted filename
+        filePath: `/uploads/employee-documents/encrypted/${secureFileName}`,
+        fileSize: req.file.size, // original file size
+        notes: notes || null
       };
       
       const document = await storage.createEmployeeDocument(documentData);
       
-      // Return document with frontend-expected fields
+      // Return document with frontend-expected fields (without encryption details)
       const responseDocument = {
         ...document,
-        filename: fileName,
+        filename: secureFileName,
         originalFilename: req.file.originalname,
-        uploadDate: document.uploadedAt
+        uploadDate: document.uploadedAt,
+        isEncrypted: true
       };
       
       res.status(201).json(responseDocument);
     } catch (error) {
-      console.error("Error uploading employee document:", error);
+      console.error("Error uploading encrypted employee document:", error);
       res.status(500).json({ message: "Failed to upload document" });
     }
   });
@@ -2729,21 +2733,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Serve uploaded documents
-  app.get("/uploads/:filename", (req: Request, res: Response) => {
+  // Serve uploaded documents (with decryption for employee documents)
+  app.get("/uploads/:filename", isAuthenticated, (req: Request, res: Response) => {
     const filename = req.params.filename;
-    let filePath = path.join(process.cwd(), "uploads", filename);
     
-    // Check if it's an employee document
-    if (!fs.existsSync(filePath)) {
-      filePath = path.join(process.cwd(), "uploads", "employee-documents", filename);
+    try {
+      // Check if it's an encrypted employee document
+      if (filename.endsWith('.enc')) {
+        const encryptedFilePath = path.join(process.cwd(), "uploads", "employee-documents", "encrypted", filename);
+        
+        if (fs.existsSync(encryptedFilePath)) {
+          // Decrypt the file
+          const decryptedBuffer = decryptFile(encryptedFilePath);
+          
+          // Determine content type from original filename
+          const originalExt = filename.split('.').slice(-2, -1)[0]; // Get extension before .enc
+          const contentType = getContentType(originalExt);
+          
+          res.setHeader('Content-Type', contentType);
+          res.setHeader('Content-Disposition', 'inline');
+          return res.send(decryptedBuffer);
+        }
+      }
+      
+      // Handle regular files
+      let filePath = path.join(process.cwd(), "uploads", filename);
+      
+      // Check if it's a regular employee document
+      if (!fs.existsSync(filePath)) {
+        filePath = path.join(process.cwd(), "uploads", "employee-documents", filename);
+      }
+      
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ message: "File not found" });
+      }
+      
+      res.sendFile(filePath);
+    } catch (error) {
+      console.error("Error serving document:", error);
+      res.status(500).json({ message: "Failed to serve document" });
     }
-    
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ message: "File not found" });
+  });
+
+  // Helper function to determine content type
+  function getContentType(extension: string): string {
+    const contentTypes: Record<string, string> = {
+      'pdf': 'application/pdf',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png',
+      'doc': 'application/msword',
+      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    };
+    return contentTypes[extension.toLowerCase()] || 'application/octet-stream';
+  }
+
+  // Encryption validation endpoint
+  app.get("/api/encryption/status", isAuthenticated, (req: Request, res: Response) => {
+    try {
+      const validation = validateEncryptionSetup();
+      res.json({
+        ...validation,
+        encryptionEnabled: true,
+        algorithm: 'AES-256-CBC'
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        isValid: false, 
+        message: "Encryption validation failed",
+        encryptionEnabled: false 
+      });
     }
-    
-    res.sendFile(filePath);
   });
 
   const httpServer = createServer(app);
