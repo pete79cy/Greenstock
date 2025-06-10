@@ -44,9 +44,8 @@ export default function EmployeeDocuments({ employeePassport }: EmployeeDocument
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const { data: documents = [], isLoading } = useQuery<EmployeeDocument[]>({
+  const { data: documents = [], isLoading } = useQuery({
     queryKey: ["/api/employees", employeePassport, "documents"],
-    queryFn: () => apiRequest(`/api/employees/${employeePassport}/documents`),
   });
 
   const uploadMutation = useMutation({

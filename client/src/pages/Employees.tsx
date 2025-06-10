@@ -15,6 +15,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertEmployeeSchema, updateEmployeeSchema, type Employee, type InsertEmployee, type UpdateEmployee } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import EmployeeDocuments from "@/components/EmployeeDocuments";
+import EmployeeLeaves from "@/components/EmployeeLeaves";
+import EmployeeLeaveBalances from "@/components/EmployeeLeaveBalances";
 
 export default function Employees() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -589,16 +592,25 @@ export default function Employees() {
 
       {/* View Employee Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Employee Details</DialogTitle>
+            <DialogTitle>Employee Details - {viewingEmployee?.name}</DialogTitle>
           </DialogHeader>
           
           {viewingEmployee && (
-            <div className="space-y-6">
-              {/* Personal Information */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-foreground">Personal Information</h3>
+            <Tabs defaultValue="overview" className="w-full">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="documents">Documents</TabsTrigger>
+                <TabsTrigger value="leaves">Leave Requests</TabsTrigger>
+                <TabsTrigger value="balances">Leave Balances</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="overview" className="space-y-6 mt-6">
+                <div className="space-y-6">
+                  {/* Personal Information */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-foreground">Personal Information</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Full Name</label>
@@ -691,12 +703,26 @@ export default function Employees() {
                 </div>
               )}
 
-              <div className="flex justify-end pt-4">
-                <Button onClick={() => setIsViewDialogOpen(false)}>
-                  Close
-                </Button>
-              </div>
-            </div>
+                  <div className="flex justify-end pt-4">
+                    <Button onClick={() => setIsViewDialogOpen(false)}>
+                      Close
+                    </Button>
+                  </div>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="documents">
+                <EmployeeDocuments employeePassport={viewingEmployee.passport} />
+              </TabsContent>
+              
+              <TabsContent value="leaves">
+                <EmployeeLeaves employeePassport={viewingEmployee.passport} />
+              </TabsContent>
+              
+              <TabsContent value="balances">
+                <EmployeeLeaveBalances employeePassport={viewingEmployee.passport} />
+              </TabsContent>
+            </Tabs>
           )}
         </DialogContent>
       </Dialog>
