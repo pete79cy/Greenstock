@@ -1605,7 +1605,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No file uploaded" });
       }
       
-      if (!documentType || !["passport", "contract", "visa", "plane_ticket"].includes(documentType)) {
+      if (!documentType || !["passport", "contract", "visa", "plane_ticket", "arc", "social_insurance", "tax_document", "other"].includes(documentType)) {
         return res.status(400).json({ message: "Invalid document type" });
       }
       

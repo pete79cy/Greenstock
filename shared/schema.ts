@@ -304,7 +304,7 @@ export const employeeDocuments = pgTable("employee_documents", {
 
 export const insertEmployeeDocumentSchema = createInsertSchema(employeeDocuments, {
   employeePassport: z.string().min(1, "Employee passport is required"),
-  documentType: z.enum(["passport", "contract", "visa", "plane_ticket"]),
+  documentType: z.enum(["passport", "contract", "visa", "plane_ticket", "arc", "social_insurance", "tax_document", "other"]),
   fileName: z.string().min(1, "File name is required"),
   filePath: z.string().min(1, "File path is required"),
   fileSize: z.number().int().positive("File size must be positive"),
