@@ -1627,13 +1627,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const documentData = {
         employeePassport,
         documentType,
-        fileName: req.file.originalname,
+        fileName: fileName, // stored filename
         filePath: `/uploads/employee-documents/${fileName}`,
         fileSize: req.file.size
       };
       
       const document = await storage.createEmployeeDocument(documentData);
-      res.status(201).json(document);
+      
+      // Return document with frontend-expected fields
+      const responseDocument = {
+        ...document,
+        filename: fileName,
+        originalFilename: req.file.originalname,
+        uploadDate: document.uploadedAt
+      };
+      
+      res.status(201).json(responseDocument);
     } catch (error) {
       console.error("Error uploading employee document:", error);
       res.status(500).json({ message: "Failed to upload document" });
@@ -1644,7 +1653,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const employeePassport = req.params.id;
       const documents = await storage.getEmployeeDocuments(employeePassport);
-      res.json(documents);
+      
+      // Transform documents to include frontend-expected fields
+      const transformedDocuments = documents.map(doc => ({
+        ...doc,
+        filename: doc.fileName,
+        originalFilename: doc.fileName.split('_').slice(2).join('_').replace(/^\d+/, '').replace(/^_/, ''),
+        uploadDate: doc.uploadedAt
+      }));
+      
+      res.json(transformedDocuments);
     } catch (error) {
       console.error("Error fetching employee documents:", error);
       res.status(500).json({ message: "Failed to fetch documents" });
@@ -2714,7 +2732,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Serve uploaded documents
   app.get("/uploads/:filename", (req: Request, res: Response) => {
     const filename = req.params.filename;
-    const filePath = path.join(process.cwd(), "uploads", filename);
+    let filePath = path.join(process.cwd(), "uploads", filename);
+    
+    // Check if it's an employee document
+    if (!fs.existsSync(filePath)) {
+      filePath = path.join(process.cwd(), "uploads", "employee-documents", filename);
+    }
     
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ message: "File not found" });

@@ -201,7 +201,7 @@ export default function DocumentUpload({ employeePassport }: DocumentUploadProps
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        Uploaded on {new Date(doc.uploadDate).toLocaleDateString()}
+                        Uploaded on {doc.uploadDate ? new Date(doc.uploadDate).toLocaleDateString() : 'Unknown date'}
                       </p>
                       {doc.notes && (
                         <p className="text-sm text-muted-foreground mt-1">

@@ -207,7 +207,7 @@ export default function LeaveManagement({ employeePassport }: LeaveManagementPro
                       </p>
                     )}
                     <p className="text-xs text-muted-foreground">
-                      Applied on {new Date(leave.appliedDate).toLocaleDateString()}
+                      Applied on {leave.appliedDate ? new Date(leave.appliedDate).toLocaleDateString() : 'Unknown date'}
                     </p>
                   </div>
                 </div>
