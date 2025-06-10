@@ -118,6 +118,12 @@ export default function DocumentUpload({ employeePassport }: DocumentUploadProps
 
   return (
     <div className="space-y-6">
+      {/* Encryption Status */}
+      <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+        <Shield className="h-4 w-4 text-green-600" />
+        <span className="text-sm text-green-700 font-medium">All documents are encrypted with AES-256-CBC</span>
+      </div>
+
       {/* Upload Section */}
       <Card>
         <CardHeader>
@@ -192,12 +198,19 @@ export default function DocumentUpload({ employeePassport }: DocumentUploadProps
               <Card key={doc.id}>
                 <CardContent className="flex items-center justify-between p-4">
                   <div className="flex items-center gap-3">
-                    <FileText className="h-8 w-8 text-muted-foreground" />
+                    <div className="relative">
+                      <FileText className="h-8 w-8 text-muted-foreground" />
+                      <Shield className="h-3 w-3 text-green-600 absolute -top-1 -right-1" />
+                    </div>
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="font-medium">{doc.originalFilename}</p>
                         <Badge variant="outline">
                           {getDocumentTypeLabel(doc.documentType)}
+                        </Badge>
+                        <Badge variant="secondary" className="bg-green-100 text-green-700">
+                          <Shield className="h-3 w-3 mr-1" />
+                          Encrypted
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">
