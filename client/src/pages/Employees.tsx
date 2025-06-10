@@ -14,6 +14,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertEmployeeSchema, updateEmployeeSchema, type Employee, type InsertEmployee, type UpdateEmployee } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import DocumentUpload from "@/components/DocumentUpload";
+import LeaveManagement from "@/components/LeaveManagement";
 
 export default function Employees() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -602,21 +604,15 @@ export default function Employees() {
               </TabsContent>
               
               <TabsContent value="documents">
-                <div className="p-4 text-center text-gray-500">
-                  Document upload functionality will be available soon
-                </div>
+                <DocumentUpload employeePassport={viewingEmployee.passport} />
               </TabsContent>
               
               <TabsContent value="leaves">
-                <div className="p-4 text-center text-gray-500">
-                  Leave management functionality will be available soon
-                </div>
+                <LeaveManagement employeePassport={viewingEmployee.passport} />
               </TabsContent>
               
               <TabsContent value="balances">
-                <div className="p-4 text-center text-gray-500">
-                  Leave balance tracking will be available soon
-                </div>
+                <LeaveManagement employeePassport={viewingEmployee.passport} />
               </TabsContent>
             </Tabs>
           )}
