@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,10 +14,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Package, Euro, CheckCircle, Truck, Sprout, Edit, Calendar, MapPin, Trash2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
+import { useLocation, useSearch } from "wouter";
 
 export default function PlantPurchasesSimpleFixed() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPurchase, setEditingPurchase] = useState<PlantPurchase | null>(null);
+  const [highlightedPlant, setHighlightedPlant] = useState<string | null>(null);
+  const searchParams = useSearch();
   const [formData, setFormData] = useState({
     supplierName: "",
     supplierCountry: "",
@@ -46,6 +49,17 @@ export default function PlantPurchasesSimpleFixed() {
   const { data: purchases = [], isLoading } = useQuery<PlantPurchase[]>({
     queryKey: ["/api/plant-purchases"],
   });
+
+  // Handle highlighting from URL parameters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(searchParams);
+    const highlight = urlParams.get('highlight');
+    if (highlight) {
+      setHighlightedPlant(decodeURIComponent(highlight));
+      // Clear highlight after 5 seconds
+      setTimeout(() => setHighlightedPlant(null), 5000);
+    }
+  }, [searchParams]);
 
   const resetForm = () => {
     setIsDialogOpen(false);

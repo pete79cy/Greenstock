@@ -6,7 +6,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, ComposedChart, Area, AreaChart, ScatterChart, Scatter, Treemap } from "recharts";
-import { Euro, Package, Truck, Award, TrendingUp, TrendingDown, AlertTriangle, Calendar, Target, Users, Leaf, Clock } from "lucide-react";
+import { Euro, Package, Truck, Award, TrendingUp, TrendingDown, AlertTriangle, Calendar, Target, Users, Leaf, Clock, ExternalLink } from "lucide-react";
+import { useLocation } from "wouter";
+import type { PlantPurchase } from "@shared/schema";
 
 interface PlantPurchaseAnalysisData {
   totalPurchases: number;
@@ -47,6 +49,8 @@ interface PlantPurchaseAnalysisData {
 }
 
 export default function PlantPurchaseAnalysisNew() {
+  const [, setLocation] = useLocation();
+  
   const { data: analysisData, isLoading } = useQuery<PlantPurchaseAnalysisData>({
     queryKey: ["/api/plant-purchases-analysis"],
   });
@@ -54,6 +58,11 @@ export default function PlantPurchaseAnalysisNew() {
   const { data: purchases = [] } = useQuery<PlantPurchase[]>({
     queryKey: ["/api/plant-purchases"],
   });
+
+  const handlePlantClick = (scientificName: string) => {
+    // Navigate to plant purchases page with the plant highlighted
+    setLocation(`/plant-purchases?highlight=${encodeURIComponent(scientificName)}`);
+  };
 
   const formatCurrency = (cents: number) => {
     return new Intl.NumberFormat('el-GR', {
@@ -257,8 +266,11 @@ export default function PlantPurchaseAnalysisNew() {
             </CardHeader>
             <CardContent>
               {(() => {
-                // Group purchases by quarter
-                const quarterlyData = new Map<string, { delivered: string[], scheduled: string[] }>();
+                // Group purchases by quarter with purchase details
+                const quarterlyData = new Map<string, { 
+                  delivered: Array<{name: string, purchases: PlantPurchase[]}>, 
+                  scheduled: Array<{name: string, purchases: PlantPurchase[]}> 
+                }>();
                 
                 purchases.forEach(purchase => {
                   const purchaseDate = new Date(purchase.purchaseDate);
@@ -274,13 +286,19 @@ export default function PlantPurchaseAnalysisNew() {
                   const scientificName = purchase.scientificName;
                   
                   if (purchase.status === 'delivered' || purchase.status === 'planted') {
-                    if (!data.delivered.includes(scientificName)) {
-                      data.delivered.push(scientificName);
+                    let existingEntry = data.delivered.find(entry => entry.name === scientificName);
+                    if (!existingEntry) {
+                      existingEntry = { name: scientificName, purchases: [] };
+                      data.delivered.push(existingEntry);
                     }
+                    existingEntry.purchases.push(purchase);
                   } else {
-                    if (!data.scheduled.includes(scientificName)) {
-                      data.scheduled.push(scientificName);
+                    let existingEntry = data.scheduled.find(entry => entry.name === scientificName);
+                    if (!existingEntry) {
+                      existingEntry = { name: scientificName, purchases: [] };
+                      data.scheduled.push(existingEntry);
                     }
+                    existingEntry.purchases.push(purchase);
                   }
                 });
 
@@ -306,9 +324,19 @@ export default function PlantPurchaseAnalysisNew() {
                             </div>
                             <div className="space-y-1">
                               {data.delivered.length > 0 ? (
-                                data.delivered.map((name, index) => (
-                                  <div key={index} className="text-sm italic text-green-800 bg-green-50 px-2 py-1 rounded">
-                                    {name}
+                                data.delivered.map((entry, index) => (
+                                  <div 
+                                    key={index} 
+                                    className="text-sm italic text-green-800 bg-green-50 px-2 py-1 rounded cursor-pointer hover:bg-green-100 transition-colors flex items-center justify-between group"
+                                    onClick={() => handlePlantClick(entry.name)}
+                                  >
+                                    <span>{entry.name}</span>
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <Badge variant="outline" className="text-xs">
+                                        {entry.purchases.length}
+                                      </Badge>
+                                      <ExternalLink className="w-3 h-3" />
+                                    </div>
                                   </div>
                                 ))
                               ) : (
@@ -325,9 +353,19 @@ export default function PlantPurchaseAnalysisNew() {
                             </div>
                             <div className="space-y-1">
                               {data.scheduled.length > 0 ? (
-                                data.scheduled.map((name, index) => (
-                                  <div key={index} className="text-sm italic text-blue-800 bg-blue-50 px-2 py-1 rounded">
-                                    {name}
+                                data.scheduled.map((entry, index) => (
+                                  <div 
+                                    key={index} 
+                                    className="text-sm italic text-blue-800 bg-blue-50 px-2 py-1 rounded cursor-pointer hover:bg-blue-100 transition-colors flex items-center justify-between group"
+                                    onClick={() => handlePlantClick(entry.name)}
+                                  >
+                                    <span>{entry.name}</span>
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <Badge variant="outline" className="text-xs">
+                                        {entry.purchases.length}
+                                      </Badge>
+                                      <ExternalLink className="w-3 h-3" />
+                                    </div>
                                   </div>
                                 ))
                               ) : (
