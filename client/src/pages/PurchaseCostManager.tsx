@@ -154,7 +154,15 @@ export default function PurchaseCostManager() {
             <div>
               <p className="text-sm font-medium text-muted-foreground">Purchase Date</p>
               <p className="text-lg font-semibold">
-                {new Date(purchase.purchaseDate).toLocaleDateString()}
+                {purchase.purchaseDate ? 
+                  (() => {
+                    const date = new Date(purchase.purchaseDate);
+                    return isNaN(date.getTime()) ? 
+                      purchase.purchaseDate : 
+                      date.toLocaleDateString();
+                  })() : 
+                  'No date provided'
+                }
               </p>
             </div>
             <div>

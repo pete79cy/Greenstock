@@ -363,7 +363,12 @@ export default function PurchaseOrders() {
                       <div className="text-sm text-muted-foreground">
                         <div className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          {new Date(order.purchaseDate).toLocaleDateString()}
+                          {(() => {
+                            const date = new Date(order.purchaseDate);
+                            return isNaN(date.getTime()) ? 
+                              order.purchaseDate : 
+                              date.toLocaleDateString();
+                          })()}
                         </div>
                       </div>
                     </div>
