@@ -146,7 +146,7 @@ export default function PurchaseCostManager() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Supplier</p>
               <p className="text-lg font-semibold">{purchase.supplier}</p>
@@ -166,10 +166,41 @@ export default function PurchaseCostManager() {
               </p>
             </div>
             <div>
+              <p className="text-sm font-medium text-muted-foreground">Currency</p>
+              <p className="text-lg font-semibold">{purchase.currency || "EUR"}</p>
+            </div>
+            <div>
               <p className="text-sm font-medium text-muted-foreground">Total Plants</p>
               <p className="text-lg font-semibold">{purchase.plants?.length || 0} species</p>
             </div>
           </div>
+          
+          {/* Additional cost information */}
+          {(purchase.shippingCost || purchase.customsCost) && (
+            <div className="mt-4 pt-4 border-t">
+              <h4 className="text-sm font-medium text-muted-foreground mb-2">Additional Costs</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {purchase.shippingCost && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Shipping Cost</p>
+                    <p className="font-semibold">
+                      {purchase.currency === "USD" ? "$" : purchase.currency === "GBP" ? "£" : "€"}
+                      {((purchase.shippingCost || 0) / 100).toFixed(2)}
+                    </p>
+                  </div>
+                )}
+                {purchase.customsCost && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Customs/Tax Cost</p>
+                    <p className="font-semibold">
+                      {purchase.currency === "USD" ? "$" : purchase.currency === "GBP" ? "£" : "€"}
+                      {((purchase.customsCost || 0) / 100).toFixed(2)}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -210,10 +241,12 @@ export default function PurchaseCostManager() {
                       </Badge>
                     </td>
                     <td className="p-4 text-right">
-                      €{((plant.costPerUnit || 0) / 100).toFixed(2)}
+                      {purchase.currency === "USD" ? "$" : purchase.currency === "GBP" ? "£" : "€"}
+                      {((plant.costPerUnit || 0) / 100).toFixed(2)}
                     </td>
                     <td className="p-4 text-right font-bold text-blue-600">
-                      €{calculateTotalCurrentCost(plant).toFixed(2)}
+                      {purchase.currency === "USD" ? "$" : purchase.currency === "GBP" ? "£" : "€"}
+                      {calculateTotalCurrentCost(plant).toFixed(2)}
                     </td>
                     <td className="p-4 text-center">
                       <Button
@@ -238,11 +271,11 @@ export default function PurchaseCostManager() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Euro className="h-5 w-5" />
+              <Calculator className="h-5 w-5" />
               Update Costs for {selectedPlant?.plantName}
             </DialogTitle>
             <DialogDescription>
-              Add additional costs to track the total investment in this plant.
+              Add additional costs to track the total investment in this plant. All amounts in {purchase.currency || "EUR"}.
             </DialogDescription>
           </DialogHeader>
 
