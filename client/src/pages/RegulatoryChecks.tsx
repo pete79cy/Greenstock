@@ -12,6 +12,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { FileText, Upload, Download, Filter, Trash2, Plus, Calendar, Building } from "lucide-react";
 import type { RegulatoryCheck } from "@shared/schema";
+import BackToMenuButton from "@/components/BackToMenuButton";
 
 export default function RegulatoryChecks() {
   const { toast } = useToast();

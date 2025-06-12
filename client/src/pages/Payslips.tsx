@@ -13,6 +13,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPayslipSchema, type Employee, type Payslip, type InsertPayslip, type PayslipCalculation } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import BackToMenuButton from "@/components/BackToMenuButton";
 
 export default function Payslips() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);

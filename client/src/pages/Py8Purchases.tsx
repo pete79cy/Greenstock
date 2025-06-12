@@ -137,6 +137,7 @@ export default function Py8Purchases() {
 
   return (
     <div className="space-y-6">
+      <BackToMenuButton />
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">ΠΥ8 - Καταχώριση Αγορών</h1>

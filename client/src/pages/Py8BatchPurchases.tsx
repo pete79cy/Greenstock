@@ -17,6 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import BackToMenuButton from "@/components/BackToMenuButton";
 
 // Authentic plant varieties for ΠΥ8 compliance
 const PLANT_VARIETIES = [

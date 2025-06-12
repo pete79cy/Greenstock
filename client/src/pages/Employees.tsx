@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import DocumentUpload from "@/components/DocumentUpload";
 import LeaveManagement from "@/components/LeaveManagement";
+import BackToMenuButton from "@/components/BackToMenuButton";
 
 export default function Employees() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);

@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { type SalesPy9 } from "@shared/schema";
+import BackToMenuButton from "@/components/BackToMenuButton";
 
 export default function Py9Sales() {
   const { toast } = useToast();
