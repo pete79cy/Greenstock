@@ -54,6 +54,7 @@ export default function PurchaseCostManager() {
   // Fetch purchase data
   const { data: purchase, isLoading, error } = useQuery<PurchaseView>({
     queryKey: ["/api/purchase-orders", id],
+    enabled: !!id,
   });
 
   // Form setup for cost updates
@@ -158,7 +159,7 @@ export default function PurchaseCostManager() {
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Plants</p>
-              <p className="text-lg font-semibold">{purchase.plants.length} species</p>
+              <p className="text-lg font-semibold">{purchase.plants?.length || 0} species</p>
             </div>
           </div>
         </CardContent>
@@ -186,7 +187,7 @@ export default function PurchaseCostManager() {
                 </tr>
               </thead>
               <tbody>
-                {purchase.plants.map((plant) => (
+                {(purchase.plants || []).map((plant) => (
                   <tr key={plant.id} className="border-b hover:bg-muted/50">
                     <td className="p-4 font-medium">{plant.plantName}</td>
                     <td className="p-4">{plant.quantity}</td>
