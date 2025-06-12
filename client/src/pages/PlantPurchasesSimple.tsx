@@ -116,10 +116,33 @@ export default function PlantPurchasesSimple() {
   };
 
   const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [field]: value
+      };
+      
+      // Auto-calculate total cost when unit price or quantity changes
+      if (field === 'unitPrice' || field === 'quantity') {
+        const unitPrice = field === 'unitPrice' ? value : prev.unitPrice;
+        const quantity = field === 'quantity' ? value : prev.quantity;
+        newData.totalCost = unitPrice * quantity;
+        
+        // Also update total landed cost
+        newData.totalLandedCost = newData.totalCost + prev.shippingCost + prev.customsDuty + prev.otherFees;
+      }
+      
+      // Auto-calculate total landed cost when fees change
+      if (field === 'shippingCost' || field === 'customsDuty' || field === 'otherFees' || field === 'totalCost') {
+        const totalCost = field === 'totalCost' ? value : newData.totalCost;
+        const shippingCost = field === 'shippingCost' ? value : prev.shippingCost;
+        const customsDuty = field === 'customsDuty' ? value : prev.customsDuty;
+        const otherFees = field === 'otherFees' ? value : prev.otherFees;
+        newData.totalLandedCost = totalCost + shippingCost + customsDuty + otherFees;
+      }
+      
+      return newData;
+    });
   };
 
   const getStatusBadge = (status: string) => {
@@ -271,15 +294,17 @@ export default function PlantPurchasesSimple() {
                 </div>
                 
                 <div>
-                  <Label htmlFor="totalCost">Συνολικό Κόστος (λεπτά)</Label>
+                  <Label htmlFor="totalCost">Συνολικό Κόστος (λεπτά) - Αυτόματος Υπολογισμός</Label>
                   <Input
                     id="totalCost"
                     type="number"
-                    min="0"
                     value={formData.totalCost}
-                    onChange={(e) => handleInputChange('totalCost', parseInt(e.target.value))}
-                    required
+                    readOnly
+                    className="bg-gray-50"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {formatCurrency(formData.totalCost)}
+                  </p>
                 </div>
               </div>
 
@@ -361,6 +386,20 @@ export default function PlantPurchasesSimple() {
                     onChange={(e) => handleInputChange('otherFees', parseInt(e.target.value) || 0)}
                   />
                 </div>
+              </div>
+
+              <div>
+                <Label htmlFor="totalLandedCost">Συνολικό Τελικό Κόστος - Αυτόματος Υπολογισμός</Label>
+                <Input
+                  id="totalLandedCost"
+                  type="number"
+                  value={formData.totalLandedCost}
+                  readOnly
+                  className="bg-green-50 font-semibold"
+                />
+                <p className="text-sm font-medium text-green-700 mt-1">
+                  {formatCurrency(formData.totalLandedCost)} (Τελικό κόστος με όλα τα τέλη)
+                </p>
               </div>
 
               <div>
