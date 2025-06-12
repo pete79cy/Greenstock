@@ -604,8 +604,12 @@ export default function PlantPurchasesSimpleFixed() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {purchases.map((purchase) => (
-          <Card key={purchase.id} className="hover:shadow-lg transition-shadow">
+        {purchases.map((purchase) => {
+          const isHighlighted = highlightedPlant === purchase.scientificName;
+          return (
+          <Card key={purchase.id} className={`hover:shadow-lg transition-all duration-300 ${
+            isHighlighted ? 'ring-2 ring-blue-500 bg-blue-50 shadow-lg scale-105' : ''
+          }`}>
             <CardHeader className="pb-3">
               <div className="flex justify-between items-start">
                 <div>
@@ -689,7 +693,8 @@ export default function PlantPurchasesSimpleFixed() {
               </div>
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
       </div>
 
       {purchases.length === 0 && (
