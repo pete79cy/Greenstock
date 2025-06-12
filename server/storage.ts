@@ -11,7 +11,8 @@ import {
   regulatoryChecks, type RegulatoryCheck, type InsertRegulatoryCheck, type UpdateRegulatoryCheck,
   employeeDocuments, type EmployeeDocument, type InsertEmployeeDocument,
   employeeLeaves, type EmployeeLeave, type InsertEmployeeLeave, type UpdateEmployeeLeave,
-  employeeLeaveBalances, type EmployeeLeaveBalance, type InsertEmployeeLeaveBalance
+  employeeLeaveBalances, type EmployeeLeaveBalance, type InsertEmployeeLeaveBalance,
+  plantPurchases, type PlantPurchase, type InsertPlantPurchase, type UpdatePlantPurchase, type PlantPurchaseAnalysis
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql } from "drizzle-orm";
@@ -114,6 +115,16 @@ export interface IStorage {
   // Employee leave balance methods
   getEmployeeLeaveBalances(employeePassport: string, year: number): Promise<EmployeeLeaveBalance[]>;
   createEmployeeLeaveBalance(balance: InsertEmployeeLeaveBalance): Promise<EmployeeLeaveBalance>;
+  
+  // Plant purchase methods
+  getAllPlantPurchases(): Promise<PlantPurchase[]>;
+  getPlantPurchase(id: number): Promise<PlantPurchase | undefined>;
+  getPlantPurchasesByPlant(plantId: number): Promise<PlantPurchase[]>;
+  getPlantPurchaseHistory(plantName: string, scientificName: string): Promise<PlantPurchase[]>;
+  createPlantPurchase(purchase: InsertPlantPurchase): Promise<PlantPurchase>;
+  updatePlantPurchase(id: number, purchase: UpdatePlantPurchase): Promise<PlantPurchase | undefined>;
+  deletePlantPurchase(id: number): Promise<boolean>;
+  getPlantPurchaseAnalysis(): Promise<PlantPurchaseAnalysis>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -899,6 +910,119 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return balance;
+  }
+
+  // Plant purchase methods
+  async getAllPlantPurchases(): Promise<PlantPurchase[]> {
+    return await db.select().from(plantPurchases).orderBy(desc(plantPurchases.purchaseDate));
+  }
+
+  async getPlantPurchase(id: number): Promise<PlantPurchase | undefined> {
+    const [purchase] = await db.select().from(plantPurchases).where(eq(plantPurchases.id, id));
+    return purchase || undefined;
+  }
+
+  async getPlantPurchasesByPlant(plantId: number): Promise<PlantPurchase[]> {
+    return await db.select().from(plantPurchases)
+      .where(eq(plantPurchases.plantId, plantId))
+      .orderBy(desc(plantPurchases.purchaseDate));
+  }
+
+  async getPlantPurchaseHistory(plantName: string, scientificName: string): Promise<PlantPurchase[]> {
+    return await db.select().from(plantPurchases)
+      .where(and(
+        eq(plantPurchases.plantName, plantName),
+        eq(plantPurchases.scientificName, scientificName)
+      ))
+      .orderBy(desc(plantPurchases.purchaseDate));
+  }
+
+  async createPlantPurchase(insertPurchase: InsertPlantPurchase): Promise<PlantPurchase> {
+    const now = new Date();
+    const [purchase] = await db
+      .insert(plantPurchases)
+      .values({
+        ...insertPurchase,
+        createdAt: now,
+        updatedAt: now
+      })
+      .returning();
+    return purchase;
+  }
+
+  async updatePlantPurchase(id: number, updatePurchase: UpdatePlantPurchase): Promise<PlantPurchase | undefined> {
+    const result = await db
+      .update(plantPurchases)
+      .set({
+        ...updatePurchase,
+        updatedAt: new Date()
+      })
+      .where(eq(plantPurchases.id, id))
+      .returning();
+    
+    return result[0] || undefined;
+  }
+
+  async deletePlantPurchase(id: number): Promise<boolean> {
+    const result = await db
+      .delete(plantPurchases)
+      .where(eq(plantPurchases.id, id))
+      .returning({ id: plantPurchases.id });
+    
+    return result.length > 0;
+  }
+
+  async getPlantPurchaseAnalysis(): Promise<PlantPurchaseAnalysis> {
+    // Get total purchases and spending
+    const totalsResult = await db.execute(sql`
+      SELECT 
+        COUNT(*) as total_purchases,
+        COALESCE(SUM(total_landed_cost), 0) as total_spent,
+        COALESCE(AVG(unit_price), 0) as average_unit_price
+      FROM plant_purchases
+    `);
+
+    // Get top suppliers
+    const suppliersResult = await db.execute(sql`
+      SELECT 
+        supplier_name,
+        COUNT(*) as total_orders,
+        SUM(total_landed_cost) as total_spent
+      FROM plant_purchases
+      GROUP BY supplier_name
+      ORDER BY total_spent DESC
+      LIMIT 5
+    `);
+
+    // Get monthly spending
+    const monthlyResult = await db.execute(sql`
+      SELECT 
+        TO_CHAR(purchase_date, 'YYYY-MM') as month,
+        SUM(total_landed_cost) as total_spent,
+        COUNT(*) as order_count
+      FROM plant_purchases
+      WHERE purchase_date >= CURRENT_DATE - INTERVAL '12 months'
+      GROUP BY TO_CHAR(purchase_date, 'YYYY-MM')
+      ORDER BY month DESC
+    `);
+
+    const totals = totalsResult.rows[0];
+    
+    return {
+      totalPurchases: Number(totals.total_purchases) || 0,
+      totalSpent: Number(totals.total_spent) || 0,
+      averageUnitPrice: Number(totals.average_unit_price) || 0,
+      topSuppliers: suppliersResult.rows.map(row => ({
+        supplierName: String(row.supplier_name || ''),
+        totalOrders: Number(row.total_orders) || 0,
+        totalSpent: Number(row.total_spent) || 0
+      })),
+      monthlySpending: monthlyResult.rows.map(row => ({
+        month: String(row.month || ''),
+        totalSpent: Number(row.total_spent) || 0,
+        orderCount: Number(row.order_count) || 0
+      }))
+    };
   }
 }
 

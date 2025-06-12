@@ -6,7 +6,7 @@ import { plants } from "@shared/schema";
 import { sql } from "drizzle-orm";
 import multer from "multer";
 import * as XLSX from "xlsx";
-import { insertPlantSchema, updatePlantSchema, insertPurchasesPy8Schema, insertSalesPy9Schema, insertEmployeeSchema, updateEmployeeSchema, insertPayslipSchema, updatePayslipSchema, insertRegulatoryCheckSchema, updateRegulatoryCheckSchema, insertEmployeeDocumentSchema, insertEmployeeLeaveSchema, updateEmployeeLeaveSchema, insertEmployeeLeaveBalanceSchema } from "@shared/schema";
+import { insertPlantSchema, updatePlantSchema, insertPurchasesPy8Schema, insertSalesPy9Schema, insertEmployeeSchema, updateEmployeeSchema, insertPayslipSchema, updatePayslipSchema, insertRegulatoryCheckSchema, updateRegulatoryCheckSchema, insertEmployeeDocumentSchema, insertEmployeeLeaveSchema, updateEmployeeLeaveSchema, insertEmployeeLeaveBalanceSchema, insertPlantPurchaseSchema, updatePlantPurchaseSchema } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";

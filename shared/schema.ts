@@ -382,3 +382,74 @@ export const insertEmployeeLeaveBalanceSchema = createInsertSchema(employeeLeave
 
 export type EmployeeLeaveBalance = typeof employeeLeaveBalances.$inferSelect;
 export type InsertEmployeeLeaveBalance = z.infer<typeof insertEmployeeLeaveBalanceSchema>;
+
+// Plant purchases from external sources for planning and cost analysis
+export const plantPurchases = pgTable("plant_purchases", {
+  id: serial("id").primaryKey(),
+  plantId: integer("plant_id").references(() => plantBase.id), // Link to existing plant if available
+  supplierName: text("supplier_name").notNull(),
+  supplierCountry: text("supplier_country").notNull(),
+  plantName: text("plant_name").notNull(),
+  scientificName: text("scientific_name").notNull(),
+  variety: text("variety"),
+  quantity: integer("quantity").notNull(),
+  unitPrice: integer("unit_price").notNull(), // Price per unit in cents (EUR)
+  totalCost: integer("total_cost").notNull(), // Total cost in cents (EUR)
+  currency: text("currency").notNull().default("EUR"),
+  purchaseDate: date("purchase_date").notNull(),
+  expectedDelivery: date("expected_delivery"),
+  actualDelivery: date("actual_delivery"),
+  orderNumber: text("order_number"),
+  invoiceNumber: text("invoice_number"),
+  shippingCost: integer("shipping_cost").default(0), // Shipping cost in cents
+  customsDuty: integer("customs_duty").default(0), // Customs duty in cents
+  otherFees: integer("other_fees").default(0), // Other fees in cents
+  totalLandedCost: integer("total_landed_cost").notNull(), // Total cost including all fees
+  status: text("status").notNull().default("ordered"), // ordered, shipped, delivered, planted
+  qualityRating: integer("quality_rating"), // 1-5 rating upon delivery
+  survivalRate: integer("survival_rate"), // Percentage of plants that survived after planting
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertPlantPurchaseSchema = createInsertSchema(plantPurchases, {
+  supplierName: z.string().min(1, "Supplier name is required"),
+  supplierCountry: z.string().min(1, "Supplier country is required"),
+  plantName: z.string().min(1, "Plant name is required"),
+  scientificName: z.string().min(1, "Scientific name is required"),
+  quantity: z.number().int().positive("Quantity must be positive"),
+  unitPrice: z.number().int().positive("Unit price must be positive"),
+  totalCost: z.number().int().positive("Total cost must be positive"),
+  totalLandedCost: z.number().int().positive("Total landed cost must be positive"),
+  purchaseDate: z.string().min(1, "Purchase date is required"),
+  qualityRating: z.number().int().min(1).max(5).optional(),
+  survivalRate: z.number().int().min(0).max(100).optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updatePlantPurchaseSchema = insertPlantPurchaseSchema.partial();
+
+export type PlantPurchase = typeof plantPurchases.$inferSelect;
+export type InsertPlantPurchase = z.infer<typeof insertPlantPurchaseSchema>;
+export type UpdatePlantPurchase = z.infer<typeof updatePlantPurchaseSchema>;
+
+// Purchase analysis view for reporting
+export interface PlantPurchaseAnalysis {
+  totalPurchases: number;
+  totalSpent: number;
+  averageUnitPrice: number;
+  topSuppliers: Array<{
+    supplierName: string;
+    totalOrders: number;
+    totalSpent: number;
+  }>;
+  monthlySpending: Array<{
+    month: string;
+    totalSpent: number;
+    orderCount: number;
+  }>;
+}
