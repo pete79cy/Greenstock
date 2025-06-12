@@ -19,7 +19,7 @@ import Payslips from "@/pages/Payslips";
 import BackupRestore from "@/pages/BackupRestore";
 import RegulatoryChecks from "@/pages/RegulatoryChecks";
 import PlantPurchasesSimple from "@/pages/PlantPurchasesSimple";
-import PlantPurchaseAnalysis from "@/pages/PlantPurchaseAnalysis";
+import PlantPurchaseAnalysisNew from "@/pages/PlantPurchaseAnalysisNew";
 import Layout from "@/components/Layout";
 import { ThemeProvider } from "next-themes";
 import { useAuth } from "@/hooks/useAuth";
@@ -111,7 +111,7 @@ function Router() {
       <Route path="/payslips" component={ProtectedWithLayout(Payslips)} />
       <Route path="/regulatory-checks" component={ProtectedWithLayout(RegulatoryChecks)} />
       <Route path="/plant-purchases" component={ProtectedWithLayout(PlantPurchasesSimple)} />
-      <Route path="/plant-purchase-analysis" component={ProtectedWithLayout(PlantPurchaseAnalysis)} />
+      <Route path="/plant-purchase-analysis" component={ProtectedWithLayout(PlantPurchaseAnalysisNew)} />
       <Route path="/backup-restore" component={ProtectedWithLayout(BackupRestore)} />
       <Route path="/settings" component={ProtectedWithLayout(Settings)} />
       
