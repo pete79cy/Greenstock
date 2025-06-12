@@ -11,11 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import type { PlantPurchase } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Package, Euro, CheckCircle, Truck, Sprout, Edit, Calendar, MapPin } from "lucide-react";
+import { Plus, Package, Euro, CheckCircle, Truck, Sprout, Edit, Calendar, MapPin, Trash2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 
-export default function PlantPurchasesSimple() {
+export default function PlantPurchasesSimpleFixed() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPurchase, setEditingPurchase] = useState<PlantPurchase | null>(null);
   const [formData, setFormData] = useState({
@@ -156,6 +156,16 @@ export default function PlantPurchasesSimple() {
     setIsDialogOpen(true);
   };
 
+  const handleQuickStatusUpdate = (purchase: PlantPurchase, newStatus: string) => {
+    const updateData = {
+      ...purchase,
+      status: newStatus,
+      ...(newStatus === "delivered" && !purchase.actualDelivery ? { actualDelivery: new Date().toISOString().split('T')[0] } : {})
+    };
+    
+    updateMutation.mutate({ id: purchase.id, data: updateData });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -225,6 +235,58 @@ export default function PlantPurchasesSimple() {
     );
   };
 
+  const getStatusActions = (purchase: PlantPurchase) => {
+    const currentStatus = purchase.status;
+    const actions = [];
+
+    if (currentStatus === "ordered") {
+      actions.push(
+        <Button 
+          key="ship" 
+          size="sm" 
+          variant="outline" 
+          onClick={() => handleQuickStatusUpdate(purchase, "shipped")}
+          className="text-yellow-600 border-yellow-200 hover:bg-yellow-50"
+        >
+          <Truck className="w-3 h-3 mr-1" />
+          Αποστολή
+        </Button>
+      );
+    }
+
+    if (currentStatus === "shipped" || currentStatus === "ordered") {
+      actions.push(
+        <Button 
+          key="deliver" 
+          size="sm" 
+          variant="outline" 
+          onClick={() => handleQuickStatusUpdate(purchase, "delivered")}
+          className="text-green-600 border-green-200 hover:bg-green-50"
+        >
+          <CheckCircle className="w-3 h-3 mr-1" />
+          Παράδοση
+        </Button>
+      );
+    }
+
+    if (currentStatus === "delivered") {
+      actions.push(
+        <Button 
+          key="plant" 
+          size="sm" 
+          variant="outline" 
+          onClick={() => handleQuickStatusUpdate(purchase, "planted")}
+          className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+        >
+          <Sprout className="w-3 h-3 mr-1" />
+          Φύτευση
+        </Button>
+      );
+    }
+
+    return actions;
+  };
+
   const formatCurrency = (cents: number) => {
     return new Intl.NumberFormat('el-GR', {
       style: 'currency',
@@ -256,16 +318,21 @@ export default function PlantPurchasesSimple() {
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button onClick={() => setEditingPurchase(null)}>
               <Plus className="w-4 h-4 mr-2" />
               Νέα Αγορά
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Καταχώρηση Νέας Αγοράς Φυτού</DialogTitle>
+              <DialogTitle>
+                {editingPurchase ? "Επεξεργασία Αγοράς" : "Καταχώρηση Νέας Αγοράς Φυτού"}
+              </DialogTitle>
               <DialogDescription>
-                Συμπληρώστε τα στοιχεία της αγοράς για παρακολούθηση και κοστολόγηση
+                {editingPurchase 
+                  ? "Ενημερώστε τα στοιχεία της αγοράς και την κατάσταση παράδοσης"
+                  : "Συμπληρώστε τα στοιχεία της αγοράς για παρακολούθηση και κοστολόγηση"
+                }
               </DialogDescription>
             </DialogHeader>
             
@@ -492,12 +559,12 @@ export default function PlantPurchasesSimple() {
                 <Button 
                   type="button" 
                   variant="outline" 
-                  onClick={() => setIsDialogOpen(false)}
+                  onClick={resetForm}
                 >
                   Ακύρωση
                 </Button>
-                <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? "Αποθήκευση..." : "Αποθήκευση"}
+                <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+                  {createMutation.isPending || updateMutation.isPending ? "Αποθήκευση..." : editingPurchase ? "Ενημέρωση" : "Αποθήκευση"}
                 </Button>
               </div>
             </form>
@@ -525,7 +592,7 @@ export default function PlantPurchasesSimple() {
               )}
             </CardHeader>
             
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div className="flex items-center gap-1">
                   <Package className="w-4 h-4 text-muted-foreground" />
@@ -550,15 +617,42 @@ export default function PlantPurchasesSimple() {
                   <span className="text-muted-foreground">Ημ. Αγοράς:</span>
                   <span>{formatDate(purchase.purchaseDate)}</span>
                 </div>
+                {purchase.expectedDelivery && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Αναμ. Παράδοση:</span>
+                    <span>{formatDate(purchase.expectedDelivery)}</span>
+                  </div>
+                )}
               </div>
+
+              <Separator />
+
+              {/* Status Progress Actions */}
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">Ενέργειες Κατάστασης:</p>
+                <div className="flex flex-wrap gap-2">
+                  {getStatusActions(purchase)}
+                </div>
+              </div>
+
+              <Separator />
               
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex justify-between gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleEdit(purchase)}
+                >
+                  <Edit className="w-3 h-3 mr-1" />
+                  Επεξεργασία
+                </Button>
                 <Button
                   variant="destructive"
                   size="sm"
                   onClick={() => deleteMutation.mutate(purchase.id)}
                   disabled={deleteMutation.isPending}
                 >
+                  <Trash2 className="w-3 h-3 mr-1" />
                   Διαγραφή
                 </Button>
               </div>
