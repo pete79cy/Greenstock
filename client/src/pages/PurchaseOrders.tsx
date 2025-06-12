@@ -364,10 +364,21 @@ export default function PurchaseOrders() {
                         <div className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
                           {(() => {
-                            const date = new Date(order.purchaseDate);
-                            return isNaN(date.getTime()) ? 
-                              order.purchaseDate : 
-                              date.toLocaleDateString();
+                            // Handle different date formats from the database
+                            if (order.purchaseDate.includes('T')) {
+                              // ISO format: 2025-06-12T13:15:45.039Z
+                              const date = new Date(order.purchaseDate);
+                              return isNaN(date.getTime()) ? order.purchaseDate : date.toLocaleDateString();
+                            } else {
+                              // Simple date format: 2025-06-12
+                              const dateParts = order.purchaseDate.split('-');
+                              if (dateParts.length === 3) {
+                                const [year, month, day] = dateParts;
+                                const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                                return date.toLocaleDateString();
+                              }
+                              return order.purchaseDate;
+                            }
                           })()}
                         </div>
                       </div>

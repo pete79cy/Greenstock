@@ -156,10 +156,21 @@ export default function PurchaseCostManager() {
               <p className="text-lg font-semibold">
                 {purchase.purchaseDate ? 
                   (() => {
-                    const date = new Date(purchase.purchaseDate);
-                    return isNaN(date.getTime()) ? 
-                      purchase.purchaseDate : 
-                      date.toLocaleDateString();
+                    // Handle different date formats from the database
+                    if (purchase.purchaseDate.includes('T')) {
+                      // ISO format: 2025-06-12T13:15:45.039Z
+                      const date = new Date(purchase.purchaseDate);
+                      return isNaN(date.getTime()) ? purchase.purchaseDate : date.toLocaleDateString();
+                    } else {
+                      // Simple date format: 2025-06-12
+                      const dateParts = purchase.purchaseDate.split('-');
+                      if (dateParts.length === 3) {
+                        const [year, month, day] = dateParts;
+                        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                        return date.toLocaleDateString();
+                      }
+                      return purchase.purchaseDate;
+                    }
                   })() : 
                   'No date provided'
                 }
