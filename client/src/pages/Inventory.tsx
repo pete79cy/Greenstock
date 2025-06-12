@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import ImportModal from "@/components/ImportModal";
 import ExportDropdown from "@/components/ExportDropdown";
 import PlantModal from "@/components/PlantModal";
+import BackToMenuButton from "@/components/BackToMenuButton";
 import { Filter, Plus, Search, ChevronDown, ChevronUp } from "lucide-react";
 import useDebounce from "@/hooks/useDebounce";
 
@@ -122,6 +123,7 @@ export default function Inventory() {
         <meta name="description" content="Manage your plant inventory with advanced filtering and sorting options" />
       </Helmet>
       <div className="space-y-6">
+        <BackToMenuButton />
         {/* Inventory Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
           <div>

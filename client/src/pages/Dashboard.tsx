@@ -123,7 +123,7 @@ export default function Dashboard() {
                 <div className={`
                   ${button.color} text-white rounded-xl p-6 shadow-lg 
                   transform transition-all duration-200 hover:scale-105 hover:shadow-xl
-                  cursor-pointer group
+                  cursor-pointer group h-48 flex flex-col justify-center
                 `}>
                   <div className="flex flex-col items-center text-center space-y-4">
                     <div className="p-3 bg-white/20 rounded-full group-hover:bg-white/30 transition-colors">
