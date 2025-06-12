@@ -2788,6 +2788,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return contentTypes[extension.toLowerCase()] || 'application/octet-stream';
   }
 
+  // Plant Purchase Management Routes
+  app.get("/api/plant-purchases", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const purchases = await storage.getAllPlantPurchases();
+      res.json(purchases);
+    } catch (error) {
+      console.error("Error fetching plant purchases:", error);
+      res.status(500).json({ message: "Failed to fetch plant purchases" });
+    }
+  });
+
+  app.get("/api/plant-purchases/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const purchase = await storage.getPlantPurchase(id);
+      
+      if (!purchase) {
+        return res.status(404).json({ message: "Plant purchase not found" });
+      }
+      
+      res.json(purchase);
+    } catch (error) {
+      console.error("Error fetching plant purchase:", error);
+      res.status(500).json({ message: "Failed to fetch plant purchase" });
+    }
+  });
+
+  app.get("/api/plant-purchases/history/:plantName/:scientificName", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { plantName, scientificName } = req.params;
+      const history = await storage.getPlantPurchaseHistory(decodeURIComponent(plantName), decodeURIComponent(scientificName));
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching plant purchase history:", error);
+      res.status(500).json({ message: "Failed to fetch plant purchase history" });
+    }
+  });
+
+  app.post("/api/plant-purchases", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const validationResult = insertPlantPurchaseSchema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        const validationError = fromZodError(validationResult.error);
+        return res.status(400).json({ message: validationError.message });
+      }
+
+      const purchase = await storage.createPlantPurchase(validationResult.data);
+      res.status(201).json(purchase);
+    } catch (error) {
+      console.error("Error creating plant purchase:", error);
+      res.status(500).json({ message: "Failed to create plant purchase" });
+    }
+  });
+
+  app.put("/api/plant-purchases/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validationResult = updatePlantPurchaseSchema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        const validationError = fromZodError(validationResult.error);
+        return res.status(400).json({ message: validationError.message });
+      }
+
+      const purchase = await storage.updatePlantPurchase(id, validationResult.data);
+      if (!purchase) {
+        return res.status(404).json({ message: "Plant purchase not found" });
+      }
+      
+      res.json(purchase);
+    } catch (error) {
+      console.error("Error updating plant purchase:", error);
+      res.status(500).json({ message: "Failed to update plant purchase" });
+    }
+  });
+
+  app.delete("/api/plant-purchases/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deletePlantPurchase(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Plant purchase not found" });
+      }
+      
+      res.json({ message: "Plant purchase deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting plant purchase:", error);
+      res.status(500).json({ message: "Failed to delete plant purchase" });
+    }
+  });
+
+  app.get("/api/plant-purchases-analysis", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const analysis = await storage.getPlantPurchaseAnalysis();
+      res.json(analysis);
+    } catch (error) {
+      console.error("Error fetching plant purchase analysis:", error);
+      res.status(500).json({ message: "Failed to fetch plant purchase analysis" });
+    }
+  });
+
   // Encryption validation endpoint
   app.get("/api/encryption/status", isAuthenticated, (req: Request, res: Response) => {
     try {
