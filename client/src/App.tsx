@@ -20,6 +20,7 @@ import BackupRestore from "@/pages/BackupRestore";
 import RegulatoryChecks from "@/pages/RegulatoryChecks";
 import PurchaseOrders from "@/pages/PurchaseOrders";
 import PurchaseCostManager from "@/pages/PurchaseCostManager";
+import AddPlantsToOrder from "@/pages/AddPlantsToOrder";
 import Layout from "@/components/Layout";
 import { ThemeProvider } from "next-themes";
 import { useAuth } from "@/hooks/useAuth";
@@ -111,6 +112,7 @@ function Router() {
       <Route path="/payslips" component={ProtectedWithLayout(Payslips)} />
       <Route path="/regulatory-checks" component={ProtectedWithLayout(RegulatoryChecks)} />
       <Route path="/purchase-orders" component={ProtectedWithLayout(PurchaseOrders)} />
+      <Route path="/purchase-orders/:id/add-plants" component={ProtectedWithLayout(AddPlantsToOrder)} />
       <Route path="/purchase-orders/:id" component={ProtectedWithLayout(PurchaseCostManager)} />
       <Route path="/backup-restore" component={ProtectedWithLayout(BackupRestore)} />
       <Route path="/settings" component={ProtectedWithLayout(Settings)} />

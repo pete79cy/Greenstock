@@ -388,7 +388,11 @@ export const purchaseOrders = pgTable("purchase_orders", {
   id: serial("id").primaryKey(),
   supplier: text("supplier").notNull(),
   purchaseDate: text("purchase_date").notNull(), // ISO date string
+  arrivalDate: text("arrival_date"), // ISO date string
   totalCost: integer("total_cost").notNull().default(0), // Store in cents
+  shippingCost: integer("shipping_cost").default(0), // Store in cents
+  customsCost: integer("customs_cost").default(0), // Store in cents
+  currency: text("currency").notNull().default("EUR"),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -415,6 +419,10 @@ export const purchasedPlants = pgTable("purchased_plants", {
 export const insertPurchaseOrderSchema = createInsertSchema(purchaseOrders, {
   supplier: z.string().min(1, "Supplier is required"),
   purchaseDate: z.string().min(1, "Purchase date is required"),
+  arrivalDate: z.string().optional(),
+  shippingCost: z.number().int().min(0, "Shipping cost must be positive").optional(),
+  customsCost: z.number().int().min(0, "Customs cost must be positive").optional(),
+  currency: z.enum(["EUR", "USD", "GBP"]).default("EUR"),
 }).omit({
   id: true,
   totalCost: true,

@@ -19,6 +19,10 @@ import { type PurchaseOrder, type InsertPurchaseOrder } from "@shared/schema";
 const createPurchaseOrderSchema = z.object({
   supplier: z.string().min(1, "Supplier is required"),
   purchaseDate: z.string().min(1, "Purchase date is required"),
+  arrivalDate: z.string().optional(),
+  shippingCost: z.number().min(0, "Shipping cost must be positive").optional(),
+  customsCost: z.number().min(0, "Customs cost must be positive").optional(),
+  currency: z.enum(["EUR", "USD", "GBP"]).default("EUR"),
   notes: z.string().optional(),
 });
 
@@ -40,6 +44,10 @@ export default function PurchaseOrders() {
     defaultValues: {
       supplier: "",
       purchaseDate: new Date().toISOString().split('T')[0],
+      arrivalDate: "",
+      shippingCost: 0,
+      customsCost: 0,
+      currency: "EUR",
       notes: "",
     },
   });
@@ -276,6 +284,12 @@ export default function PurchaseOrders() {
                   </div>
                   
                   <div className="flex items-center gap-2">
+                    <Link href={`/purchase-orders/${order.id}/add-plants`}>
+                      <Button variant="outline" size="sm" className="flex items-center gap-2">
+                        <Plus className="h-4 w-4" />
+                        Add Plants
+                      </Button>
+                    </Link>
                     <Link href={`/purchase-orders/${order.id}`}>
                       <Button variant="outline" size="sm" className="flex items-center gap-2">
                         <Eye className="h-4 w-4" />
