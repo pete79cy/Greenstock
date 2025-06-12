@@ -158,8 +158,25 @@ export default function PlantPurchasesSimpleFixed() {
 
   const handleQuickStatusUpdate = (purchase: PlantPurchase, newStatus: string) => {
     const updateData = {
-      ...purchase,
+      supplierName: purchase.supplierName,
+      supplierCountry: purchase.supplierCountry,
+      plantName: purchase.plantName,
+      scientificName: purchase.scientificName,
+      variety: purchase.variety || "",
+      quantity: purchase.quantity,
+      unitPrice: purchase.unitPrice,
+      totalCost: purchase.totalCost,
+      currency: purchase.currency,
+      purchaseDate: purchase.purchaseDate,
+      expectedDelivery: purchase.expectedDelivery || "",
+      orderNumber: purchase.orderNumber || "",
+      invoiceNumber: purchase.invoiceNumber || "",
+      shippingCost: purchase.shippingCost || 0,
+      customsDuty: purchase.customsDuty || 0,
+      otherFees: purchase.otherFees || 0,
+      totalLandedCost: purchase.totalLandedCost,
       status: newStatus,
+      notes: purchase.notes || "",
       ...(newStatus === "delivered" && !purchase.actualDelivery ? { actualDelivery: new Date().toISOString().split('T')[0] } : {})
     };
     
