@@ -1,227 +1,154 @@
-import { useQuery } from "@tanstack/react-query";
 import { Helmet } from "react-helmet";
-import MetricsCards from "@/components/MetricsCards";
-import InventoryTable from "@/components/InventoryTable";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useState } from "react";
-import { Plant } from "@shared/schema";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import ImportModal from "@/components/ImportModal";
-import ExportDropdown from "@/components/ExportDropdown";
-import PlantModal from "@/components/PlantModal";
-import { Filter, Plus, Search } from "lucide-react";
-import useDebounce from "@/hooks/useDebounce";
+import { Link } from "wouter";
+import { 
+  Package, 
+  BarChart3, 
+  ShoppingCart, 
+  PackageX, 
+  TrendingUp, 
+  Users, 
+  FileText, 
+  Shield, 
+  Database, 
+  Settings,
+  Building2
+} from "lucide-react";
+
+interface NavigationButton {
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  href: string;
+  color: string;
+}
 
 export default function Dashboard() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [yearFilter, setYearFilter] = useState<string>("");
-  const [quantityFilter, setQuantityFilter] = useState<string>("");
-  const [showImportModal, setShowImportModal] = useState(false);
-  const [showPlantModal, setShowPlantModal] = useState(false);
-  const [selectedPlant, setSelectedPlant] = useState<Plant | null>(null);
-
-  // Apply debounce to search term to avoid frequent API calls
-  const debouncedSearchTerm = useDebounce(searchTerm, 500);
-
-  // Fetch plant data with search parameter
-  const { data: plants = [], isLoading, isError } = useQuery<Plant[]>({
-    queryKey: ["/api/plants", debouncedSearchTerm],
-    queryFn: async () => {
-      try {
-        console.log("Dashboard: Fetching plants data...");
-        const response = await fetch(`/api/plants${debouncedSearchTerm ? `?search=${encodeURIComponent(debouncedSearchTerm)}` : ''}`, {
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
-        if (!response.ok) {
-          console.error("Dashboard: Error fetching plants:", response.status, response.statusText);
-          throw new Error('Failed to fetch plants');
-        }
-        const data = await response.json();
-        console.log("Dashboard: Plants data received:", data.length, "plants");
-        return data;
-      } catch (error) {
-        console.error("Dashboard: Error in plants query:", error);
-        throw error;
-      }
+  const navigationButtons: NavigationButton[] = [
+    {
+      title: "Plant Inventory",
+      description: "Manage your plant collection and stock levels",
+      icon: <Package className="h-8 w-8" />,
+      href: "/inventory",
+      color: "bg-emerald-500 hover:bg-emerald-600"
     },
-  });
-
-  // Fetch metrics data
-  const { data: metrics = { totalPlants: 0, lowStockItems: 0, newAdditions: 0, plantCategories: 0 } } = useQuery<{
-    totalPlants: number;
-    lowStockItems: number;
-    newAdditions: number;
-    plantCategories: number;
-  }>({
-    queryKey: ["/api/metrics"],
-    queryFn: async () => {
-      try {
-        console.log("Dashboard: Fetching metrics data...");
-        const response = await fetch('/api/metrics', {
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
-        if (!response.ok) {
-          console.error("Dashboard: Error fetching metrics:", response.status, response.statusText);
-          throw new Error('Failed to fetch metrics');
-        }
-        const data = await response.json();
-        console.log("Dashboard: Metrics data received:", data);
-        return data;
-      } catch (error) {
-        console.error("Dashboard: Error in metrics query:", error);
-        throw error;
-      }
+    {
+      title: "Reports & Analytics",
+      description: "View detailed reports and business insights",
+      icon: <BarChart3 className="h-8 w-8" />,
+      href: "/reports",
+      color: "bg-blue-500 hover:bg-blue-600"
     },
-  });
-
-  // Function to filter plants based on filters (year and quantity)
-  // Search filtering is now done on the server side
-  const filteredPlants = plants.filter((plant) => {
-    // Apply year filter
-    const matchesYear = yearFilter === "all" || yearFilter === "" || plant.plantingYear.toString() === yearFilter;
-    
-    // Apply quantity filter
-    let matchesQuantity = true;
-    if (quantityFilter === "low") {
-      matchesQuantity = plant.quantity < 10;
-    } else if (quantityFilter === "medium") {
-      matchesQuantity = plant.quantity >= 10 && plant.quantity <= 50;
-    } else if (quantityFilter === "high") {
-      matchesQuantity = plant.quantity > 50;
+    {
+      title: "PY8 Purchases",
+      description: "Track and manage purchase orders",
+      icon: <ShoppingCart className="h-8 w-8" />,
+      href: "/py8-purchases",
+      color: "bg-orange-500 hover:bg-orange-600"
+    },
+    {
+      title: "Batch Purchases",
+      description: "Process multiple purchase orders at once",
+      icon: <PackageX className="h-8 w-8" />,
+      href: "/py8-batch-purchases",
+      color: "bg-purple-500 hover:bg-purple-600"
+    },
+    {
+      title: "PY9 Sales",
+      description: "Monitor sales performance and transactions",
+      icon: <TrendingUp className="h-8 w-8" />,
+      href: "/py9-sales",
+      color: "bg-green-500 hover:bg-green-600"
+    },
+    {
+      title: "Employee Management",
+      description: "Manage staff information and records",
+      icon: <Users className="h-8 w-8" />,
+      href: "/employees",
+      color: "bg-indigo-500 hover:bg-indigo-600"
+    },
+    {
+      title: "Payroll & Payslips",
+      description: "Handle payroll processing and payslips",
+      icon: <FileText className="h-8 w-8" />,
+      href: "/payslips",
+      color: "bg-teal-500 hover:bg-teal-600"
+    },
+    {
+      title: "Regulatory Compliance",
+      description: "Ensure compliance with regulations",
+      icon: <Shield className="h-8 w-8" />,
+      href: "/regulatory-checks",
+      color: "bg-red-500 hover:bg-red-600"
+    },
+    {
+      title: "Backup & Restore",
+      description: "Manage data backups and system recovery",
+      icon: <Database className="h-8 w-8" />,
+      href: "/backup-restore",
+      color: "bg-gray-500 hover:bg-gray-600"
+    },
+    {
+      title: "System Settings",
+      description: "Configure application preferences",
+      icon: <Settings className="h-8 w-8" />,
+      href: "/settings",
+      color: "bg-slate-500 hover:bg-slate-600"
     }
-    
-    return matchesYear && matchesQuantity;
-  });
-
-  const handleAddPlant = () => {
-    setSelectedPlant(null);
-    setShowPlantModal(true);
-  };
-
-  const handleEditPlant = (plant: Plant) => {
-    setSelectedPlant(plant);
-    setShowPlantModal(true);
-  };
-
-  const handleClosePlantModal = () => {
-    setShowPlantModal(false);
-    setSelectedPlant(null);
-  };
+  ];
 
   return (
     <>
       <Helmet>
-        <title>Dashboard | Plant Inventory Management System</title>
-        <meta name="description" content="Overview of your plant inventory with metrics and quick access to inventory management" />
+        <title>Dashboard | Business Management Hub</title>
+        <meta name="description" content="Navigate to all business management modules from this central hub" />
       </Helmet>
-      <div className="space-y-6">
-        {/* Dashboard Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-          <div>
-            <h2 className="text-2xl font-semibold text-foreground">Dashboard</h2>
-            <p className="text-sm text-muted-foreground">Overview of your plant inventory</p>
+      
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+        {/* Header */}
+        <div className="text-center mb-12">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <Building2 className="h-12 w-12 text-blue-600" />
+            <h1 className="text-4xl font-bold text-gray-900">Business Management Hub</h1>
           </div>
-          
-          <div className="flex flex-col sm:flex-row gap-2 mt-4 md:mt-0">
-            <Button 
-              variant="outline" 
-              onClick={() => setShowImportModal(true)}
-              className="flex items-center gap-2"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-upload"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
-              Import Excel
-            </Button>
-            
-            <ExportDropdown />
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            Choose a module below to access your business management tools
+          </p>
+        </div>
+
+        {/* Navigation Grid */}
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {navigationButtons.map((button, index) => (
+              <Link key={index} href={button.href}>
+                <div className={`
+                  ${button.color} text-white rounded-xl p-6 shadow-lg 
+                  transform transition-all duration-200 hover:scale-105 hover:shadow-xl
+                  cursor-pointer group
+                `}>
+                  <div className="flex flex-col items-center text-center space-y-4">
+                    <div className="p-3 bg-white/20 rounded-full group-hover:bg-white/30 transition-colors">
+                      {button.icon}
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">{button.title}</h3>
+                      <p className="text-sm opacity-90 leading-relaxed">
+                        {button.description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            ))}
           </div>
         </div>
-        
-        {/* Metrics Cards */}
-        <MetricsCards metrics={metrics} />
-        
-        {/* Filter and Search */}
-        <div className="bg-card rounded-lg shadow p-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search plants..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            
-            <div className="flex gap-2">
-              <Select value={yearFilter} onValueChange={setYearFilter}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="All Years" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Years</SelectItem>
-                  <SelectItem value="2023">2023</SelectItem>
-                  <SelectItem value="2022">2022</SelectItem>
-                  <SelectItem value="2021">2021</SelectItem>
-                  <SelectItem value="2020">2020</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Select value={quantityFilter} onValueChange={setQuantityFilter}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="All Quantities" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Quantities</SelectItem>
-                  <SelectItem value="low">Low Stock (&lt; 10)</SelectItem>
-                  <SelectItem value="medium">Medium (10-50)</SelectItem>
-                  <SelectItem value="high">High (&gt; 50)</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Button variant="outline" size="icon">
-                <Filter className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
-        
-        {/* Inventory Table */}
-        <div className="bg-card rounded-lg shadow overflow-hidden">
-          <div className="p-4 border-b border-border flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-card-foreground">Plant Inventory</h3>
-            <Button onClick={handleAddPlant} className="flex items-center gap-1 bg-primary hover:bg-primary/90">
-              <Plus className="h-4 w-4" />
-              Add Plant
-            </Button>
-          </div>
-          
-          <InventoryTable 
-            plants={filteredPlants} 
-            isLoading={isLoading} 
-            isError={isError} 
-            onEdit={handleEditPlant} 
-          />
+
+        {/* Footer */}
+        <div className="text-center mt-16 text-gray-500">
+          <p className="text-sm">
+            Click any module above to get started with your business management tasks
+          </p>
         </div>
       </div>
-
-      {/* Import Modal */}
-      <ImportModal isOpen={showImportModal} onClose={() => setShowImportModal(false)} />
-
-      {/* Add/Edit Plant Modal */}
-      <PlantModal 
-        isOpen={showPlantModal} 
-        onClose={handleClosePlantModal} 
-        plant={selectedPlant} 
-      />
     </>
   );
 }
