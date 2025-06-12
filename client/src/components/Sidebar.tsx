@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { Leaf, BarChart3, Warehouse, Settings, X, FileText, ShoppingCart, TrendingUp, Receipt, Users, Calculator, Shield, CheckCircle, Package } from "lucide-react";
+import { Leaf, BarChart3, Warehouse, Settings, X, FileText, ShoppingCart, TrendingUp, Receipt, Users, Calculator, Shield, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface SidebarProps {
@@ -153,19 +153,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               )}>
                 <CheckCircle className="mr-3 h-5 w-5" />
                 <span>Regulatory Checks</span>
-              </div>
-            </Link>
-          </li>
-          <li>
-            <Link href="/purchase-orders">
-              <div className={cn(
-                "flex items-center p-2 rounded-md cursor-pointer",
-                location === "/purchase-orders" || location.startsWith("/purchase-orders/")
-                  ? "bg-primary bg-opacity-10 text-primary" 
-                  : "hover:bg-gray-100"
-              )}>
-                <Package className="mr-3 h-5 w-5" />
-                <span>Purchase Orders</span>
               </div>
             </Link>
           </li>
