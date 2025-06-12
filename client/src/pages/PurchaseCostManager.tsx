@@ -69,10 +69,7 @@ export default function PurchaseCostManager() {
   // Mutation for updating plant costs
   const updateCostsMutation = useMutation({
     mutationFn: (data: { plantId: number; costs: UpdateCostsForm }) =>
-      apiRequest(`/api/purchased-plants/${data.plantId}/update-costs`, {
-        method: "PUT",
-        body: JSON.stringify(data.costs),
-      }),
+      apiRequest(`/api/purchased-plants/${data.plantId}/update-costs`, "PUT", data.costs),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders", id] });
       setIsModalOpen(false);

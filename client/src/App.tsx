@@ -18,6 +18,8 @@ import Employees from "@/pages/Employees";
 import Payslips from "@/pages/Payslips";
 import BackupRestore from "@/pages/BackupRestore";
 import RegulatoryChecks from "@/pages/RegulatoryChecks";
+import PurchaseOrders from "@/pages/PurchaseOrders";
+import PurchaseCostManager from "@/pages/PurchaseCostManager";
 import Layout from "@/components/Layout";
 import { ThemeProvider } from "next-themes";
 import { useAuth } from "@/hooks/useAuth";
@@ -108,6 +110,8 @@ function Router() {
       <Route path="/employees" component={ProtectedWithLayout(Employees)} />
       <Route path="/payslips" component={ProtectedWithLayout(Payslips)} />
       <Route path="/regulatory-checks" component={ProtectedWithLayout(RegulatoryChecks)} />
+      <Route path="/purchase-orders" component={ProtectedWithLayout(PurchaseOrders)} />
+      <Route path="/purchase-orders/:id" component={ProtectedWithLayout(PurchaseCostManager)} />
       <Route path="/backup-restore" component={ProtectedWithLayout(BackupRestore)} />
       <Route path="/settings" component={ProtectedWithLayout(Settings)} />
       
