@@ -26,35 +26,27 @@ export default function PlantPurchases() {
     queryKey: ["/api/plant-purchases"],
   });
 
-  const form = useForm<InsertPlantPurchase>({
-    resolver: zodResolver(insertPlantPurchaseSchema.extend({
-      shippingCost: insertPlantPurchaseSchema.shape.shippingCost.optional(),
-      customsDuty: insertPlantPurchaseSchema.shape.customsDuty.optional(),
-      otherFees: insertPlantPurchaseSchema.shape.otherFees.optional(),
-    })),
+  const form = useForm({
+    resolver: zodResolver(insertPlantPurchaseSchema),
     defaultValues: {
-      plantId: undefined,
       supplierName: "",
       supplierCountry: "",
       plantName: "",
       scientificName: "",
       variety: "",
       quantity: 1,
-      unitPrice: 0,
-      totalCost: 0,
+      unitPrice: 100,
+      totalCost: 100,
       currency: "EUR",
       purchaseDate: new Date().toISOString().split('T')[0],
       expectedDelivery: "",
-      actualDelivery: "",
       orderNumber: "",
       invoiceNumber: "",
       shippingCost: 0,
       customsDuty: 0,
       otherFees: 0,
-      totalLandedCost: 0,
+      totalLandedCost: 100,
       status: "ordered",
-      qualityRating: undefined,
-      survivalRate: undefined,
       notes: "",
     },
   });
@@ -242,7 +234,7 @@ export default function PlantPurchases() {
                     <FormItem>
                       <FormLabel>Ποικιλία (προαιρετικό)</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ποικιλία φυτού" {...field} />
+                        <Input placeholder="Ποικιλία φυτού" {...field} value={field.value || ""} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
