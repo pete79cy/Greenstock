@@ -51,6 +51,10 @@ export default function PlantPurchaseAnalysisNew() {
     queryKey: ["/api/plant-purchases-analysis"],
   });
 
+  const { data: purchases = [] } = useQuery<PlantPurchase[]>({
+    queryKey: ["/api/plant-purchases"],
+  });
+
   const formatCurrency = (cents: number) => {
     return new Intl.NumberFormat('el-GR', {
       style: 'currency',
@@ -245,6 +249,107 @@ export default function PlantPurchaseAnalysisNew() {
         </TabsList>
 
         <TabsContent value="trends" className="space-y-6">
+          {/* Quarterly Delivery Summary */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Επισκόπηση Παραλαβών ανά Τρίμηνο</CardTitle>
+              <CardDescription>Επιστημονικά ονόματα παραληφθέντων και προγραμματισμένων φυτών</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {(() => {
+                // Group purchases by quarter
+                const quarterlyData = new Map<string, { delivered: string[], scheduled: string[] }>();
+                
+                purchases.forEach(purchase => {
+                  const purchaseDate = new Date(purchase.purchaseDate);
+                  const year = purchaseDate.getFullYear();
+                  const quarter = Math.ceil((purchaseDate.getMonth() + 1) / 3);
+                  const quarterKey = `Q${quarter} ${year}`;
+                  
+                  if (!quarterlyData.has(quarterKey)) {
+                    quarterlyData.set(quarterKey, { delivered: [], scheduled: [] });
+                  }
+                  
+                  const data = quarterlyData.get(quarterKey)!;
+                  const scientificName = purchase.scientificName;
+                  
+                  if (purchase.status === 'delivered' || purchase.status === 'planted') {
+                    if (!data.delivered.includes(scientificName)) {
+                      data.delivered.push(scientificName);
+                    }
+                  } else {
+                    if (!data.scheduled.includes(scientificName)) {
+                      data.scheduled.push(scientificName);
+                    }
+                  }
+                });
+
+                const sortedQuarters = Array.from(quarterlyData.entries())
+                  .sort(([a], [b]) => {
+                    const [aQ, aY] = a.split(' ');
+                    const [bQ, bY] = b.split(' ');
+                    return parseInt(bY) - parseInt(aY) || parseInt(bQ.slice(1)) - parseInt(aQ.slice(1));
+                  });
+
+                return (
+                  <div className="space-y-4">
+                    {sortedQuarters.map(([quarter, data]) => (
+                      <div key={quarter} className="border rounded-lg p-4">
+                        <h4 className="font-semibold text-lg mb-3">{quarter}</h4>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Delivered */}
+                          <div>
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                              <span className="font-medium text-green-700">Παραληφθέντα ({data.delivered.length})</span>
+                            </div>
+                            <div className="space-y-1">
+                              {data.delivered.length > 0 ? (
+                                data.delivered.map((name, index) => (
+                                  <div key={index} className="text-sm italic text-green-800 bg-green-50 px-2 py-1 rounded">
+                                    {name}
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="text-sm text-muted-foreground">Καμία παραλαβή</div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Scheduled */}
+                          <div>
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                              <span className="font-medium text-blue-700">Προγραμματισμένα ({data.scheduled.length})</span>
+                            </div>
+                            <div className="space-y-1">
+                              {data.scheduled.length > 0 ? (
+                                data.scheduled.map((name, index) => (
+                                  <div key={index} className="text-sm italic text-blue-800 bg-blue-50 px-2 py-1 rounded">
+                                    {name}
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="text-sm text-muted-foreground">Καμία προγραμματισμένη παραλαβή</div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {sortedQuarters.length === 0 && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        Δεν υπάρχουν δεδομένα αγορών για εμφάνιση
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Monthly Spending vs Budget */}
             <Card>
