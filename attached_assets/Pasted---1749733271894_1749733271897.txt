@@ -1,0 +1,297 @@
+/*
+================================================================================
+|                                                                              |
+|                             BACKEND (Express.js)                               |
+|                     File: server/index.ts (or server.js)                       |
+|                                                                              |
+================================G================================================
+*/
+
+import express from 'express';
+import cors from 'cors';
+import bodyParser from 'body-parser';
+
+const app = express();
+app.use(cors());
+app.use(bodyParser.json());
+
+// --- TypeScript Interfaces (Data Models) ---
+interface PurchasedPlant {
+  id: number;
+  purchaseId: number;
+  plantName: string;
+  quantity: number;
+  costPerUnit: number; // Initial cost from supplier
+  status: 'Excellent' | 'Good' | 'Fair';
+  // Dynamic costs added later by the user
+  potCost?: number;
+  soilCost?: number;
+  pottedDate?: string; // ISO Date String (e.g., "2025-06-12T00:00:00.000Z")
+  nurseryMonthlyCost?: number;
+}
+
+interface Purchase {
+  id: number;
+  supplier: string;
+  purchaseDate: string; // ISO Date String
+  plants: PurchasedPlant[];
+}
+
+// --- In-Memory Database Simulation ---
+let purchases: Purchase[] = [
+  {
+    id: 1,
+    supplier: 'Dutch Flowers Co.',
+    purchaseDate: '2025-05-15T00:00:00.000Z',
+    plants: [
+      { id: 101, purchaseId: 1, plantName: 'Monstera Deliciosa', quantity: 20, costPerUnit: 15, status: 'Excellent' },
+      { id: 102, purchaseId: 1, plantName: 'Ficus Lyrata', quantity: 10, costPerUnit: 25, status: 'Good' },
+    ],
+  },
+];
+
+// --- API Endpoints ---
+
+// GET a specific purchase with its plants
+app.get('/api/purchases/:id', (req, res) => {
+  const purchase = purchases.find(p => p.id === parseInt(req.params.id));
+  if (!purchase) {
+    return res.status(404).json({ message: 'Purchase not found' });
+  }
+  res.json(purchase);
+});
+
+// PUT: Update the post-purchase costs for a specific plant
+app.put('/api/purchased-plants/:plantId/update-costs', (req, res) => {
+  const { plantId } = req.params;
+  const { potCost, soilCost, nurseryMonthlyCost } = req.body;
+
+  let plantToUpdate: PurchasedPlant | undefined;
+
+  // Find the plant across all purchases
+  for (const purchase of purchases) {
+    plantToUpdate = purchase.plants.find(p => p.id === parseInt(plantId));
+    if (plantToUpdate) break;
+  }
+  
+  if (!plantToUpdate) {
+    return res.status(404).json({ message: 'Plant not found' });
+  }
+
+  // Update the costs and set the pottedDate to now
+  plantToUpdate.potCost = potCost;
+  plantToUpdate.soilCost = soilCost;
+  plantToUpdate.nurseryMonthlyCost = nurseryMonthlyCost;
+  plantToUpdate.pottedDate = new Date().toISOString(); // Set potting date to now
+
+  console.log('Updated Plant:', plantToUpdate);
+  res.json(plantToUpdate);
+});
+
+
+const PORT = 3001;
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+  console.log('Backend is ready. You can now run the frontend part.');
+});
+
+
+/*
+================================================================================
+|                                                                              |
+|                              FRONTEND (React)                                |
+|                 File: client/src/PurchaseCostManager.tsx                     |
+|                                                                              |
+================================================================================
+*/
+
+import React, { useState, useEffect } from 'react';
+
+// --- Reusable Interfaces (should match backend) ---
+interface PurchasedPlant {
+  id: number;
+  purchaseId: number;
+  plantName: string;
+  quantity: number;
+  costPerUnit: number;
+  potCost?: number;
+  soilCost?: number;
+  pottedDate?: string;
+  nurseryMonthlyCost?: number;
+}
+
+// --- Helper Function for Cost Calculation ---
+const calculateTotalCurrentCost = (plant: PurchasedPlant): number => {
+  const initialCost = plant.costPerUnit || 0;
+  const potCost = plant.potCost || 0;
+  const soilCost = plant.soilCost || 0;
+
+  let nurseryCost = 0;
+  if (plant.pottedDate && plant.nurseryMonthlyCost) {
+    const pottedDate = new Date(plant.pottedDate);
+    const today = new Date();
+    
+    // Calculate full months elapsed
+    const monthsElapsed = (today.getFullYear() - pottedDate.getFullYear()) * 12 + (today.getMonth() - pottedDate.getMonth());
+    
+    nurseryCost = monthsElapsed > 0 ? monthsElapsed * plant.nurseryMonthlyCost : 0;
+  }
+
+  return initialCost + potCost + soilCost + nurseryCost;
+};
+
+
+// --- The Main React Component ---
+export default function PurchaseCostManager() {
+  const [plants, setPlants] = useState<PurchasedPlant[]>([]);
+  const [selectedPlant, setSelectedPlant] = useState<PurchasedPlant | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // State for the cost update form
+  const [formPotCost, setFormPotCost] = useState('');
+  const [formSoilCost, setFormSoilCost] = useState('');
+  const [formMonthlyCost, setFormMonthlyCost] = useState('');
+
+  // Fetch purchase data on component load
+  useEffect(() => {
+    // We are fetching purchase with ID 1 for this example
+    fetch('http://localhost:3001/api/purchases/1')
+      .then(res => res.json())
+      .then(data => {
+        setPlants(data.plants);
+        setIsLoading(false);
+      })
+      .catch(error => {
+        console.error("Error fetching data:", error);
+        setIsLoading(false);
+      });
+  }, []);
+
+  // Handle opening the modal and setting initial form values
+  const handleOpenModal = (plant: PurchasedPlant) => {
+    setSelectedPlant(plant);
+    setFormPotCost(String(plant.potCost || ''));
+    setFormSoilCost(String(plant.soilCost || ''));
+    setFormMonthlyCost(String(plant.nurseryMonthlyCost || ''));
+  };
+  
+  // Handle form submission
+  const handleUpdateCosts = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPlant) return;
+
+    const payload = {
+      potCost: parseFloat(formPotCost) || 0,
+      soilCost: parseFloat(formSoilCost) || 0,
+      nurseryMonthlyCost: parseFloat(formMonthlyCost) || 0,
+    };
+
+    fetch(`http://localhost:3001/api/purchased-plants/${selectedPlant.id}/update-costs`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    .then(res => res.json())
+    .then(updatedPlant => {
+      // Update the state with the new plant data
+      setPlants(prevPlants => prevPlants.map(p => p.id === updatedPlant.id ? updatedPlant : p));
+      setSelectedPlant(null); // Close modal
+    })
+    .catch(error => console.error("Error updating costs:", error));
+  };
+
+
+  if (isLoading) return <div>Loading purchase details...</div>;
+
+  return (
+    <div style={{ fontFamily: 'sans-serif', padding: '20px', maxWidth: '800px', margin: 'auto' }}>
+      <h1>Purchase Order #1 Cost Manager</h1>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr style={{ backgroundColor: '#f2f2f2' }}>
+            <th style={tableCellStyle}>Plant Name</th>
+            <th style={tableCellStyle}>Initial Cost</th>
+            <th style={{...tableCellStyle, color: 'blue' }}>Total Current Cost</th>
+            <th style={tableCellStyle}>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {plants.map(plant => (
+            <tr key={plant.id}>
+              <td style={tableCellStyle}>{plant.plantName}</td>
+              <td style={tableCellStyle}>€{plant.costPerUnit.toFixed(2)}</td>
+              <td style={{...tableCellStyle, fontWeight: 'bold' }}>€{calculateTotalCurrentCost(plant).toFixed(2)}</td>
+              <td style={tableCellStyle}>
+                <button onClick={() => handleOpenModal(plant)}>Update Costs</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {/* Modal for updating costs */}
+      {selectedPlant && (
+        <div style={modalOverlayStyle}>
+          <div style={modalContentStyle}>
+            <h2>Update Costs for {selectedPlant.plantName}</h2>
+            <form onSubmit={handleUpdateCosts}>
+              <div style={formGroupStyle}>
+                <label>Pot Cost (€)</label>
+                <input type="number" step="0.01" value={formPotCost} onChange={e => setFormPotCost(e.target.value)} style={inputStyle} />
+              </div>
+              <div style={formGroupStyle}>
+                <label>Soil Cost (€)</label>
+                <input type="number" step="0.01" value={formSoilCost} onChange={e => setFormSoilCost(e.target.value)} style={inputStyle} />
+              </div>
+              <div style={formGroupStyle}>
+                <label>Nursery Monthly Cost (€)</label>
+                <input type="number" step="0.01" value={formMonthlyCost} onChange={e => setFormMonthlyCost(e.target.value)} style={inputStyle} />
+              </div>
+              <div style={{ marginTop: '20px' }}>
+                <button type="submit">Save Changes</button>
+                <button type="button" onClick={() => setSelectedPlant(null)} style={{ marginLeft: '10px' }}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Basic CSS-in-JS for styling ---
+const tableCellStyle = {
+  border: '1px solid #ddd',
+  padding: '8px',
+  textAlign: 'left' as const,
+};
+
+const modalOverlayStyle: React.CSSProperties = {
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+const modalContentStyle: React.CSSProperties = {
+  backgroundColor: 'white',
+  padding: '20px',
+  borderRadius: '5px',
+  width: '400px',
+};
+
+const formGroupStyle = {
+  marginBottom: '15px',
+};
+
+const inputStyle = {
+  width: '100%',
+  padding: '8px',
+  boxSizing: 'border-box' as const,
+};
+
