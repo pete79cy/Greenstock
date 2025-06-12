@@ -155,6 +155,7 @@ export default function BackupRestore() {
 
   return (
     <div className="container max-w-4xl mx-auto p-6 space-y-8">
+      <BackToMenuButton />
       <div className="text-center space-y-2">
         <div className="flex items-center justify-center gap-2 mb-4">
           <Shield className="h-8 w-8 text-blue-600" />
