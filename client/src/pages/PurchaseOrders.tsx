@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -54,8 +55,15 @@ export default function PurchaseOrders() {
 
   // Mutation for creating purchase orders
   const createOrderMutation = useMutation({
-    mutationFn: (data: CreatePurchaseOrderForm) =>
-      apiRequest("/api/purchase-orders", "POST", data),
+    mutationFn: (data: CreatePurchaseOrderForm) => {
+      // Convert costs to cents for storage
+      const payload = {
+        ...data,
+        shippingCost: data.shippingCost ? Math.round(data.shippingCost * 100) : undefined,
+        customsCost: data.customsCost ? Math.round(data.customsCost * 100) : undefined,
+      };
+      return apiRequest("/api/purchase-orders", "POST", payload);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] });
       setIsCreateModalOpen(false);
@@ -139,19 +147,102 @@ export default function PurchaseOrders() {
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="purchaseDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Purchase Date</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="purchaseDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Purchase Date</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="arrivalDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Expected Arrival Date (Optional)</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="currency"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Currency</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select currency" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="EUR">EUR (Euro)</SelectItem>
+                            <SelectItem value="USD">USD (US Dollar)</SelectItem>
+                            <SelectItem value="GBP">GBP (British Pound)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="shippingCost"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Shipping Cost (Optional)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="0.00"
+                            {...field}
+                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="customsCost"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Customs/Tax Cost (Optional)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="0.00"
+                            {...field}
+                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <FormField
                   control={form.control}
