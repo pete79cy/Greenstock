@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Download, Upload, Shield, Database, AlertTriangle, CheckCircle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import BackToMenuButton from "@/components/BackToMenuButton";
 
 export default function BackupRestore() {
   const { toast } = useToast();

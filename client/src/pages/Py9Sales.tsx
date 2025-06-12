@@ -190,6 +190,7 @@ export default function Py9Sales() {
 
   return (
     <div className="space-y-6">
+      <BackToMenuButton />
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">ΠΥ9 - Εισαγωγή Πωλήσεων</h1>

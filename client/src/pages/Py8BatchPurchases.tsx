@@ -150,6 +150,7 @@ export default function Py8BatchPurchases() {
 
   return (
     <div className="container mx-auto p-6">
+      <BackToMenuButton />
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
