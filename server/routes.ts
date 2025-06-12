@@ -2806,6 +2806,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Purchase order management routes
+  
+  // GET all purchase orders
+  app.get("/api/purchase-orders", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const orders = await storage.getAllPurchaseOrders();
+      res.json(orders);
+    } catch (error) {
+      console.error("Error fetching purchase orders:", error);
+      res.status(500).json({ message: "Failed to fetch purchase orders" });
+    }
+  });
+
+  // GET specific purchase order with plants
+  app.get("/api/purchase-orders/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const purchaseView = await storage.getPurchaseView(id);
+      
+      if (!purchaseView) {
+        return res.status(404).json({ message: "Purchase order not found" });
+      }
+      
+      res.json(purchaseView);
+    } catch (error) {
+      console.error("Error fetching purchase order:", error);
+      res.status(500).json({ message: "Failed to fetch purchase order" });
+    }
+  });
+
+  // POST create new purchase order
+  app.post("/api/purchase-orders", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const order = await storage.createPurchaseOrder(req.body);
+      res.status(201).json(order);
+    } catch (error) {
+      console.error("Error creating purchase order:", error);
+      res.status(500).json({ message: "Failed to create purchase order" });
+    }
+  });
+
+  // POST create purchased plant for an order
+  app.post("/api/purchase-orders/:id/plants", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const purchaseOrderId = parseInt(req.params.id);
+      const plantData = { ...req.body, purchaseOrderId };
+      
+      const plant = await storage.createPurchasedPlant(plantData);
+      res.status(201).json(plant);
+    } catch (error) {
+      console.error("Error creating purchased plant:", error);
+      res.status(500).json({ message: "Failed to create purchased plant" });
+    }
+  });
+
+  // PUT update purchased plant costs
+  app.put("/api/purchased-plants/:plantId/update-costs", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const plantId = parseInt(req.params.plantId);
+      const { potCost, soilCost, nurseryMonthlyCost } = req.body;
+
+      // Convert euro values to cents for storage
+      const costsInCents = {
+        potCost: potCost ? Math.round(potCost * 100) : undefined,
+        soilCost: soilCost ? Math.round(soilCost * 100) : undefined,
+        nurseryMonthlyCost: nurseryMonthlyCost ? Math.round(nurseryMonthlyCost * 100) : undefined,
+      };
+
+      const updatedPlant = await storage.updatePurchasedPlantCosts(plantId, costsInCents);
+      
+      if (!updatedPlant) {
+        return res.status(404).json({ message: "Plant not found" });
+      }
+
+      console.log("Updated Plant:", updatedPlant);
+      res.json(updatedPlant);
+    } catch (error) {
+      console.error("Error updating plant costs:", error);
+      res.status(500).json({ message: "Failed to update plant costs" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -11,7 +11,10 @@ import {
   regulatoryChecks, type RegulatoryCheck, type InsertRegulatoryCheck, type UpdateRegulatoryCheck,
   employeeDocuments, type EmployeeDocument, type InsertEmployeeDocument,
   employeeLeaves, type EmployeeLeave, type InsertEmployeeLeave, type UpdateEmployeeLeave,
-  employeeLeaveBalances, type EmployeeLeaveBalance, type InsertEmployeeLeaveBalance
+  employeeLeaveBalances, type EmployeeLeaveBalance, type InsertEmployeeLeaveBalance,
+  purchaseOrders, type PurchaseOrder, type InsertPurchaseOrder,
+  purchasedPlants, type PurchasedPlant, type InsertPurchasedPlant, type UpdatePurchasedPlantCosts,
+  type PurchaseView
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql } from "drizzle-orm";
@@ -114,6 +117,20 @@ export interface IStorage {
   // Employee leave balance methods
   getEmployeeLeaveBalances(employeePassport: string, year: number): Promise<EmployeeLeaveBalance[]>;
   createEmployeeLeaveBalance(balance: InsertEmployeeLeaveBalance): Promise<EmployeeLeaveBalance>;
+  
+  // Purchase order methods
+  getAllPurchaseOrders(): Promise<PurchaseOrder[]>;
+  getPurchaseOrder(id: number): Promise<PurchaseOrder | undefined>;
+  createPurchaseOrder(order: InsertPurchaseOrder): Promise<PurchaseOrder>;
+  
+  // Purchased plant methods
+  getPurchasedPlantsForOrder(purchaseOrderId: number): Promise<PurchasedPlant[]>;
+  getPurchasedPlant(id: number): Promise<PurchasedPlant | undefined>;
+  createPurchasedPlant(plant: InsertPurchasedPlant): Promise<PurchasedPlant>;
+  updatePurchasedPlantCosts(id: number, costs: UpdatePurchasedPlantCosts): Promise<PurchasedPlant | undefined>;
+  
+  // Combined purchase view methods
+  getPurchaseView(id: number): Promise<PurchaseView | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -899,6 +916,96 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return balance;
+  }
+
+  // Purchase order methods
+  async getAllPurchaseOrders(): Promise<PurchaseOrder[]> {
+    return await db
+      .select()
+      .from(purchaseOrders)
+      .orderBy(desc(purchaseOrders.purchaseDate));
+  }
+
+  async getPurchaseOrder(id: number): Promise<PurchaseOrder | undefined> {
+    const [order] = await db
+      .select()
+      .from(purchaseOrders)
+      .where(eq(purchaseOrders.id, id));
+    return order || undefined;
+  }
+
+  async createPurchaseOrder(insertOrder: InsertPurchaseOrder): Promise<PurchaseOrder> {
+    const now = new Date();
+    const [order] = await db
+      .insert(purchaseOrders)
+      .values({
+        ...insertOrder,
+        createdAt: now,
+        updatedAt: now
+      })
+      .returning();
+    return order;
+  }
+
+  // Purchased plant methods
+  async getPurchasedPlantsForOrder(purchaseOrderId: number): Promise<PurchasedPlant[]> {
+    return await db
+      .select()
+      .from(purchasedPlants)
+      .where(eq(purchasedPlants.purchaseOrderId, purchaseOrderId))
+      .orderBy(asc(purchasedPlants.plantName));
+  }
+
+  async getPurchasedPlant(id: number): Promise<PurchasedPlant | undefined> {
+    const [plant] = await db
+      .select()
+      .from(purchasedPlants)
+      .where(eq(purchasedPlants.id, id));
+    return plant || undefined;
+  }
+
+  async createPurchasedPlant(insertPlant: InsertPurchasedPlant): Promise<PurchasedPlant> {
+    const now = new Date();
+    const [plant] = await db
+      .insert(purchasedPlants)
+      .values({
+        ...insertPlant,
+        createdAt: now,
+        updatedAt: now
+      })
+      .returning();
+    return plant;
+  }
+
+  async updatePurchasedPlantCosts(id: number, costs: UpdatePurchasedPlantCosts): Promise<PurchasedPlant | undefined> {
+    const updateData: any = { updatedAt: new Date() };
+    
+    if (costs.potCost !== undefined) updateData.potCost = costs.potCost;
+    if (costs.soilCost !== undefined) updateData.soilCost = costs.soilCost;
+    if (costs.nurseryMonthlyCost !== undefined) updateData.nurseryMonthlyCost = costs.nurseryMonthlyCost;
+    
+    // Set potted date to now when updating costs
+    updateData.pottedDate = new Date().toISOString();
+
+    const [plant] = await db
+      .update(purchasedPlants)
+      .set(updateData)
+      .where(eq(purchasedPlants.id, id))
+      .returning();
+    return plant || undefined;
+  }
+
+  // Combined purchase view methods
+  async getPurchaseView(id: number): Promise<PurchaseView | undefined> {
+    const order = await this.getPurchaseOrder(id);
+    if (!order) return undefined;
+
+    const plants = await this.getPurchasedPlantsForOrder(id);
+
+    return {
+      ...order,
+      plants
+    };
   }
 }
 
