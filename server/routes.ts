@@ -3,10 +3,10 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { plants } from "@shared/schema";
-import { sql } from "drizzle-orm";
+import { sql, eq, desc, ilike, and, gte, lte } from "drizzle-orm";
 import multer from "multer";
 import * as XLSX from "xlsx";
-import { insertPlantSchema, updatePlantSchema, insertPurchasesPy8Schema, insertSalesPy9Schema, insertEmployeeSchema, updateEmployeeSchema, insertPayslipSchema, updatePayslipSchema, insertRegulatoryCheckSchema, updateRegulatoryCheckSchema, insertEmployeeDocumentSchema, insertEmployeeLeaveSchema, updateEmployeeLeaveSchema, insertEmployeeLeaveBalanceSchema, insertPlantPurchaseSchema, updatePlantPurchaseSchema } from "@shared/schema";
+import { insertPlantSchema, updatePlantSchema, insertPurchasesPy8Schema, insertSalesPy9Schema, insertEmployeeSchema, updateEmployeeSchema, insertPayslipSchema, updatePayslipSchema, insertRegulatoryCheckSchema, updateRegulatoryCheckSchema, insertEmployeeDocumentSchema, insertEmployeeLeaveSchema, updateEmployeeLeaveSchema, insertEmployeeLeaveBalanceSchema, insertPlantPurchaseSchema, updatePlantPurchaseSchema, documents, documentCategories, insertDocumentSchema, updateDocumentSchema } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -3270,6 +3270,280 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error generating monthly payroll report:", error);
       res.status(500).json({ message: "Failed to generate monthly payroll report" });
+    }
+  });
+
+  // Document Center API Routes
+  
+  // Get all document categories
+  app.get("/api/document-categories", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const categories = await db.select().from(documentCategories);
+      res.json(categories);
+    } catch (error) {
+      console.error("Error fetching document categories:", error);
+      res.status(500).json({ message: "Failed to fetch document categories" });
+    }
+  });
+
+  // Get documents by category with filtering
+  app.get("/api/documents", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { category, producerId, year } = req.query;
+      
+      let query = db
+        .select({
+          id: documents.id,
+          categoryId: documents.categoryId,
+          producerId: documents.producerId,
+          title: documents.title,
+          filePath: documents.filePath,
+          fileName: documents.fileName,
+          fileSize: documents.fileSize,
+          issueDate: documents.issueDate,
+          expiryDate: documents.expiryDate,
+          notes: documents.notes,
+          uploadedBy: documents.uploadedBy,
+          createdAt: documents.createdAt,
+          updatedAt: documents.updatedAt,
+          category: {
+            id: documentCategories.id,
+            code: documentCategories.code,
+            nameEl: documentCategories.nameEl,
+            nameEn: documentCategories.nameEn,
+            description: documentCategories.description
+          }
+        })
+        .from(documents)
+        .leftJoin(documentCategories, eq(documents.categoryId, documentCategories.id));
+
+      // Apply filters
+      if (category) {
+        query = query.where(eq(documentCategories.code, category as string));
+      }
+      if (producerId) {
+        query = query.where(ilike(documents.producerId, `%${producerId}%`));
+      }
+      if (year) {
+        query = query.where(sql`extract(year from ${documents.issueDate}) = ${year}`);
+      }
+
+      const results = await query.orderBy(desc(documents.createdAt));
+      
+      // Calculate expiry information
+      const documentsWithExpiry = results.map(doc => {
+        let daysUntilExpiry = null;
+        let isExpired = false;
+        
+        if (doc.expiryDate) {
+          const today = new Date();
+          const expiryDate = new Date(doc.expiryDate);
+          const diffTime = expiryDate.getTime() - today.getTime();
+          daysUntilExpiry = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          isExpired = daysUntilExpiry < 0;
+        }
+        
+        return {
+          ...doc,
+          daysUntilExpiry,
+          isExpired
+        };
+      });
+
+      res.json(documentsWithExpiry);
+    } catch (error) {
+      console.error("Error fetching documents:", error);
+      res.status(500).json({ message: "Failed to fetch documents" });
+    }
+  });
+
+  // Upload new document
+  app.post("/api/documents", isAuthenticated, upload.single("document"), async (req: MulterRequest, res: Response) => {
+    try {
+      const { categoryId, producerId, title, issueDate, expiryDate, notes } = req.body;
+      
+      if (!req.file) {
+        return res.status(400).json({ message: "Document file is required" });
+      }
+
+      // Validate required fields
+      if (!categoryId || !title) {
+        return res.status(400).json({ message: "Category and title are required" });
+      }
+
+      // Create secure filename and save file
+      const uploadDir = path.join(process.cwd(), "uploads");
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+
+      const fileExtension = path.extname(req.file.originalname);
+      const secureFileName = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}${fileExtension}`;
+      const filePath = path.join(uploadDir, secureFileName);
+      
+      fs.writeFileSync(filePath, req.file.buffer);
+
+      // Insert document record
+      const newDocument = await db.insert(documents).values({
+        categoryId: parseInt(categoryId),
+        producerId: producerId || null,
+        title,
+        filePath: `/uploads/${secureFileName}`,
+        fileName: req.file.originalname,
+        fileSize: req.file.size,
+        issueDate: issueDate || null,
+        expiryDate: expiryDate || null,
+        notes: notes || null,
+        uploadedBy: (req.user as any).id
+      }).returning();
+
+      res.status(201).json(newDocument[0]);
+    } catch (error) {
+      console.error("Error uploading document:", error);
+      res.status(500).json({ message: "Failed to upload document" });
+    }
+  });
+
+  // Get single document
+  app.get("/api/documents/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      
+      const document = await db
+        .select({
+          id: documents.id,
+          categoryId: documents.categoryId,
+          producerId: documents.producerId,
+          title: documents.title,
+          filePath: documents.filePath,
+          fileName: documents.fileName,
+          fileSize: documents.fileSize,
+          issueDate: documents.issueDate,
+          expiryDate: documents.expiryDate,
+          notes: documents.notes,
+          uploadedBy: documents.uploadedBy,
+          createdAt: documents.createdAt,
+          updatedAt: documents.updatedAt,
+          category: {
+            id: documentCategories.id,
+            code: documentCategories.code,
+            nameEl: documentCategories.nameEl,
+            nameEn: documentCategories.nameEn,
+            description: documentCategories.description
+          }
+        })
+        .from(documents)
+        .leftJoin(documentCategories, eq(documents.categoryId, documentCategories.id))
+        .where(eq(documents.id, id))
+        .limit(1);
+
+      if (document.length === 0) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      res.json(document[0]);
+    } catch (error) {
+      console.error("Error fetching document:", error);
+      res.status(500).json({ message: "Failed to fetch document" });
+    }
+  });
+
+  // Update document
+  app.put("/api/documents/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { title, producerId, issueDate, expiryDate, notes } = req.body;
+
+      const updatedDocument = await db
+        .update(documents)
+        .set({
+          title,
+          producerId,
+          issueDate,
+          expiryDate,
+          notes,
+          updatedAt: new Date()
+        })
+        .where(eq(documents.id, id))
+        .returning();
+
+      if (updatedDocument.length === 0) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      res.json(updatedDocument[0]);
+    } catch (error) {
+      console.error("Error updating document:", error);
+      res.status(500).json({ message: "Failed to update document" });
+    }
+  });
+
+  // Delete document
+  app.delete("/api/documents/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+
+      // Get document to delete file
+      const document = await db
+        .select()
+        .from(documents)
+        .where(eq(documents.id, id))
+        .limit(1);
+
+      if (document.length === 0) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      // Delete file from filesystem
+      const fullPath = path.join(process.cwd(), document[0].filePath.replace(/^\//, ''));
+      if (fs.existsSync(fullPath)) {
+        fs.unlinkSync(fullPath);
+      }
+
+      // Delete database record
+      await db.delete(documents).where(eq(documents.id, id));
+
+      res.json({ message: "Document deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting document:", error);
+      res.status(500).json({ message: "Failed to delete document" });
+    }
+  });
+
+  // Get expiring documents (for alerts)
+  app.get("/api/documents/expiring", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { days = 30 } = req.query;
+      const daysAhead = parseInt(days as string);
+      
+      const today = new Date();
+      const futureDate = new Date();
+      futureDate.setDate(today.getDate() + daysAhead);
+
+      const expiringDocs = await db
+        .select({
+          id: documents.id,
+          title: documents.title,
+          expiryDate: documents.expiryDate,
+          category: {
+            nameEl: documentCategories.nameEl,
+            code: documentCategories.code
+          }
+        })
+        .from(documents)
+        .leftJoin(documentCategories, eq(documents.categoryId, documentCategories.id))
+        .where(
+          and(
+            gte(documents.expiryDate, today.toISOString().split('T')[0]),
+            lte(documents.expiryDate, futureDate.toISOString().split('T')[0])
+          )
+        )
+        .orderBy(documents.expiryDate);
+
+      res.json(expiringDocs);
+    } catch (error) {
+      console.error("Error fetching expiring documents:", error);
+      res.status(500).json({ message: "Failed to fetch expiring documents" });
     }
   });
 
