@@ -3506,7 +3506,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get expiring documents (for alerts) - moved before single document route
+  // Get expiring documents (for alerts)
   app.get("/api/documents/expiring", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const { days = 30 } = req.query;
