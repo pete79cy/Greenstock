@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Download, Calendar, DollarSign, Calculator, Printer } from "lucide-react";
+import { Plus, Download, Calendar, DollarSign, Calculator, Printer, FileText, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPayslipSchema, type Employee, type Payslip, type InsertPayslip, type PayslipCalculation } from "@shared/schema";
@@ -19,6 +20,7 @@ export default function Payslips() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [calculations, setCalculations] = useState<PayslipCalculation | null>(null);
+  const [selectedReportMonth, setSelectedReportMonth] = useState<string>(new Date().toISOString().slice(0, 7));
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -131,6 +133,42 @@ export default function Payslips() {
     return acc;
   }, {});
 
+  // Filter payslips by selected month for monthly report
+  const getPayslipsForMonth = (month: string) => {
+    return payslips.filter(payslip => payslip.payPeriod === month);
+  };
+
+  // Calculate monthly totals
+  const calculateMonthlyTotals = (monthPayslips: Payslip[]) => {
+    return monthPayslips.reduce((totals, payslip) => {
+      return {
+        totalGrossSalary: totals.totalGrossSalary + payslip.grossSalary,
+        totalSocialInsurance: totals.totalSocialInsurance + payslip.socialInsurance,
+        totalGesy: totals.totalGesy + payslip.gesy,
+        totalDeductions: totals.totalDeductions + payslip.totalDeductions,
+        totalNetPay: totals.totalNetPay + payslip.netPay,
+        employeeCount: monthPayslips.length,
+      };
+    }, {
+      totalGrossSalary: 0,
+      totalSocialInsurance: 0,
+      totalGesy: 0,
+      totalDeductions: 0,
+      totalNetPay: 0,
+      employeeCount: 0,
+    });
+  };
+
+  // Get unique months from payslips for dropdown
+  const getAvailableMonths = () => {
+    const uniqueMonths = new Set(payslips.map(p => p.payPeriod));
+    const months = Array.from(uniqueMonths);
+    return months.sort().reverse(); // Latest months first
+  };
+
+  const monthlyPayslips = getPayslipsForMonth(selectedReportMonth);
+  const monthlyTotals = calculateMonthlyTotals(monthlyPayslips);
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -164,7 +202,7 @@ export default function Payslips() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Payslip Management</h1>
           <p className="text-muted-foreground">
-            Generate payslips with automatic Cyprus deduction calculations (8.3% Social Insurance + 2.65% GESY)
+            Generate payslips with automatic Cyprus deduction calculations and monthly reports
           </p>
         </div>
         <Button onClick={handleCreate} className="flex items-center gap-2">
@@ -173,7 +211,20 @@ export default function Payslips() {
         </Button>
       </div>
 
-      {/* Recent Payslips */}
+      <Tabs defaultValue="payslips" className="space-y-6">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="payslips" className="flex items-center gap-2">
+            <Calculator className="h-4 w-4" />
+            Payslips
+          </TabsTrigger>
+          <TabsTrigger value="reports" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Monthly Reports
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="payslips" className="space-y-6">
+          {/* Recent Payslips */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {payslips.slice(0, 6).map((payslip: Payslip) => (
           <Card key={payslip.id}>
@@ -313,6 +364,156 @@ export default function Payslips() {
           ))}
         </div>
       )}
+        </TabsContent>
+
+        <TabsContent value="reports" className="space-y-6">
+          {/* Monthly Report Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Monthly Salary Report
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                View net salary payments and totals for a specific month
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="flex-1 max-w-xs">
+                  <label htmlFor="month-select" className="block text-sm font-medium mb-2">
+                    Select Month
+                  </label>
+                  <Select value={selectedReportMonth} onValueChange={setSelectedReportMonth}>
+                    <SelectTrigger id="month-select">
+                      <SelectValue placeholder="Select month" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getAvailableMonths().map((month) => (
+                        <SelectItem key={month} value={month}>
+                          {formatPeriod(month)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    const url = `/api/reports/monthly-payroll?month=${selectedReportMonth}`;
+                    window.open(url, '_blank');
+                  }}
+                  className="mt-6"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export PDF
+                </Button>
+              </div>
+
+              {monthlyPayslips.length > 0 ? (
+                <div className="space-y-6">
+                  {/* Summary Cards */}
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="h-4 w-4 text-green-600" />
+                          <div>
+                            <p className="text-sm text-muted-foreground">Total Net Pay</p>
+                            <p className="text-2xl font-bold text-green-600">{formatCurrency(monthlyTotals.totalNetPay)}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="h-4 w-4 text-blue-600" />
+                          <div>
+                            <p className="text-sm text-muted-foreground">Total Gross Pay</p>
+                            <p className="text-2xl font-bold">{formatCurrency(monthlyTotals.totalGrossSalary)}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="h-4 w-4 text-red-600" />
+                          <div>
+                            <p className="text-sm text-muted-foreground">Total Deductions</p>
+                            <p className="text-2xl font-bold text-red-600">{formatCurrency(monthlyTotals.totalDeductions)}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-purple-600" />
+                          <div>
+                            <p className="text-sm text-muted-foreground">Employees Paid</p>
+                            <p className="text-2xl font-bold">{monthlyTotals.employeeCount}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Detailed Breakdown */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Salary Breakdown for {formatPeriod(selectedReportMonth)}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {monthlyPayslips.map((payslip) => (
+                          <div key={payslip.id} className="flex items-center justify-between p-4 border rounded-lg">
+                            <div className="flex items-center gap-4">
+                              <div>
+                                <p className="font-semibold">{getEmployeeName(payslip.employeePassport)}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Paid on {formatDate(payslip.payDate)}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="grid grid-cols-3 gap-6 text-sm">
+                                <div>
+                                  <p className="text-muted-foreground">Gross</p>
+                                  <p className="font-medium">{formatCurrency(payslip.grossSalary)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Deductions</p>
+                                  <p className="font-medium text-red-600">-{formatCurrency(payslip.totalDeductions)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Net Pay</p>
+                                  <p className="font-semibold text-green-600">{formatCurrency(payslip.netPay)}</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              ) : (
+                <Card className="text-center py-12">
+                  <CardContent>
+                    <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No payslips found</h3>
+                    <p className="text-muted-foreground">
+                      No payslips were generated for {formatPeriod(selectedReportMonth)}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-lg">
