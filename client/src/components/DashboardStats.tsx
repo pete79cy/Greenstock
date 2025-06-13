@@ -7,7 +7,9 @@ import {
   Package, 
   Users, 
   Sprout, 
-  DollarSign 
+  DollarSign,
+  ShoppingCart,
+  BarChart3
 } from "lucide-react";
 
 interface DashboardStats {
@@ -17,6 +19,8 @@ interface DashboardStats {
   activeEmployees: number;
   totalPlants: number;
   monthlyRevenue: number;
+  plantPurchases: number;
+  purchaseAnalysis: number;
 }
 
 export function DashboardStats() {
@@ -84,10 +88,26 @@ export function DashboardStats() {
       bgColor: "bg-green-50",
       borderColor: "border-green-200",
     },
+    {
+      title: "Αγορές Φυτών",
+      value: stats.plantPurchases,
+      icon: ShoppingCart,
+      color: "text-blue-600",
+      bgColor: "bg-blue-50",
+      borderColor: "border-blue-200",
+    },
+    {
+      title: "Ανάλυση Αγορών",
+      value: stats.purchaseAnalysis,
+      icon: BarChart3,
+      color: "text-indigo-600",
+      bgColor: "bg-indigo-50",
+      borderColor: "border-indigo-200",
+    },
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
       {statCards.map((stat, index) => {
         const Icon = stat.icon;
         return (

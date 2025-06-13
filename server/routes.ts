@@ -64,13 +64,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const thisMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
       const monthlyRevenue = await storage.getMonthlyRevenue?.(thisMonth) || 0;
 
+      // Get plant purchases count (total plant purchases this month)
+      const plantPurchases = await storage.getPlantPurchasesCount?.(thisMonth) || 0;
+
+      // Get purchase analysis data (active suppliers or recent purchase orders)
+      const purchaseAnalysis = await storage.getPurchaseAnalysisCount?.() || 0;
+
       res.json({
         expiringLicences,
         salesToday,
         pendingPOs,
         activeEmployees,
         totalPlants,
-        monthlyRevenue
+        monthlyRevenue,
+        plantPurchases,
+        purchaseAnalysis
       });
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
