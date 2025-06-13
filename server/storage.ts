@@ -12,7 +12,9 @@ import {
   employeeDocuments, type EmployeeDocument, type InsertEmployeeDocument,
   employeeLeaves, type EmployeeLeave, type InsertEmployeeLeave, type UpdateEmployeeLeave,
   employeeLeaveBalances, type EmployeeLeaveBalance, type InsertEmployeeLeaveBalance,
-  plantPurchases, type PlantPurchase, type InsertPlantPurchase, type UpdatePlantPurchase, type PlantPurchaseAnalysis
+  plantPurchases, type PlantPurchase, type InsertPlantPurchase, type UpdatePlantPurchase, type PlantPurchaseAnalysis,
+  documents, type Document, type InsertDocument, type UpdateDocument,
+  documentCategories, type DocumentCategory, type InsertDocumentCategory
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql } from "drizzle-orm";
@@ -133,6 +135,18 @@ export interface IStorage {
   getActiveEmployeesCount(): Promise<number>;
   getTotalPlantsCount(): Promise<number>;
   getMonthlyRevenue(month: string): Promise<number>;
+  
+  // Document Center methods
+  getAllDocuments(): Promise<Document[]>;
+  getDocument(id: string): Promise<Document | undefined>;
+  createDocument(document: InsertDocument): Promise<Document>;
+  updateDocument(id: string, document: UpdateDocument): Promise<Document | undefined>;
+  deleteDocument(id: string): Promise<boolean>;
+  
+  // Document Categories methods
+  getAllDocumentCategories(): Promise<DocumentCategory[]>;
+  getDocumentCategory(id: number): Promise<DocumentCategory | undefined>;
+  createDocumentCategory(category: InsertDocumentCategory): Promise<DocumentCategory>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1153,6 +1167,59 @@ export class DatabaseStorage implements IStorage {
       console.error("Error getting purchase analysis count:", error);
       return 0;
     }
+  }
+
+  // Document Center methods
+  async getAllDocuments(): Promise<Document[]> {
+    return await db.select().from(documents).orderBy(desc(documents.createdAt));
+  }
+
+  async getDocument(id: string): Promise<Document | undefined> {
+    const [document] = await db.select().from(documents).where(eq(documents.id, id));
+    return document || undefined;
+  }
+
+  async createDocument(insertDocument: InsertDocument): Promise<Document> {
+    const [document] = await db
+      .insert(documents)
+      .values(insertDocument)
+      .returning();
+    return document;
+  }
+
+  async updateDocument(id: string, updateDocument: UpdateDocument): Promise<Document | undefined> {
+    const [document] = await db
+      .update(documents)
+      .set({
+        ...updateDocument,
+        updatedAt: new Date()
+      })
+      .where(eq(documents.id, id))
+      .returning();
+    return document || undefined;
+  }
+
+  async deleteDocument(id: string): Promise<boolean> {
+    const result = await db.delete(documents).where(eq(documents.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // Document Categories methods
+  async getAllDocumentCategories(): Promise<DocumentCategory[]> {
+    return await db.select().from(documentCategories).orderBy(asc(documentCategories.nameEl));
+  }
+
+  async getDocumentCategory(id: number): Promise<DocumentCategory | undefined> {
+    const [category] = await db.select().from(documentCategories).where(eq(documentCategories.id, id));
+    return category || undefined;
+  }
+
+  async createDocumentCategory(insertCategory: InsertDocumentCategory): Promise<DocumentCategory> {
+    const [category] = await db
+      .insert(documentCategories)
+      .values(insertCategory)
+      .returning();
+    return category;
   }
 }
 

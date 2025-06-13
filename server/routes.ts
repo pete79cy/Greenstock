@@ -99,7 +99,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Backup and Restore Routes - Critical for data protection
   app.get("/api/backup", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      console.log("Starting full database backup...");
+      console.log("Starting comprehensive backup with database records and encrypted documents...");
       
       // Get all critical data from all tables
       const employees = await storage.getAllEmployees();
@@ -112,6 +112,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let plantInventories: any[] = [];
       let purchasesPy8: any[] = [];
       let salesPy9: any[] = [];
+      let documents: any[] = [];
+      let documentCategories: any[] = [];
+      let employeeDocuments: any[] = [];
+      let regulatoryChecks: any[] = [];
       
       try {
         users = await storage.getAllUsers();
@@ -143,14 +147,134 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("PY9 sales method not available");
       }
 
+      try {
+        documents = await storage.getAllDocuments();
+      } catch (e) {
+        console.log("Documents method not available");
+      }
+
+      try {
+        documentCategories = await storage.getAllDocumentCategories();
+      } catch (e) {
+        console.log("Document categories method not available");
+      }
+
+      try {
+        regulatoryChecks = await storage.getAllRegulatoryChecks();
+      } catch (e) {
+        console.log("Regulatory checks method not available");
+      }
+
+      // Get all employee documents for each employee
+      const allEmployeeDocuments: any[] = [];
+      for (const employee of employees) {
+        try {
+          const empDocs = await storage.getEmployeeDocuments(employee.passport);
+          allEmployeeDocuments.push(...empDocs);
+        } catch (e) {
+          console.log(`Could not fetch documents for employee ${employee.passport}`);
+        }
+      }
+      employeeDocuments = allEmployeeDocuments;
+
+      // Backup encrypted document files
+      console.log("Backing up encrypted document files...");
+      const documentFiles: any[] = [];
+      
+      // Backup employee documents (encrypted files)
+      for (const empDoc of employeeDocuments) {
+        try {
+          const encryptedFilePath = path.join(process.cwd(), empDoc.filePath);
+          if (fs.existsSync(encryptedFilePath)) {
+            const fileBuffer = fs.readFileSync(encryptedFilePath);
+            documentFiles.push({
+              type: 'employee_document',
+              id: empDoc.id,
+              filePath: empDoc.filePath,
+              fileName: empDoc.fileName,
+              fileSize: empDoc.fileSize,
+              encryptedData: fileBuffer.toString('base64'), // Store as base64
+              metadata: {
+                employeePassport: empDoc.employeePassport,
+                documentType: empDoc.documentType,
+                uploadedAt: empDoc.uploadedAt
+              }
+            });
+          }
+        } catch (error) {
+          console.warn(`Failed to backup employee document file ${empDoc.fileName}:`, error);
+        }
+      }
+
+      // Backup document center files
+      for (const doc of documents) {
+        try {
+          const docFilePath = path.join(process.cwd(), doc.filePath);
+          if (fs.existsSync(docFilePath)) {
+            const fileBuffer = fs.readFileSync(docFilePath);
+            documentFiles.push({
+              type: 'document_center',
+              id: doc.id,
+              filePath: doc.filePath,
+              fileName: doc.fileName,
+              fileSize: doc.fileSize,
+              encryptedData: fileBuffer.toString('base64'), // Store as base64
+              metadata: {
+                title: doc.title,
+                categoryId: doc.categoryId,
+                producerId: doc.producerId,
+                issueDate: doc.issueDate,
+                expiryDate: doc.expiryDate,
+                notes: doc.notes,
+                uploadedBy: doc.uploadedBy
+              }
+            });
+          }
+        } catch (error) {
+          console.warn(`Failed to backup document center file ${doc.fileName}:`, error);
+        }
+      }
+
+      // Backup regulatory check documents
+      for (const regCheck of regulatoryChecks) {
+        try {
+          if (regCheck.documentUrl) {
+            const regDocPath = path.join(process.cwd(), regCheck.documentUrl);
+            if (fs.existsSync(regDocPath)) {
+              const fileBuffer = fs.readFileSync(regDocPath);
+              documentFiles.push({
+                type: 'regulatory_document',
+                id: regCheck.id,
+                filePath: regCheck.documentUrl,
+                fileName: path.basename(regCheck.documentUrl),
+                fileSize: fileBuffer.length,
+                encryptedData: fileBuffer.toString('base64'),
+                metadata: {
+                  producerId: regCheck.producerId,
+                  date: regCheck.date,
+                  formType: regCheck.formType,
+                  notes: regCheck.notes,
+                  isRenewable: regCheck.isRenewable
+                }
+              });
+            }
+          }
+        } catch (error) {
+          console.warn(`Failed to backup regulatory document ${regCheck.documentUrl}:`, error);
+        }
+      }
+
       // Calculate total records safely
       const totalRecords = (users?.length || 0) + (employees?.length || 0) + (payslips?.length || 0) + 
                           (plantBases?.length || 0) + (plantInventories?.length || 0) + (plants?.length || 0) +
-                          (purchasesPy8?.length || 0) + (salesPy9?.length || 0);
+                          (purchasesPy8?.length || 0) + (salesPy9?.length || 0) + (documents?.length || 0) +
+                          (documentCategories?.length || 0) + (employeeDocuments?.length || 0) + 
+                          (regulatoryChecks?.length || 0);
 
       const backupData = {
-        version: "1.0",
+        version: "2.0", // Updated version to include documents
         timestamp: new Date().toISOString(),
+        includesEncryptedFiles: true,
         data: {
           users: users?.map((user: any) => ({...user, password: "[PROTECTED]"})) || [], // Don't export passwords
           employees: employees || [],
@@ -159,11 +283,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           plantInventories: plantInventories || [],
           plants: plants || [],
           purchasesPy8: purchasesPy8 || [],
-          salesPy9: salesPy9 || []
+          salesPy9: salesPy9 || [],
+          documents: documents || [],
+          documentCategories: documentCategories || [],
+          employeeDocuments: employeeDocuments || [],
+          regulatoryChecks: regulatoryChecks || []
         },
+        files: documentFiles, // All encrypted document files as base64
         metadata: {
           totalRecords,
-          tables: ["users", "employees", "payslips", "plant_base", "plant_inventory", "plants", "purchases_py8", "sales_py9"],
+          totalFiles: documentFiles.length,
+          fileTypes: {
+            employee_documents: documentFiles.filter(f => f.type === 'employee_document').length,
+            document_center: documentFiles.filter(f => f.type === 'document_center').length,
+            regulatory_documents: documentFiles.filter(f => f.type === 'regulatory_document').length
+          },
+          tables: ["users", "employees", "payslips", "plant_base", "plant_inventory", "plants", "purchases_py8", "sales_py9", "documents", "document_categories", "employee_documents", "regulatory_checks"],
           exportedTables: {
             users: users?.length || 0,
             employees: employees?.length || 0,
@@ -172,19 +307,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
             plantInventories: plantInventories?.length || 0,
             plants: plants?.length || 0,
             purchasesPy8: purchasesPy8?.length || 0,
-            salesPy9: salesPy9?.length || 0
+            salesPy9: salesPy9?.length || 0,
+            documents: documents?.length || 0,
+            documentCategories: documentCategories?.length || 0,
+            employeeDocuments: employeeDocuments?.length || 0,
+            regulatoryChecks: regulatoryChecks?.length || 0
           }
         }
       };
 
-      const filename = `payroll_backup_${new Date().toISOString().split('T')[0]}_${Date.now()}.json`;
+      const filename = `comprehensive_backup_${new Date().toISOString().split('T')[0]}_${Date.now()}.json`;
       
       res.setHeader("Content-Type", "application/json");
       res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
       res.json(backupData);
       
-      console.log(`Backup completed successfully: ${backupData.metadata?.totalRecords || 0} records exported`);
-      console.log(`Backup includes: Employees (${employees?.length || 0}), Payslips (${payslips?.length || 0}), Plants (${plants?.length || 0})`);
+      console.log(`Comprehensive backup completed successfully:`);
+      console.log(`- Database records: ${backupData.metadata?.totalRecords || 0}`);
+      console.log(`- Document files: ${documentFiles.length}`);
+      console.log(`- Employee documents: ${documentFiles.filter(f => f.type === 'employee_document').length}`);
+      console.log(`- Document center files: ${documentFiles.filter(f => f.type === 'document_center').length}`);
+      console.log(`- Regulatory documents: ${documentFiles.filter(f => f.type === 'regulatory_document').length}`);
     } catch (error: any) {
       console.error("Backup failed:", error);
       res.status(500).json({ message: "Failed to create backup", error: error.message });
@@ -197,7 +340,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No backup file provided" });
       }
 
-      console.log("Starting database restoration...");
+      console.log("Starting comprehensive database and file restoration...");
       
       // Parse the backup file
       const backupContent = req.file.buffer.toString('utf8');
@@ -209,7 +352,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log(`Restoring backup from ${backupData.timestamp}`);
+      console.log(`Backup version: ${backupData.version}`);
       console.log(`Total records to restore: ${backupData.metadata?.totalRecords || 'unknown'}`);
+      console.log(`Total files to restore: ${backupData.metadata?.totalFiles || 0}`);
       
       // Start restoration process
       let restoredCounts = {
@@ -219,8 +364,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         plantInventories: 0,
         plants: 0,
         purchasesPy8: 0,
-        salesPy9: 0
+        salesPy9: 0,
+        documents: 0,
+        documentCategories: 0,
+        employeeDocuments: 0,
+        regulatoryChecks: 0
       };
+
+      let restoredFiles = {
+        employee_documents: 0,
+        document_center: 0,
+        regulatory_documents: 0
+      };
+
+      // Restore document categories first (they're referenced by documents)
+      if (backupData.data.documentCategories) {
+        for (const category of backupData.data.documentCategories) {
+          try {
+            await storage.createDocumentCategory(category);
+            restoredCounts.documentCategories++;
+          } catch (error: any) {
+            console.warn(`Failed to restore document category ${category.code}:`, error.message);
+          }
+        }
+      }
 
       // Restore employees (critical payroll data)
       if (backupData.data.employees) {
@@ -303,16 +470,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Restore documents (Document Center)
+      if (backupData.data.documents) {
+        for (const document of backupData.data.documents) {
+          try {
+            await storage.createDocument(document);
+            restoredCounts.documents++;
+          } catch (error: any) {
+            console.warn(`Failed to restore document ${document.id}:`, error.message);
+          }
+        }
+      }
+
+      // Restore employee documents metadata
+      if (backupData.data.employeeDocuments) {
+        for (const empDoc of backupData.data.employeeDocuments) {
+          try {
+            await storage.createEmployeeDocument(empDoc);
+            restoredCounts.employeeDocuments++;
+          } catch (error: any) {
+            console.warn(`Failed to restore employee document ${empDoc.id}:`, error.message);
+          }
+        }
+      }
+
+      // Restore regulatory checks
+      if (backupData.data.regulatoryChecks) {
+        for (const regCheck of backupData.data.regulatoryChecks) {
+          try {
+            await storage.createRegulatoryCheck(regCheck);
+            restoredCounts.regulatoryChecks++;
+          } catch (error: any) {
+            console.warn(`Failed to restore regulatory check ${regCheck.id}:`, error.message);
+          }
+        }
+      }
+
+      // Restore encrypted files if present (version 2.0+ backups)
+      if (backupData.includesEncryptedFiles && backupData.files) {
+        console.log("Restoring encrypted document files...");
+        
+        for (const fileData of backupData.files) {
+          try {
+            // Decode base64 data back to buffer
+            const fileBuffer = Buffer.from(fileData.encryptedData, 'base64');
+            
+            // Ensure directory exists
+            const dirPath = path.dirname(path.join(process.cwd(), fileData.filePath));
+            if (!fs.existsSync(dirPath)) {
+              fs.mkdirSync(dirPath, { recursive: true });
+            }
+            
+            // Write file back to disk
+            const fullFilePath = path.join(process.cwd(), fileData.filePath);
+            fs.writeFileSync(fullFilePath, fileBuffer);
+            
+            restoredFiles[fileData.type as keyof typeof restoredFiles]++;
+            
+          } catch (error: any) {
+            console.warn(`Failed to restore file ${fileData.fileName}:`, error.message);
+          }
+        }
+      }
+
       const totalRestored = Object.values(restoredCounts).reduce((sum, count) => sum + count, 0);
+      const totalFilesRestored = Object.values(restoredFiles).reduce((sum, count) => sum + count, 0);
       
       console.log("Restoration completed:", restoredCounts);
+      console.log("Files restored:", restoredFiles);
       console.log(`Total records restored: ${totalRestored}`);
+      console.log(`Total files restored: ${totalFilesRestored}`);
       
       res.json({
-        message: "Data restoration completed successfully",
+        message: "Comprehensive restoration completed successfully",
         restoredCounts,
+        restoredFiles,
         totalRestored,
-        backupTimestamp: backupData.timestamp
+        totalFilesRestored,
+        backupTimestamp: backupData.timestamp,
+        backupVersion: backupData.version,
+        includesFiles: backupData.includesEncryptedFiles || false
       });
       
     } catch (error: any) {
