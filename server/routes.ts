@@ -3291,49 +3291,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { category, producerId, year } = req.query;
       
-      let query = db
-        .select({
-          id: documents.id,
-          categoryId: documents.categoryId,
-          producerId: documents.producerId,
-          title: documents.title,
-          filePath: documents.filePath,
-          fileName: documents.fileName,
-          fileSize: documents.fileSize,
-          issueDate: documents.issueDate,
-          expiryDate: documents.expiryDate,
-          notes: documents.notes,
-          uploadedBy: documents.uploadedBy,
-          createdAt: documents.createdAt,
-          updatedAt: documents.updatedAt,
-          category: {
-            id: documentCategories.id,
-            code: documentCategories.code,
-            nameEl: documentCategories.nameEl,
-            nameEn: documentCategories.nameEn,
-            description: documentCategories.description
-          }
-        })
-        .from(documents)
-        .leftJoin(documentCategories, eq(documents.categoryId, documentCategories.id));
-
-      // Apply filters using array for multiple conditions
-      const conditions = [];
+      // Start with all documents and filter manually for now
+      const allDocuments = await db.select().from(documents);
+      const allCategories = await db.select().from(documentCategories);
+      
+      // Join documents with categories
+      let results = allDocuments.map(doc => {
+        const categoryInfo = allCategories.find(cat => cat.id === doc.categoryId);
+        return {
+          ...doc,
+          category: categoryInfo || null
+        };
+      });
+      
+      // Apply filters
       if (category) {
-        conditions.push(sql`${documentCategories.code} = ${category}`);
+        results = results.filter(doc => doc.category?.code === category);
       }
       if (producerId) {
-        conditions.push(sql`${documents.producerId} ILIKE ${'%' + producerId + '%'}`);
+        results = results.filter(doc => 
+          doc.producerId && doc.producerId.toLowerCase().includes((producerId as string).toLowerCase())
+        );
       }
       if (year) {
-        conditions.push(sql`extract(year from ${documents.issueDate}) = ${year}`);
+        results = results.filter(doc => {
+          if (!doc.issueDate) return false;
+          const docYear = new Date(doc.issueDate).getFullYear();
+          return docYear === parseInt(year as string);
+        });
       }
-      
-      if (conditions.length > 0) {
-        query = query.where(sql`${conditions.join(' AND ')}`);
-      }
-
-      const results = await query.orderBy(desc(documents.createdAt));
       
       // Calculate expiry information
       const documentsWithExpiry = results.map(doc => {
@@ -3354,6 +3340,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isExpired
         };
       });
+
+      // Sort by creation date (newest first)
+      documentsWithExpiry.sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
 
       res.json(documentsWithExpiry);
     } catch (error) {
@@ -3515,7 +3506,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get expiring documents (for alerts)
+  // Get expiring documents (for alerts) - moved before single document route
   app.get("/api/documents/expiring", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const { days = 30 } = req.query;
@@ -3525,25 +3516,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const futureDate = new Date();
       futureDate.setDate(today.getDate() + daysAhead);
 
-      const expiringDocs = await db
-        .select({
-          id: documents.id,
-          title: documents.title,
-          expiryDate: documents.expiryDate,
-          category: {
-            nameEl: documentCategories.nameEl,
-            code: documentCategories.code
-          }
+      // Get all documents and filter manually
+      const allDocuments = await db.select().from(documents);
+      const allCategories = await db.select().from(documentCategories);
+      
+      const expiringDocs = allDocuments
+        .filter(doc => {
+          if (!doc.expiryDate) return false;
+          const expiryDate = new Date(doc.expiryDate);
+          return expiryDate >= today && expiryDate <= futureDate;
         })
-        .from(documents)
-        .leftJoin(documentCategories, eq(documents.categoryId, documentCategories.id))
-        .where(
-          and(
-            gte(documents.expiryDate, today.toISOString().split('T')[0]),
-            lte(documents.expiryDate, futureDate.toISOString().split('T')[0])
-          )
-        )
-        .orderBy(documents.expiryDate);
+        .map(doc => {
+          const category = allCategories.find(cat => cat.id === doc.categoryId);
+          return {
+            id: doc.id,
+            title: doc.title,
+            expiryDate: doc.expiryDate,
+            category: {
+              nameEl: category?.nameEl || 'Unknown',
+              code: category?.code || 'UNKNOWN'
+            }
+          };
+        })
+        .sort((a, b) => new Date(a.expiryDate!).getTime() - new Date(b.expiryDate!).getTime());
 
       res.json(expiringDocs);
     } catch (error) {

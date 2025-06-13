@@ -205,11 +205,11 @@ export default function DocumentCategoryPage({ categoryCode }: DocumentCategoryP
     );
   };
 
-  const filteredDocuments = documents.filter(doc =>
+  const filteredDocuments = Array.isArray(documents) ? documents.filter(doc =>
     doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     doc.producerId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     doc.notes?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ) : [];
 
   if (isLoading) {
     return (
