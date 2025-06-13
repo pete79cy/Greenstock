@@ -263,7 +263,7 @@ export interface PayslipCalculation {
 }
 
 // Regulatory check form types enum
-export const formTypeEnum = pgEnum("form_type", ["ΦΥ/ΠΥ 3", "Lab Analysis", "Passport"]);
+export const formTypeEnum = pgEnum("form_type", ["ΦΥ/ΠΥ 3", "Lab Analysis", "Passport", "Άδεια Εισαγωγής Λιπασμάτων"]);
 
 // Regulatory checks table for compliance document tracking
 export const regulatoryChecks = pgTable("regulatory_checks", {

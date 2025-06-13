@@ -134,6 +134,7 @@ export default function RegulatoryChecks() {
       case "ΦΥ/ΠΥ 3": return "bg-blue-100 text-blue-800";
       case "Lab Analysis": return "bg-green-100 text-green-800";
       case "Passport": return "bg-purple-100 text-purple-800";
+      case "Άδεια Εισαγωγής Λιπασμάτων": return "bg-orange-100 text-orange-800";
       default: return "bg-gray-100 text-gray-800";
     }
   };
@@ -161,7 +162,7 @@ export default function RegulatoryChecks() {
               Upload Regulatory Document
             </CardTitle>
             <CardDescription>
-              Upload compliance documents such as ΦΥ/ΠΥ 3 forms, lab analyses, or passports
+              Upload compliance documents such as ΦΥ/ΠΥ 3 forms, lab analyses, passports, or fertilizer import licenses
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -199,6 +200,7 @@ export default function RegulatoryChecks() {
                       <SelectItem value="ΦΥ/ΠΥ 3">ΦΥ/ΠΥ 3</SelectItem>
                       <SelectItem value="Lab Analysis">Lab Analysis</SelectItem>
                       <SelectItem value="Passport">Passport</SelectItem>
+                      <SelectItem value="Άδεια Εισαγωγής Λιπασμάτων">Άδεια Εισαγωγής Λιπασμάτων</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
