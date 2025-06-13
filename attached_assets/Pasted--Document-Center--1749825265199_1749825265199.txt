@@ -1,0 +1,203 @@
+Παρακάτω θα βρεις — βήμα-βήμα — πώς θα στήσουμε ένα «Document Center» με ξεχωριστές, εύχρηστες υπο-σελίδες (sub-pages) για όλα τα καίρια έγγραφα της επιχείρησης, αξιοποιώντας **React + TypeScript** στο front-end και **Express** στο back-end, έτσι ώστε:
+
+* κάθε κατηγορία (Ίδρυση, Ετήσιες Άδειες Λειτουργίας, Άδειες Φυτωρίου κ.λπ.) να έχει το δικό της route,
+* τα αρχεία να φιλτράρονται και να ανακτώνται γρήγορα,
+* οι λήξεις/ανανεώσεις να παρακολουθούνται με ασφάλεια και αυτοματισμούς.
+
+---
+
+## 1. Πληροφοριακή αρχιτεκτονική
+
+| Route                           | Τίτλος (el)                | Περιεχόμενο                                            | Παράδειγμα URL                   |
+| ------------------------------- | -------------------------- | ------------------------------------------------------ | -------------------------------- |
+| `/documents/foundation`         | Ιδρυτικά Έγγραφα           | Καταστατικό, τροποποιήσεις κ.ά.                        | `https://…/documents/foundation` |
+| `/documents/operating-licenses` | Ετήσιες Άδειες Λειτουργίας | Άδειες λειτουργίας καταστήματος, περιβαλλοντικές κ.λπ. | `…/documents/operating-licenses` |
+| `/documents/nursery-licenses`   | Άδειες Φυτωρίου Παραγωγής  | Ετήσιες/τριετείς άδειες φυτωρίου, επιθεωρήσεις         | `…/documents/nursery-licenses`   |
+
+*Χρησιμοποιούμε nested routes* (React-Router v6) ώστε το layout να μένει κοινό (sidebar, φίλτρα) και να αλλάζει μόνο το dataset.
+
+```tsx
+// client/src/AppRoutes.tsx
+<Route path="/documents" element={<DocumentsLayout />}>
+  <Route index element={<Navigate to="foundation" replace />} />
+  <Route path="foundation" element={<DocumentCategoryPage category="FOUNDATION" />} />
+  <Route path="operating-licenses" element={<DocumentCategoryPage category="OPERATING_LICENSE" />} />
+  <Route path="nursery-licenses" element={<DocumentCategoryPage category="NURSERY_LICENSE" />} />
+</Route>
+```
+
+---
+
+## 2. Σχήμα δεδομένων & Βάση
+
+### 2.1 PostgreSQL (ενδεικτικά)
+
+```sql
+CREATE TABLE document_categories (
+  id SERIAL PRIMARY KEY,
+  code TEXT UNIQUE NOT NULL,          -- FOUNDATION, OPERATING_LICENSE, etc.
+  name_el TEXT NOT NULL,
+  name_en TEXT NOT NULL
+);
+
+CREATE TABLE documents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  category_id INT REFERENCES document_categories(id),
+  producer_id TEXT,
+  title TEXT,
+  file_path TEXT,                     -- S3 key ή local path
+  issue_date DATE,
+  expiry_date DATE,
+  notes TEXT,
+  uploaded_by INT REFERENCES users(id),
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX ON documents(category_id);
+```
+
+* Αν θες versioning (π.χ. ανεβάζουμε νέα έκδοση άδειας), προσθέτεις `version INT` ή «soft-delete / is\_active».
+* Εάν προτιμάς MongoDB, το σχήμα είναι ισοδύναμα απλό (collection `documents`, sub-field `categoryCode`).
+
+### 2.2 File storage
+
+* **AWS S3**: ιδανικό για αρχεία >10 MB, public-private bucket με presigned URLs.
+* **Local disk** (multer στο Express) για on-prem ή μικρές εγκαταστάσεις.
+
+---
+
+## 3. Back-end API (Express + TypeScript)
+
+```ts
+// server/routes/documents.ts
+router.get('/', auth, async (req, res) => {
+  const { category, producerId, year } = req.query;
+  const docs = await db('documents')
+      .modify(q => {
+        if (category) q.where('category_id', category);
+        if (producerId) q.where('producer_id', 'ilike', `%${producerId}%`);
+        if (year) q.whereRaw('extract(year from issue_date) = ?', [year]);
+      })
+      .orderBy('issue_date', 'desc');
+  res.json(docs);
+});
+
+router.post('/', auth, upload.single('file'), async (req, res) => {
+  const { categoryId, producerId, title, issueDate, expiryDate, notes } = req.body;
+  const filePath = await saveFileToS3(req.file); // ή local path
+  const [doc] = await db('documents').insert({
+    category_id: categoryId,
+    producer_id: producerId,
+    title,
+    file_path: filePath,
+    issue_date: issueDate,
+    expiry_date: expiryDate,
+    notes,
+    uploaded_by: req.user.id,
+  }).returning('*');
+  res.status(201).json(doc);
+});
+```
+
+* **Auth middleware** ήδη υπάρχει· πρόσθεσε `role` based checks (π.χ. μόνο “Admin” διαγράφει).
+* Endpoint `GET /documents/:id/signed-url` για ασφαλές download.
+
+---
+
+## 4. Front-end Components
+
+### 4.1 DocumentCategoryPage
+
+```tsx
+// client/src/pages/documents/DocumentCategoryPage.tsx
+export default function DocumentCategoryPage({ category }: { category: CategoryCode }) {
+  const { data, isLoading } = useQuery(['docs', category], () => api.getDocuments({ category }));
+  const [filters, setFilters] = useState({ producerId: '', year: 'ALL' });
+
+  const filtered = data?.filter(d =>
+    (filters.producerId ? d.producer_id?.includes(filters.producerId) : true) &&
+    (filters.year !== 'ALL' ? new Date(d.issue_date).getFullYear().toString() === filters.year : true)
+  );
+
+  return (
+    <div className="space-y-4">
+      <DocumentFilters filters={filters} onChange={setFilters} />
+      <UploadDialog category={category} />
+      {isLoading ? <SkeletonCards /> : (
+        <div className="grid md:grid-cols-2 gap-4">
+          {filtered?.map(doc => <DocumentCard key={doc.id} doc={doc} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+### 4.2 DocumentCard
+
+```tsx
+const statusColor = daysUntilExpiry => {
+  if (daysUntilExpiry < 0) return 'text-red-600';
+  if (daysUntilExpiry < 30) return 'text-orange-500';
+  return 'text-green-600';
+};
+
+export function DocumentCard({ doc }: { doc: Document }) {
+  const daysLeft = differenceInDays(new Date(doc.expiry_date), new Date());
+  return (
+    <Card className="relative">
+      <CardContent className="space-y-2">
+        <Badge variant="secondary">{doc.title}</Badge>
+        <p className="text-sm"><CalendarIcon className="inline w-4 h-4" /> {format(doc.issue_date, 'P')}</p>
+        {doc.expiry_date && (
+          <p className={`text-xs font-medium ${statusColor(daysLeft)}`}>
+            Λήγει σε {daysLeft} ημ.
+          </p>
+        )}
+        {doc.notes && <p className="text-xs italic">{doc.notes}</p>}
+      </CardContent>
+      <CardFooter className="flex justify-between">
+        <Button size="sm" onClick={() => download(doc.id)}>Προβολή</Button>
+        <DeleteButton docId={doc.id} />
+      </CardFooter>
+    </Card>
+  );
+}
+```
+
+---
+
+## 5. UX & Βελτιστοποίηση
+
+| Ανάγκη                | Πρόταση                                                                                                                                    |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Γρήγορη αναζήτηση** | Χρησιμοποίησε *Command Palette* (`Ctrl + K`) ήδη υλοποιημένη: add `documents` data source ώστε να πάει απευθείας στο doc ή στην κατηγορία. |
+| **Expiry reminders**  | Cron job (node-cron) που τρέχει ημερησίως: βρίσκει όσα `expiry_date BETWEEN now() AND now() + 30 days` και στέλνει email/Slack.            |
+| **Bulk upload**       | Drag-and-drop “zone” με `react-dropzone`. Πριν το POST, ζήτα meta-data μέσω modal (π.χ. ίδιο category για όλα).                            |
+| **Access control**    | RBAC: Admin = CRUD, Manager = read/upload, Viewer = read-only. Φιλτράρεις κουμπιά στο UI.                                                  |
+| **Mobile**            | tailwind `lg:hidden` για compact list ή accordion.                                                                                         |
+| **Traceability**      | Audit table (document\_id, action, user\_id, timestamp).                                                                                   |
+
+---
+
+## 6. Επόμενα βήματα για dev team
+
+1. **DB migration** με ένα εργαλείο (Knex, Prisma ή TypeORM) → δημιουργία των πινάκων.
+2. **API routes**: copy-paste τα παραδείγματα, γράψε unit tests.
+3. **React pages**: scaffold με τα components παραπάνω· πρόσθεσε στο sidebar νέα links.
+4. **Styling**: ακολουθούμε το layout που έχεις ήδη (sidebar blue icons, κεντρικό container).
+5. **CI/CD**: προσθέτουμε step στο pipeline να τρέχει `npm test` + `prisma migrate`.
+6. **User training**: σύντομο video 2-3 min που δείχνει: *Upload → Filtration → Download*.
+
+---
+
+### TL;DR
+
+*Φτιάχνουμε* ένα **/documents** namespace με nested routes για κατηγορίες, **PostgreSQL** πίνακες `document_categories` & `documents`, **REST API** με φίλτρα, και **React** components (Filters, UploadDialog, Cards). Αυτό λύνει:
+
+* διαχωρισμό εγγράφων (Ίδρυση, Άδειες κ.λπ.),
+* γρήγορη ανεύρεση μέσω sidebar ή command palette,
+* έγκαιρα alerts για λήξεις,
+* ασφαλές storage με role-based πρόσβαση.
+
+Έτσι όλοι βρίσκουν σε <3 κλικ το σωστό PDF και ξέρουν πότε πρέπει να ανανεωθεί. 🚀
