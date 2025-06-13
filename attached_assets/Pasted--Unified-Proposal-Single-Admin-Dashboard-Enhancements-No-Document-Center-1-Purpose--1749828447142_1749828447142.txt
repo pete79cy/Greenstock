@@ -1,0 +1,91 @@
+# Unified Proposal – Single‑Admin **Dashboard Enhancements** (No Document Center)
+
+## 1. Purpose
+
+Να μετατρέψουμε το Business Management Hub σε ένα light, γρήγορο «control‑panel» ειδικά για **έναν** διαχειριστή (εσένα).  Στόχος:
+
+1. Να βλέπεις κρίσιμα KPIs (λήξεις αδειών, πωλήσεις ημέρας) αμέσως μόλις κάνεις login·
+2. Να μειώσουμε το θόρυβο αφαιρώντας ό,τι δεν χρειάζεται (Document Center, ρόλοι, onboarding flows).
+
+---
+
+## 2. Functional Scope
+
+| Module        | Must‑Have                                                                                                        | Nice‑to‑Have                                                                           |
+| ------------- | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| **Dashboard** | • Quick‑stats header<br>• 9‑tile grid, **re‑orderable** (localStorage)<br>• Command Palette shortcuts (Ctrl + K) | • Auto‑redirect στο last‑visited module<br>• Toast alert σε αποτυχημένο nightly backup |
+
+---
+
+## 3. Technical Overview
+
+### 3.1 Stack (υφιστάμενο)
+
+* **Frontend:** React 18 + TypeScript + Vite, TailwindCSS, framer‑motion.
+* **Backend:** Express + TypeScript, PostgreSQL.
+
+### 3.2 API
+
+| Verb | Path                   | Purpose                                                                  |
+| ---- | ---------------------- | ------------------------------------------------------------------------ |
+| GET  | `/api/dashboard/stats` | Επιστρέφει KPIs για το header (expiringLicences, salesToday, pendingPOs) |
+
+---
+
+## 4. UI/UX Blueprints
+
+1. **StatsBar** → Flex row, mobile horizontal scroll.
+2. **ModuleGrid** → CSS grid, drag‑n‑drop (`@dnd‑kit`), persistent order.
+3. **Keybindings & Command Palette** → `i`, `l`, `r` κ.λπ.
+4. **Toast/Notifications** → εμφανίζεται μόνο για failed backups & licences <30 days.
+
+---
+
+## 5. Implementation Roadmap
+
+| Phase                                   | Duration         | Deliverables                       |
+| --------------------------------------- | ---------------- | ---------------------------------- |
+| 1. API & Stats queries                  | 1 day            | `/api/dashboard/stats`, unit tests |
+| 2. StatsBar component                   | 1 day            | React UI + skeleton loaders        |
+| 3. Reorderable ModuleGrid               | 1.5 day          | Drag‑n‑drop, localStorage persist  |
+| 4. Keybindings & Command Palette tweaks | 0.5 day          | Hotkeys mapped to modules          |
+| 5. Backup cron + Toast                  | 1 day            | Nightly job, UI alert              |
+| **Total**                               | **\~5 dev days** | —                                  |
+
+---
+
+## 6. Testing & QA
+
+* **Jest** – unit tests for stats query service.
+* **Cypress** – login → verify StatsBar values → reorder tile → refresh → order persists.
+* **Accessibility** – axe‑core, contrast & focus rings.
+
+---
+
+## 7. Acceptance Criteria
+
+1. Dashboard εμφανίζει KPIs <1 sec από login.
+2. Drag‑n‑drop αποθηκεύει σειρά modules cross‑session.
+3. Toast εμφανίζεται αν `backupJob` αποτύχει εντός 24 h.
+4. Όλα τα routes δουλεύουν με code‑splitting και lazy loading.
+
+---
+
+## 8. Risks & Mitigations
+
+| Risk                       | Mitigation                                                  |
+| -------------------------- | ----------------------------------------------------------- |
+| Υπερφόρτωση query για KPIs | Χρησιμοποίησε indexed views / caching στο `/stats` endpoint |
+| Backup job δεν τρέχει      | Health‑check alert + manual trigger κουμπί στο dashboard    |
+
+---
+
+## 9. Next Steps
+
+1. Επιβεβαίωση τελικού scope (μόνο Dashboard).
+2. Kick‑off Phase 1.
+3. Review μετά από 5 dev‑days.
+
+— *Prepared for: Panayiotis (sole admin)*
+
+© 2025 – Internal Use Only
