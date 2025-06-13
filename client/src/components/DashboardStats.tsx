@@ -43,12 +43,10 @@ export function DashboardStats() {
   if (error || !stats) {
     return (
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-        <Card className="h-24 border-red-200 bg-red-50">
-          <CardContent className="p-4 flex items-center justify-center text-red-600">
-            <AlertTriangle className="h-5 w-5 mr-2" />
-            <span className="text-sm">Stats unavailable</span>
-          </CardContent>
-        </Card>
+        <div className="h-24 border border-red-200 bg-red-50 p-4 flex items-center justify-center text-red-600 rounded-lg">
+          <AlertTriangle className="h-5 w-5 mr-2" />
+          <span className="text-sm">Stats unavailable</span>
+        </div>
       </div>
     );
   }

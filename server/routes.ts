@@ -35,14 +35,12 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Configure session middleware first
+  configureSession(app);
+  registerAuthRoutes(app);
+
   // Dashboard Statistics API
-  app.get("/api/dashboard/stats", (req: Request, res: Response, next: NextFunction) => {
-    // Check authentication using session
-    if (!req.session || !req.user) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    next();
-  }, async (req: Request, res: Response) => {
+  app.get("/api/dashboard/stats", isAuthenticated, async (req: Request, res: Response) => {
     try {
       // Get expiring regulatory checks (within 30 days)
       const thirtyDaysFromNow = new Date();

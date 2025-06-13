@@ -124,15 +124,20 @@ export function CommandPalette() {
     const down = (e: KeyboardEvent) => {
       if (open) return; // Don't handle shortcuts when palette is open
       
-      // Only handle shortcuts if no input is focused
-      if (document.activeElement?.tagName === "INPUT" || 
-          document.activeElement?.tagName === "TEXTAREA") {
+      // Only handle shortcuts if no input is focused and no modifiers are pressed
+      const activeElement = document.activeElement;
+      const isInputFocused = activeElement?.tagName === "INPUT" || 
+                           activeElement?.tagName === "TEXTAREA" ||
+                           activeElement?.getAttribute("contenteditable") === "true";
+      
+      if (isInputFocused || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) {
         return;
       }
 
       const command = commands.find(cmd => cmd.shortcut === e.key.toLowerCase());
-      if (command && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      if (command) {
         e.preventDefault();
+        console.log(`Navigating to ${command.title} via hotkey: ${e.key}`);
         setLocation(command.href);
       }
     };
