@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation } from "wouter";
+import { Link, useLocation, Switch, Route } from "wouter";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileText, Search, Calendar, AlertTriangle, Building2, Scale, Shield, FileCheck, DollarSign, Users, FileInput } from "lucide-react";
 import BackToMenuButton from "@/components/BackToMenuButton";
+import DocumentCategoryPage from "./DocumentCategoryPage";
 
 interface DocumentCategory {
   id: number;
@@ -186,7 +187,32 @@ export default function DocumentCenter() {
 
         {/* Main Content Area */}
         <div className="lg:col-span-3">
-          <Outlet context={{ searchTerm, selectedYear, currentCategory }} />
+          <Switch>
+            <Route path="/documents/foundation">
+              <DocumentCategoryPage categoryCode="FOUNDATION" />
+            </Route>
+            <Route path="/documents/operating-licenses">
+              <DocumentCategoryPage categoryCode="OPERATING_LICENSE" />
+            </Route>
+            <Route path="/documents/nursery-licenses">
+              <DocumentCategoryPage categoryCode="NURSERY_LICENSE" />
+            </Route>
+            <Route path="/documents/regulatory-compliance">
+              <DocumentCategoryPage categoryCode="REGULATORY_COMPLIANCE" />
+            </Route>
+            <Route path="/documents/financial">
+              <DocumentCategoryPage categoryCode="FINANCIAL" />
+            </Route>
+            <Route path="/documents/insurance">
+              <DocumentCategoryPage categoryCode="INSURANCE" />
+            </Route>
+            <Route path="/documents/contracts">
+              <DocumentCategoryPage categoryCode="CONTRACTS" />
+            </Route>
+            <Route>
+              <DocumentCategoryPage categoryCode="FOUNDATION" />
+            </Route>
+          </Switch>
         </div>
       </div>
     </div>

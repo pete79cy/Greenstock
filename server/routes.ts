@@ -3317,15 +3317,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(documents)
         .leftJoin(documentCategories, eq(documents.categoryId, documentCategories.id));
 
-      // Apply filters
+      // Apply filters using array for multiple conditions
+      const conditions = [];
       if (category) {
-        query = query.where(eq(documentCategories.code, category as string));
+        conditions.push(sql`${documentCategories.code} = ${category}`);
       }
       if (producerId) {
-        query = query.where(ilike(documents.producerId, `%${producerId}%`));
+        conditions.push(sql`${documents.producerId} ILIKE ${'%' + producerId + '%'}`);
       }
       if (year) {
-        query = query.where(sql`extract(year from ${documents.issueDate}) = ${year}`);
+        conditions.push(sql`extract(year from ${documents.issueDate}) = ${year}`);
+      }
+      
+      if (conditions.length > 0) {
+        query = query.where(sql`${conditions.join(' AND ')}`);
       }
 
       const results = await query.orderBy(desc(documents.createdAt));
