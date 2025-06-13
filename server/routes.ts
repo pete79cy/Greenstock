@@ -3071,14 +3071,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get payslips for the specified month
       const monthlyPayslips = await storage.getPayslipsByMonth(month);
-      const employees = await storage.getEmployees();
+      const employees = await storage.getActiveEmployees();
 
       if (monthlyPayslips.length === 0) {
         return res.status(404).json({ message: `No payslips found for ${month}` });
       }
 
       // Calculate totals
-      const totals = monthlyPayslips.reduce((acc, payslip) => ({
+      const totals = monthlyPayslips.reduce((acc: any, payslip: any) => ({
         totalGrossSalary: acc.totalGrossSalary + payslip.grossSalary,
         totalSocialInsurance: acc.totalSocialInsurance + payslip.socialInsurance,
         totalGesy: acc.totalGesy + payslip.gesy,
@@ -3200,8 +3200,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       currentY -= 20;
 
       // Employee data
-      monthlyPayslips.forEach((payslip) => {
-        const employee = employees.find(emp => emp.passport === payslip.employeePassport);
+      monthlyPayslips.forEach((payslip: any) => {
+        const employee = employees.find((emp: any) => emp.passport === payslip.employeePassport);
         const employeeName = employee ? employee.name : 'Unknown Employee';
 
         currentX = margin;

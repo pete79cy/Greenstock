@@ -719,6 +719,14 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(payslips.payPeriod));
   }
 
+  async getPayslipsByMonth(month: string): Promise<Payslip[]> {
+    return await db
+      .select()
+      .from(payslips)
+      .where(eq(payslips.payPeriod, month))
+      .orderBy(desc(payslips.payDate));
+  }
+
   async createPayslip(insertPayslip: InsertPayslip): Promise<Payslip> {
     // Calculate deductions using the exact formula from your requirements
     const calculations = this.calculatePayslipDeductions(insertPayslip.grossSalary);
