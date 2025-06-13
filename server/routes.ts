@@ -3060,6 +3060,219 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Monthly payroll report endpoint
+  app.get("/api/reports/monthly-payroll", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { month } = req.query;
+      
+      if (!month || typeof month !== 'string' || !/^\d{4}-\d{2}$/.test(month)) {
+        return res.status(400).json({ message: "Valid month parameter (YYYY-MM format) is required" });
+      }
+
+      // Get payslips for the specified month
+      const monthlyPayslips = await storage.getPayslipsByMonth(month);
+      const employees = await storage.getEmployees();
+
+      if (monthlyPayslips.length === 0) {
+        return res.status(404).json({ message: `No payslips found for ${month}` });
+      }
+
+      // Calculate totals
+      const totals = monthlyPayslips.reduce((acc, payslip) => ({
+        totalGrossSalary: acc.totalGrossSalary + payslip.grossSalary,
+        totalSocialInsurance: acc.totalSocialInsurance + payslip.socialInsurance,
+        totalGesy: acc.totalGesy + payslip.gesy,
+        totalDeductions: acc.totalDeductions + payslip.totalDeductions,
+        totalNetPay: acc.totalNetPay + payslip.netPay,
+      }), {
+        totalGrossSalary: 0,
+        totalSocialInsurance: 0,
+        totalGesy: 0,
+        totalDeductions: 0,
+        totalNetPay: 0,
+      });
+
+      // Create PDF document
+      const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
+      const pdfDoc = await PDFDocument.create();
+      
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+      const page = pdfDoc.addPage([595.28, 841.89]); // A4 size
+      const { width, height } = page.getSize();
+      const margin = 50;
+
+      // Parse month for display
+      const [year, monthNum] = month.split('-');
+      const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('en-US', { 
+        month: 'long', 
+        year: 'numeric' 
+      });
+
+      // Header
+      page.drawText('MONTHLY PAYROLL REPORT', {
+        x: width / 2 - 120,
+        y: height - 80,
+        size: 20,
+        font: boldFont,
+        color: rgb(0.11, 0.46, 0.28),
+      });
+
+      page.drawText(monthName, {
+        x: width / 2 - 60,
+        y: height - 110,
+        size: 16,
+        font: font,
+        color: rgb(0.3, 0.3, 0.3),
+      });
+
+      // Summary section
+      let currentY = height - 160;
+      
+      page.drawText('SUMMARY', {
+        x: margin,
+        y: currentY,
+        size: 14,
+        font: boldFont,
+        color: rgb(0.11, 0.46, 0.28),
+      });
+
+      currentY -= 30;
+
+      const summaryItems = [
+        { label: 'Total Employees Paid:', value: monthlyPayslips.length.toString() },
+        { label: 'Total Gross Salary:', value: `€${(totals.totalGrossSalary / 100).toFixed(2)}` },
+        { label: 'Total Social Insurance:', value: `€${(totals.totalSocialInsurance / 100).toFixed(2)}` },
+        { label: 'Total GESY:', value: `€${(totals.totalGesy / 100).toFixed(2)}` },
+        { label: 'Total Deductions:', value: `€${(totals.totalDeductions / 100).toFixed(2)}` },
+        { label: 'Total Net Pay:', value: `€${(totals.totalNetPay / 100).toFixed(2)}` },
+      ];
+
+      summaryItems.forEach((item, index) => {
+        const isTotal = index === summaryItems.length - 1;
+        page.drawText(item.label, {
+          x: margin,
+          y: currentY,
+          size: isTotal ? 12 : 11,
+          font: isTotal ? boldFont : font,
+          color: isTotal ? rgb(0.11, 0.46, 0.28) : rgb(0, 0, 0),
+        });
+
+        page.drawText(item.value, {
+          x: width - margin - 100,
+          y: currentY,
+          size: isTotal ? 12 : 11,
+          font: isTotal ? boldFont : font,
+          color: isTotal ? rgb(0.11, 0.46, 0.28) : rgb(0, 0, 0),
+        });
+
+        currentY -= isTotal ? 25 : 20;
+      });
+
+      // Employee details section
+      currentY -= 20;
+      page.drawText('EMPLOYEE BREAKDOWN', {
+        x: margin,
+        y: currentY,
+        size: 14,
+        font: boldFont,
+        color: rgb(0.11, 0.46, 0.28),
+      });
+
+      currentY -= 40;
+
+      // Table headers
+      const headers = ['Employee', 'Gross Salary', 'Deductions', 'Net Pay'];
+      const columnWidths = [200, 100, 100, 100];
+      let currentX = margin;
+
+      headers.forEach((header, index) => {
+        page.drawText(header, {
+          x: currentX,
+          y: currentY,
+          size: 10,
+          font: boldFont,
+        });
+        currentX += columnWidths[index];
+      });
+
+      currentY -= 20;
+
+      // Employee data
+      monthlyPayslips.forEach((payslip) => {
+        const employee = employees.find(emp => emp.passport === payslip.employeePassport);
+        const employeeName = employee ? employee.name : 'Unknown Employee';
+
+        currentX = margin;
+
+        // Employee name
+        page.drawText(employeeName.length > 25 ? employeeName.substring(0, 22) + '...' : employeeName, {
+          x: currentX,
+          y: currentY,
+          size: 9,
+          font: font,
+        });
+        currentX += columnWidths[0];
+
+        // Gross salary
+        page.drawText(`€${(payslip.grossSalary / 100).toFixed(2)}`, {
+          x: currentX,
+          y: currentY,
+          size: 9,
+          font: font,
+        });
+        currentX += columnWidths[1];
+
+        // Deductions
+        page.drawText(`€${(payslip.totalDeductions / 100).toFixed(2)}`, {
+          x: currentX,
+          y: currentY,
+          size: 9,
+          font: font,
+          color: rgb(0.6, 0.1, 0.1),
+        });
+        currentX += columnWidths[2];
+
+        // Net pay
+        page.drawText(`€${(payslip.netPay / 100).toFixed(2)}`, {
+          x: currentX,
+          y: currentY,
+          size: 9,
+          font: font,
+          color: rgb(0.11, 0.46, 0.28),
+        });
+
+        currentY -= 18;
+
+        // Add new page if needed
+        if (currentY < 100) {
+          const newPage = pdfDoc.addPage([595.28, 841.89]);
+          currentY = height - 100;
+        }
+      });
+
+      // Footer
+      page.drawText(`Generated on ${new Date().toLocaleDateString('en-GB')}`, {
+        x: margin,
+        y: 50,
+        size: 8,
+        font: font,
+        color: rgb(0.5, 0.5, 0.5),
+      });
+
+      const pdfBytes = await pdfDoc.save();
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="monthly-payroll-${month}.pdf"`);
+      res.send(Buffer.from(pdfBytes));
+
+    } catch (error) {
+      console.error("Error generating monthly payroll report:", error);
+      res.status(500).json({ message: "Failed to generate monthly payroll report" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

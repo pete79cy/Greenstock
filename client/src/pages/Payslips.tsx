@@ -225,145 +225,145 @@ export default function Payslips() {
 
         <TabsContent value="payslips" className="space-y-6">
           {/* Recent Payslips */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {payslips.slice(0, 6).map((payslip: Payslip) => (
-          <Card key={payslip.id}>
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <CardTitle className="text-lg">{getEmployeeName(payslip.employeePassport)}</CardTitle>
-                  <p className="text-sm text-muted-foreground">{formatPeriod(payslip.payPeriod)}</p>
-                </div>
-                <Badge variant="outline">
-                  {formatDate(payslip.payDate)}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Gross Salary:</span>
-                  <span className="font-medium">{formatCurrency(payslip.grossSalary)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Social Insurance:</span>
-                  <span className="text-red-600">-{formatCurrency(payslip.socialInsurance)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">GESY:</span>
-                  <span className="text-red-600">-{formatCurrency(payslip.gesy)}</span>
-                </div>
-                <div className="border-t pt-2 flex justify-between font-semibold">
-                  <span>Net Pay:</span>
-                  <span className="text-green-600">{formatCurrency(payslip.netPay)}</span>
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="flex-1"
-                  onClick={() => window.open(`/api/payslips/${payslip.id}/pdf`, '_blank')}
-                >
-                  <Download className="h-3 w-3 mr-2" />
-                  Download
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="flex-1"
-                  onClick={() => {
-                    const printWindow = window.open(`/api/payslips/${payslip.id}/pdf`, '_blank');
-                    if (printWindow) {
-                      printWindow.onload = () => {
-                        printWindow.print();
-                      };
-                    }
-                  }}
-                >
-                  <Printer className="h-3 w-3 mr-2" />
-                  Print
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {payslips.length === 0 && (
-        <Card className="text-center py-12">
-          <CardContent>
-            <Calculator className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No payslips found</h3>
-            <p className="text-muted-foreground mb-4">
-              Generate your first payslip with automatic Cyprus deduction calculations.
-            </p>
-            <Button onClick={handleCreate}>
-              <Plus className="h-4 w-4 mr-2" />
-              Generate Payslip
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Payslips by Employee */}
-      {Object.keys(payslipsByEmployee).length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Payslips by Employee</h2>
-          {Object.entries(payslipsByEmployee).map(([employeePassport, employeePayslips]) => (
-            <Card key={employeePassport}>
-              <CardHeader>
-                <CardTitle className="text-lg">{getEmployeeName(employeePassport)}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {employeePayslips.map((payslip) => (
-                    <div key={payslip.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">{formatPeriod(payslip.payPeriod)}</p>
-                          <p className="text-sm text-muted-foreground">Paid on {formatDate(payslip.payDate)}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="text-right">
-                          <p className="font-semibold text-green-600">{formatCurrency(payslip.netPay)}</p>
-                          <p className="text-xs text-muted-foreground">Net Pay</p>
-                        </div>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => window.open(`/api/payslips/${payslip.id}/pdf`, '_blank')}
-                          >
-                            <Download className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              const printWindow = window.open(`/api/payslips/${payslip.id}/pdf`, '_blank');
-                              if (printWindow) {
-                                printWindow.onload = () => {
-                                  printWindow.print();
-                                };
-                              }
-                            }}
-                          >
-                            <Printer className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {payslips.slice(0, 6).map((payslip: Payslip) => (
+              <Card key={payslip.id}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <CardTitle className="text-lg">{getEmployeeName(payslip.employeePassport)}</CardTitle>
+                      <p className="text-sm text-muted-foreground">{formatPeriod(payslip.payPeriod)}</p>
                     </div>
-                  ))}
-                </div>
+                    <Badge variant="outline">
+                      {formatDate(payslip.payDate)}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Gross Salary:</span>
+                      <span className="font-medium">{formatCurrency(payslip.grossSalary)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Social Insurance:</span>
+                      <span className="text-red-600">-{formatCurrency(payslip.socialInsurance)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">GESY:</span>
+                      <span className="text-red-600">-{formatCurrency(payslip.gesy)}</span>
+                    </div>
+                    <div className="border-t pt-2 flex justify-between font-semibold">
+                      <span>Net Pay:</span>
+                      <span className="text-green-600">{formatCurrency(payslip.netPay)}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => window.open(`/api/payslips/${payslip.id}/pdf`, '_blank')}
+                    >
+                      <Download className="h-3 w-3 mr-2" />
+                      Download
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => {
+                        const printWindow = window.open(`/api/payslips/${payslip.id}/pdf`, '_blank');
+                        if (printWindow) {
+                          printWindow.onload = () => {
+                            printWindow.print();
+                          };
+                        }
+                      }}
+                    >
+                      <Printer className="h-3 w-3 mr-2" />
+                      Print
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {payslips.length === 0 && (
+            <Card className="text-center py-12">
+              <CardContent>
+                <Calculator className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No payslips found</h3>
+                <p className="text-muted-foreground mb-4">
+                  Generate your first payslip with automatic Cyprus deduction calculations.
+                </p>
+                <Button onClick={handleCreate}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Generate Payslip
+                </Button>
               </CardContent>
             </Card>
-          ))}
-        </div>
-      )}
+          )}
+
+          {/* Payslips by Employee */}
+          {Object.keys(payslipsByEmployee).length > 0 && (
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold">Payslips by Employee</h2>
+              {Object.entries(payslipsByEmployee).map(([employeePassport, employeePayslips]) => (
+                <Card key={employeePassport}>
+                  <CardHeader>
+                    <CardTitle className="text-lg">{getEmployeeName(employeePassport)}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {employeePayslips.map((payslip) => (
+                        <div key={payslip.id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            <div>
+                              <p className="font-medium">{formatPeriod(payslip.payPeriod)}</p>
+                              <p className="text-sm text-muted-foreground">Paid on {formatDate(payslip.payDate)}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <p className="font-semibold text-green-600">{formatCurrency(payslip.netPay)}</p>
+                              <p className="text-xs text-muted-foreground">Net Pay</p>
+                            </div>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => window.open(`/api/payslips/${payslip.id}/pdf`, '_blank')}
+                              >
+                                <Download className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const printWindow = window.open(`/api/payslips/${payslip.id}/pdf`, '_blank');
+                                  if (printWindow) {
+                                    printWindow.onload = () => {
+                                      printWindow.print();
+                                    };
+                                  }
+                                }}
+                              >
+                                <Printer className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="reports" className="space-y-6">
