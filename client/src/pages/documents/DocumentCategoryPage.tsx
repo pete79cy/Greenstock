@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useRoute } from "wouter";
+import { useRoute, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { Upload, Download, Trash2, Calendar, Building, Eye, Plus, AlertTriangle, CheckCircle, Clock } from "lucide-react";
+import { Upload, Download, Trash2, Calendar, Building, Eye, Plus, AlertTriangle, CheckCircle, Clock, ArrowLeft } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 
 interface DocumentWithCategory {
@@ -59,7 +59,8 @@ export default function DocumentCategoryPage() {
     queryKey: ['/api/documents', categoryCode, filterProducerId],
     queryFn: () => {
       const params = new URLSearchParams();
-      params.append('category', categoryCode);
+      const convertedCategoryCode = categoryCode.toUpperCase().replace(/-/g, '_');
+      params.append('category', convertedCategoryCode);
       if (filterProducerId) params.append('producerId', filterProducerId);
       return fetch(`/api/documents?${params.toString()}`).then(res => res.json()) as Promise<DocumentWithCategory[]>;
     }
@@ -70,7 +71,7 @@ export default function DocumentCategoryPage() {
     queryFn: () => fetch("/api/document-categories").then(res => res.json())
   });
 
-  const currentCategory = categories.find((cat: any) => cat.code === categoryCode.toUpperCase().replace('-', '_'));
+  const currentCategory = categories.find((cat: any) => cat.code === categoryCode.toUpperCase().replace(/-/g, '_'));
 
   const uploadMutation = useMutation({
     mutationFn: async (data: FormData) => {
@@ -221,6 +222,16 @@ export default function DocumentCategoryPage() {
 
   return (
     <div className="space-y-6">
+      {/* Back Button */}
+      <div className="flex items-center gap-4">
+        <Link href="/regulatory-checks">
+          <Button variant="ghost" className="flex items-center gap-2">
+            <ArrowLeft className="w-4 h-4" />
+            Επιστροφή στο Κέντρο Εγγράφων
+          </Button>
+        </Link>
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
