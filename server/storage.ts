@@ -1125,6 +1125,35 @@ export class DatabaseStorage implements IStorage {
       return 0;
     }
   }
+
+  async getPlantPurchasesCount(month: string): Promise<number> {
+    try {
+      const result = await db.execute(sql`
+        SELECT COUNT(*) as count 
+        FROM plant_purchases 
+        WHERE purchase_date LIKE ${month + '%'}
+      `);
+      return Number(result.rows[0]?.count) || 0;
+    } catch (error) {
+      console.error("Error getting plant purchases count:", error);
+      return 0;
+    }
+  }
+
+  async getPurchaseAnalysisCount(): Promise<number> {
+    try {
+      // Count unique suppliers or total purchase orders as analysis metric
+      const result = await db.execute(sql`
+        SELECT COUNT(DISTINCT supplier_name) as count 
+        FROM plant_purchases 
+        WHERE purchase_date >= date('now', '-30 days')
+      `);
+      return Number(result.rows[0]?.count) || 0;
+    } catch (error) {
+      console.error("Error getting purchase analysis count:", error);
+      return 0;
+    }
+  }
 }
 
 // Create a singleton instance of the storage

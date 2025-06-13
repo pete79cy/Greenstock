@@ -89,7 +89,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         pendingPOs: 0,
         activeEmployees: 0,
         totalPlants: 0,
-        monthlyRevenue: 0
+        monthlyRevenue: 0,
+        plantPurchases: 0,
+        purchaseAnalysis: 0
       });
     }
   });
