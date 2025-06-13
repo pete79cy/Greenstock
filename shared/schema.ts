@@ -453,3 +453,68 @@ export interface PlantPurchaseAnalysis {
     orderCount: number;
   }>;
 }
+
+// Document categories for the Document Center
+export const documentCategories = pgTable("document_categories", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  nameEl: text("name_el").notNull(),
+  nameEn: text("name_en").notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertDocumentCategorySchema = createInsertSchema(documentCategories).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type DocumentCategory = typeof documentCategories.$inferSelect;
+export type InsertDocumentCategory = z.infer<typeof insertDocumentCategorySchema>;
+
+// Documents table for the Document Center
+export const documents = pgTable("documents", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  categoryId: integer("category_id").notNull().references(() => documentCategories.id),
+  producerId: text("producer_id"),
+  title: text("title").notNull(),
+  filePath: text("file_path").notNull(),
+  fileName: text("file_name").notNull(),
+  fileSize: integer("file_size").notNull(),
+  issueDate: date("issue_date"),
+  expiryDate: date("expiry_date"),
+  notes: text("notes"),
+  uploadedBy: integer("uploaded_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertDocumentSchema = createInsertSchema(documents, {
+  categoryId: z.number().int().positive("Category is required"),
+  title: z.string().min(1, "Title is required"),
+  filePath: z.string().min(1, "File path is required"),
+  fileName: z.string().min(1, "File name is required"),
+  fileSize: z.number().int().positive("File size must be positive"),
+  uploadedBy: z.number().int().positive("Uploaded by is required"),
+  issueDate: z.string().optional(),
+  expiryDate: z.string().optional(),
+  producerId: z.string().optional(),
+  notes: z.string().optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updateDocumentSchema = insertDocumentSchema.partial();
+
+export type Document = typeof documents.$inferSelect;
+export type InsertDocument = z.infer<typeof insertDocumentSchema>;
+export type UpdateDocument = z.infer<typeof updateDocumentSchema>;
+
+// Document with category information for frontend display
+export interface DocumentWithCategory extends Document {
+  category: DocumentCategory;
+  daysUntilExpiry?: number;
+  isExpired?: boolean;
+}
