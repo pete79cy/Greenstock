@@ -18,6 +18,7 @@ import Employees from "@/pages/Employees";
 import Payslips from "@/pages/Payslips";
 import BackupRestore from "@/pages/BackupRestore";
 import RegulatoryChecks from "@/pages/RegulatoryChecks";
+import DocumentCategoryPage from "@/pages/documents/DocumentCategoryPage";
 import PlantPurchasesSimpleFixed from "@/pages/PlantPurchasesSimpleFixed";
 import PlantPurchaseAnalysisNew from "@/pages/PlantPurchaseAnalysisNew";
 import Layout from "@/components/Layout";
@@ -110,6 +111,7 @@ function Router() {
       <Route path="/employees" component={ProtectedWithLayout(Employees)} />
       <Route path="/payslips" component={ProtectedWithLayout(Payslips)} />
       <Route path="/regulatory-checks" component={ProtectedWithLayout(RegulatoryChecks)} />
+      <Route path="/documents/:categoryCode" component={ProtectedWithLayout(DocumentCategoryPage)} />
       <Route path="/plant-purchases" component={ProtectedWithLayout(PlantPurchasesSimpleFixed)} />
       <Route path="/plant-purchase-analysis" component={ProtectedWithLayout(PlantPurchaseAnalysisNew)} />
       <Route path="/backup-restore" component={ProtectedWithLayout(BackupRestore)} />

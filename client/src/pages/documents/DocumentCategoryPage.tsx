@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useRoute } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,11 +39,9 @@ interface DocumentWithCategory {
   isExpired?: boolean;
 }
 
-interface DocumentCategoryPageProps {
-  categoryCode: string;
-}
-
-export default function DocumentCategoryPage({ categoryCode }: DocumentCategoryPageProps) {
+export default function DocumentCategoryPage() {
+  const [match, params] = useRoute("/documents/:categoryCode");
+  const categoryCode = params?.categoryCode || "";
   const { toast } = useToast();
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
