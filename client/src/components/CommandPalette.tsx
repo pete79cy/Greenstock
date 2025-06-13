@@ -122,7 +122,21 @@ export function CommandPalette() {
   // Handle individual shortcuts when command palette is closed
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (open) return; // Don't handle shortcuts when palette is open
+      console.log('Keydown event:', {
+        key: e.key,
+        code: e.code,
+        open: open,
+        activeElement: document.activeElement?.tagName,
+        metaKey: e.metaKey,
+        ctrlKey: e.ctrlKey,
+        altKey: e.altKey,
+        shiftKey: e.shiftKey
+      });
+
+      if (open) {
+        console.log('Command palette is open, ignoring hotkey');
+        return;
+      }
       
       // Only handle shortcuts if no input is focused and no modifiers are pressed
       const activeElement = document.activeElement;
@@ -130,11 +144,19 @@ export function CommandPalette() {
                            activeElement?.tagName === "TEXTAREA" ||
                            activeElement?.getAttribute("contenteditable") === "true";
       
-      if (isInputFocused || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) {
+      if (isInputFocused) {
+        console.log('Input is focused, ignoring hotkey');
+        return;
+      }
+
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) {
+        console.log('Modifier key pressed, ignoring hotkey');
         return;
       }
 
       const command = commands.find(cmd => cmd.shortcut === e.key.toLowerCase());
+      console.log('Looking for command with shortcut:', e.key.toLowerCase(), 'found:', command?.title);
+      
       if (command) {
         e.preventDefault();
         console.log(`Navigating to ${command.title} via hotkey: ${e.key}`);
@@ -142,8 +164,12 @@ export function CommandPalette() {
       }
     };
 
+    console.log('Adding keydown event listener for hotkeys');
     document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
+    return () => {
+      console.log('Removing keydown event listener for hotkeys');
+      document.removeEventListener("keydown", down);
+    };
   }, [open, setLocation]);
 
   const runCommand = (href: string) => {
