@@ -183,12 +183,12 @@ export default function BackupRestore() {
               Create Backup
             </CardTitle>
             <CardDescription>
-              Export all your critical data including employees, payslips, plants, and financial records
+              Export all your critical data including employees, payslips, plants, financial records, and encrypted document files
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Backup Coverage</Label>
+              <Label>Comprehensive Backup Coverage</Label>
               <div className="text-sm text-muted-foreground space-y-1">
                 <div className="flex items-center gap-2">
                   <Database className="h-4 w-4" />
@@ -205,6 +205,18 @@ export default function BackupRestore() {
                 <div className="flex items-center gap-2">
                   <Database className="h-4 w-4" />
                   User accounts & system settings
+                </div>
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Encrypted employee documents (passports, contracts, etc.)
+                </div>
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Document center files (licenses, permits, etc.)
+                </div>
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Regulatory compliance documents
                 </div>
               </div>
             </div>
