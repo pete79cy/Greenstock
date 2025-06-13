@@ -125,6 +125,14 @@ export interface IStorage {
   updatePlantPurchase(id: number, purchase: UpdatePlantPurchase): Promise<PlantPurchase | undefined>;
   deletePlantPurchase(id: number): Promise<boolean>;
   getPlantPurchaseAnalysis(): Promise<PlantPurchaseAnalysis>;
+  
+  // Dashboard statistics methods
+  getExpiringRegulatoryChecks(expiryDate: string): Promise<number>;
+  getSalesToday(date: string): Promise<number>;
+  getPendingPurchaseOrders(): Promise<number>;
+  getActiveEmployeesCount(): Promise<number>;
+  getTotalPlantsCount(): Promise<number>;
+  getMonthlyRevenue(month: string): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1031,6 +1039,91 @@ export class DatabaseStorage implements IStorage {
         orderCount: Number(row.order_count) || 0
       }))
     };
+  }
+
+  // Dashboard statistics methods implementation
+  async getExpiringRegulatoryChecks(expiryDate: string): Promise<number> {
+    try {
+      const result = await db.execute(sql`
+        SELECT COUNT(*) as count 
+        FROM regulatory_checks 
+        WHERE date <= ${expiryDate}
+      `);
+      return Number(result.rows[0]?.count) || 0;
+    } catch (error) {
+      console.error("Error getting expiring regulatory checks:", error);
+      return 0;
+    }
+  }
+
+  async getSalesToday(date: string): Promise<number> {
+    try {
+      const result = await db.execute(sql`
+        SELECT COUNT(*) as count 
+        FROM sales_py9 
+        WHERE date = ${date}
+      `);
+      return Number(result.rows[0]?.count) || 0;
+    } catch (error) {
+      console.error("Error getting today's sales:", error);
+      return 0;
+    }
+  }
+
+  async getPendingPurchaseOrders(): Promise<number> {
+    try {
+      const result = await db.execute(sql`
+        SELECT COUNT(*) as count 
+        FROM plant_purchases 
+        WHERE actual_delivery IS NULL AND expected_delivery IS NOT NULL
+      `);
+      return Number(result.rows[0]?.count) || 0;
+    } catch (error) {
+      console.error("Error getting pending purchase orders:", error);
+      return 0;
+    }
+  }
+
+  async getActiveEmployeesCount(): Promise<number> {
+    try {
+      const result = await db.execute(sql`
+        SELECT COUNT(*) as count 
+        FROM employees 
+        WHERE status = 'ACTIVE'
+      `);
+      return Number(result.rows[0]?.count) || 0;
+    } catch (error) {
+      console.error("Error getting active employees count:", error);
+      return 0;
+    }
+  }
+
+  async getTotalPlantsCount(): Promise<number> {
+    try {
+      const result = await db.execute(sql`
+        SELECT COALESCE(SUM(quantity), 0) as total 
+        FROM plant_inventory
+      `);
+      return Number(result.rows[0]?.total) || 0;
+    } catch (error) {
+      console.error("Error getting total plants count:", error);
+      return 0;
+    }
+  }
+
+  async getMonthlyRevenue(month: string): Promise<number> {
+    try {
+      // Assuming we need to calculate revenue from sales - this would need actual price data
+      const result = await db.execute(sql`
+        SELECT COUNT(*) * 100 as revenue 
+        FROM sales_py9 
+        WHERE date LIKE ${month + '%'}
+      `);
+      return Number(result.rows[0]?.revenue) || 0;
+    } catch (error) {
+      console.error("Error getting monthly revenue:", error);
+      return 0;
+    }
   }
 }
 

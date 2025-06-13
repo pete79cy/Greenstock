@@ -35,6 +35,53 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Dashboard Statistics API
+  app.get("/api/dashboard/stats", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      // Get expiring regulatory checks (within 30 days)
+      const thirtyDaysFromNow = new Date();
+      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+      const expiringLicences = await storage.getExpiringRegulatoryChecks?.(thirtyDaysFromNow.toISOString().split('T')[0]) || 0;
+
+      // Get today's sales count
+      const today = new Date().toISOString().split('T')[0];
+      const salesToday = await storage.getSalesToday?.(today) || 0;
+
+      // Get pending purchase orders (assuming purchases without actual delivery date)
+      const pendingPOs = await storage.getPendingPurchaseOrders?.() || 0;
+
+      // Get total active employees
+      const activeEmployees = await storage.getActiveEmployeesCount?.() || 0;
+
+      // Get total plant inventory
+      const totalPlants = await storage.getTotalPlantsCount?.() || 0;
+
+      // Get this month's revenue (from sales)
+      const thisMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
+      const monthlyRevenue = await storage.getMonthlyRevenue?.(thisMonth) || 0;
+
+      res.json({
+        expiringLicences,
+        salesToday,
+        pendingPOs,
+        activeEmployees,
+        totalPlants,
+        monthlyRevenue
+      });
+    } catch (error) {
+      console.error("Error fetching dashboard stats:", error);
+      res.status(500).json({ 
+        error: "Failed to fetch dashboard statistics",
+        expiringLicences: 0,
+        salesToday: 0,
+        pendingPOs: 0,
+        activeEmployees: 0,
+        totalPlants: 0,
+        monthlyRevenue: 0
+      });
+    }
+  });
+
   // Backup and Restore Routes - Critical for data protection
   app.get("/api/backup", isAuthenticated, async (req: Request, res: Response) => {
     try {
