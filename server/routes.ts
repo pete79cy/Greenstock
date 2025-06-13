@@ -3407,7 +3407,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Upload new document
   app.post("/api/documents", isAuthenticated, upload.single("document"), async (req: MulterRequest, res: Response) => {
     try {
-      const { categoryId, producerId, title, issueDate, expiryDate, notes } = req.body;
+      const { categoryId, producerId, title, issueDate, expiryDate, notes, isRenewable } = req.body;
       
       if (!req.file) {
         return res.status(400).json({ message: "Document file is required" });
@@ -3441,6 +3441,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         issueDate: issueDate || null,
         expiryDate: expiryDate || null,
         notes: notes || null,
+        isRenewable: isRenewable === '1' ? 1 : 0,
         uploadedBy: (req.user as any).id
       }).returning();
 
@@ -3499,7 +3500,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/documents/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const { title, producerId, issueDate, expiryDate, notes } = req.body;
+      const { title, producerId, issueDate, expiryDate, notes, isRenewable } = req.body;
 
       const updatedDocument = await db
         .update(documents)
@@ -3509,6 +3510,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           issueDate,
           expiryDate,
           notes,
+          isRenewable: isRenewable ? 1 : 0,
           updatedAt: new Date()
         })
         .where(eq(documents.id, id))

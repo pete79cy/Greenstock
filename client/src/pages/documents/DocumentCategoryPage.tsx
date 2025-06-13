@@ -136,6 +136,7 @@ export default function DocumentCategoryPage() {
       issueDate: "",
       expiryDate: "",
       notes: "",
+      isRenewable: true,
     });
     setSelectedFile(null);
   };
@@ -168,6 +169,7 @@ export default function DocumentCategoryPage() {
     submitData.append('issueDate', formData.issueDate);
     submitData.append('expiryDate', formData.expiryDate);
     submitData.append('notes', formData.notes);
+    submitData.append('isRenewable', formData.isRenewable ? '1' : '0');
     submitData.append('document', selectedFile);
 
     uploadMutation.mutate(submitData);
@@ -329,6 +331,19 @@ export default function DocumentCategoryPage() {
                   placeholder="Πρόσθετες πληροφορίες για το έγγραφο..."
                   rows={3}
                 />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="isRenewable"
+                  checked={formData.isRenewable}
+                  onChange={(e) => setFormData(prev => ({ ...prev, isRenewable: e.target.checked }))}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <Label htmlFor="isRenewable" className="text-sm font-medium text-gray-700">
+                  Το έγγραφο είναι ανανεώσιμο
+                </Label>
               </div>
 
               <DialogFooter>
