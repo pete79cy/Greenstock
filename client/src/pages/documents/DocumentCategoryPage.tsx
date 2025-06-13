@@ -52,6 +52,7 @@ export default function DocumentCategoryPage() {
     issueDate: "",
     expiryDate: "",
     notes: "",
+    isRenewable: true,
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 

@@ -273,6 +273,7 @@ export const regulatoryChecks = pgTable("regulatory_checks", {
   formType: formTypeEnum("form_type").notNull(), // Type of regulatory form
   documentUrl: text("document_url").notNull(), // Path to uploaded document
   notes: text("notes"), // Optional notes about the check
+  isRenewable: integer("is_renewable").notNull().default(1), // 1 for renewable, 0 for non-renewable
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -484,6 +485,7 @@ export const documents = pgTable("documents", {
   issueDate: date("issue_date"),
   expiryDate: date("expiry_date"),
   notes: text("notes"),
+  isRenewable: integer("is_renewable").notNull().default(1), // 1 for renewable, 0 for non-renewable
   uploadedBy: integer("uploaded_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -500,6 +502,7 @@ export const insertDocumentSchema = createInsertSchema(documents, {
   expiryDate: z.string().optional(),
   producerId: z.string().optional(),
   notes: z.string().optional(),
+  isRenewable: z.number().int().min(0).max(1).default(1),
 }).omit({
   id: true,
   createdAt: true,

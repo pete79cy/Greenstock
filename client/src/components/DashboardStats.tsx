@@ -61,14 +61,6 @@ export function DashboardStats() {
       borderColor: stats.expiringLicences > 0 ? "border-red-200" : "border-green-200",
     },
     {
-      title: "Sales Today",
-      value: stats.salesToday,
-      icon: TrendingUp,
-      color: "text-blue-600",
-      bgColor: "bg-blue-50",
-      borderColor: "border-blue-200",
-    },
-    {
       title: "Pending Orders",
       value: stats.pendingPOs,
       icon: Package,
@@ -92,18 +84,10 @@ export function DashboardStats() {
       bgColor: "bg-green-50",
       borderColor: "border-green-200",
     },
-    {
-      title: "Monthly Revenue",
-      value: `€${(stats.monthlyRevenue / 100).toFixed(0)}`,
-      icon: DollarSign,
-      color: "text-emerald-600",
-      bgColor: "bg-emerald-50",
-      borderColor: "border-emerald-200",
-    },
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
       {statCards.map((stat, index) => {
         const Icon = stat.icon;
         return (
