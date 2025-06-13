@@ -1,153 +1,74 @@
 import { Helmet } from "react-helmet";
-import { Link } from "wouter";
-import { 
-  Package, 
-  BarChart3, 
-  ShoppingCart, 
-  PackageX, 
-  TrendingUp, 
-  Users, 
-  FileText, 
-  Shield, 
-  Database, 
-  Settings,
-  Building2
-} from "lucide-react";
-
-interface NavigationButton {
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-  href: string;
-  color: string;
-}
+import { Building2, Command } from "lucide-react";
+import { DashboardStats } from "@/components/DashboardStats";
+import { ReorderableModuleGrid } from "@/components/ReorderableModuleGrid";
+import { CommandPalette } from "@/components/CommandPalette";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function Dashboard() {
-  const navigationButtons: NavigationButton[] = [
-    {
-      title: "Plant Inventory",
-      description: "Manage your plant collection and stock levels",
-      icon: <Package className="h-8 w-8" />,
-      href: "/inventory",
-      color: "bg-emerald-500 hover:bg-emerald-600"
-    },
-    {
-      title: "Reports & Analytics",
-      description: "View detailed reports and business insights",
-      icon: <BarChart3 className="h-8 w-8" />,
-      href: "/reports",
-      color: "bg-blue-500 hover:bg-blue-600"
-    },
-    {
-      title: "PY8 Purchases",
-      description: "Track and manage purchase orders",
-      icon: <ShoppingCart className="h-8 w-8" />,
-      href: "/py8-purchases",
-      color: "bg-orange-500 hover:bg-orange-600"
-    },
-    {
-      title: "Batch Purchases",
-      description: "Process multiple purchase orders at once",
-      icon: <PackageX className="h-8 w-8" />,
-      href: "/py8-batch-purchases",
-      color: "bg-purple-500 hover:bg-purple-600"
-    },
-    {
-      title: "PY9 Sales",
-      description: "Monitor sales performance and transactions",
-      icon: <TrendingUp className="h-8 w-8" />,
-      href: "/py9-sales",
-      color: "bg-green-500 hover:bg-green-600"
-    },
-    {
-      title: "Employee Management",
-      description: "Manage staff information and records",
-      icon: <Users className="h-8 w-8" />,
-      href: "/employees",
-      color: "bg-indigo-500 hover:bg-indigo-600"
-    },
-    {
-      title: "Payroll & Payslips",
-      description: "Handle payroll processing and payslips",
-      icon: <FileText className="h-8 w-8" />,
-      href: "/payslips",
-      color: "bg-teal-500 hover:bg-teal-600"
-    },
-    {
-      title: "Regulatory Compliance",
-      description: "Ensure compliance with regulations",
-      icon: <Shield className="h-8 w-8" />,
-      href: "/regulatory-checks",
-      color: "bg-red-500 hover:bg-red-600"
-    },
-    {
-      title: "Backup & Restore",
-      description: "Manage data backups and system recovery",
-      icon: <Database className="h-8 w-8" />,
-      href: "/backup-restore",
-      color: "bg-gray-500 hover:bg-gray-600"
-    },
-    {
-      title: "System Settings",
-      description: "Configure application preferences",
-      icon: <Settings className="h-8 w-8" />,
-      href: "/settings",
-      color: "bg-slate-500 hover:bg-slate-600"
-    }
-  ];
-
   return (
     <>
       <Helmet>
-        <title>Dashboard | Business Management Hub</title>
-        <meta name="description" content="Navigate to all business management modules from this central hub" />
+        <title>Admin Dashboard | Business Management Hub</title>
+        <meta name="description" content="Unified admin dashboard with quick stats and reorderable modules for efficient business management" />
       </Helmet>
       
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+        {/* Command Palette */}
+        <CommandPalette />
+        
         {/* Header */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <Building2 className="h-12 w-12 text-blue-600" />
-            <h1 className="text-4xl font-bold text-gray-900">Business Management Hub</h1>
+            <Building2 className="h-10 w-10 text-blue-600" />
+            <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
           </div>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Choose a module below to access your business management tools
-          </p>
-        </div>
-
-        {/* Navigation Grid */}
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {navigationButtons.map((button, index) => (
-              <Link key={index} href={button.href}>
-                <div className={`
-                  ${button.color} text-white rounded-xl p-6 shadow-lg 
-                  transform transition-all duration-200 hover:scale-105 hover:shadow-xl
-                  cursor-pointer group h-48 flex flex-col justify-center
-                `}>
-                  <div className="flex flex-col items-center text-center space-y-4">
-                    <div className="p-3 bg-white/20 rounded-full group-hover:bg-white/30 transition-colors">
-                      {button.icon}
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold mb-2">{button.title}</h3>
-                      <p className="text-sm opacity-90 leading-relaxed">
-                        {button.description}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            ))}
+          <div className="flex items-center justify-center gap-2 text-gray-600">
+            <Command className="h-4 w-4" />
+            <p className="text-sm">
+              Press <kbd className="px-2 py-1 text-xs bg-gray-200 rounded">Ctrl+K</kbd> for quick navigation or use hotkeys
+            </p>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="text-center mt-16 text-gray-500">
-          <p className="text-sm">
-            Click any module above to get started with your business management tasks
-          </p>
-        </div>
+        {/* Quick Stats Bar */}
+        <DashboardStats />
+
+        {/* Reorderable Module Grid */}
+        <ReorderableModuleGrid />
+
+        {/* Help Card */}
+        <Card className="mt-8 max-w-2xl mx-auto bg-blue-50 border-blue-200">
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold text-blue-900 mb-3">Quick Navigation</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-blue-800">
+              <div className="flex items-center gap-2">
+                <kbd className="px-2 py-1 bg-blue-200 rounded text-xs">i</kbd>
+                <span>Inventory</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <kbd className="px-2 py-1 bg-blue-200 rounded text-xs">r</kbd>
+                <span>Reports</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <kbd className="px-2 py-1 bg-blue-200 rounded text-xs">p</kbd>
+                <span>Purchases</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <kbd className="px-2 py-1 bg-blue-200 rounded text-xs">s</kbd>
+                <span>Sales</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <kbd className="px-2 py-1 bg-blue-200 rounded text-xs">e</kbd>
+                <span>Employees</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <kbd className="px-2 py-1 bg-blue-200 rounded text-xs">c</kbd>
+                <span>Compliance</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </>
   );
