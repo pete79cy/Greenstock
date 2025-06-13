@@ -138,17 +138,17 @@ export default function DocumentCenter() {
                   <Link key={category.id} href={`/documents/${routePath}`}>
                     <Button
                       variant={isActive ? "default" : "ghost"}
-                      className={`w-full justify-start text-left h-auto p-3 ${
+                      className={`w-full justify-start text-left h-auto p-3 mb-1 overflow-hidden ${
                         isActive ? 'bg-blue-600 text-white' : 'hover:bg-gray-50'
                       }`}
                     >
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-start gap-3 w-full max-w-full">
                         <IconComponent className="h-5 w-5 mt-0.5 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm leading-tight">
+                        <div className="flex-1 min-w-0 max-w-full">
+                          <div className="font-medium text-sm leading-tight mb-1 break-words">
                             {category.nameEl}
                           </div>
-                          <div className="text-xs opacity-75 mt-1 line-clamp-2">
+                          <div className="text-xs opacity-75 leading-tight break-words whitespace-normal">
                             {category.description}
                           </div>
                         </div>
@@ -187,32 +187,17 @@ export default function DocumentCenter() {
 
         {/* Main Content Area */}
         <div className="lg:col-span-3">
-          <Switch>
-            <Route path="/documents/foundation">
-              <DocumentCategoryPage categoryCode="FOUNDATION" />
-            </Route>
-            <Route path="/documents/operating-licenses">
-              <DocumentCategoryPage categoryCode="OPERATING_LICENSE" />
-            </Route>
-            <Route path="/documents/nursery-licenses">
-              <DocumentCategoryPage categoryCode="NURSERY_LICENSE" />
-            </Route>
-            <Route path="/documents/regulatory-compliance">
-              <DocumentCategoryPage categoryCode="REGULATORY_COMPLIANCE" />
-            </Route>
-            <Route path="/documents/financial">
-              <DocumentCategoryPage categoryCode="FINANCIAL" />
-            </Route>
-            <Route path="/documents/insurance">
-              <DocumentCategoryPage categoryCode="INSURANCE" />
-            </Route>
-            <Route path="/documents/contracts">
-              <DocumentCategoryPage categoryCode="CONTRACTS" />
-            </Route>
-            <Route>
-              <DocumentCategoryPage categoryCode="FOUNDATION" />
-            </Route>
-          </Switch>
+          <div className="bg-white rounded-lg border p-6">
+            <div className="text-center py-8">
+              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Επιλέξτε μια κατηγορία
+              </h3>
+              <p className="text-gray-500">
+                Επιλέξτε μια κατηγορία από την αριστερή πλευρά για να δείτε και να διαχειριστείτε τα έγγραφα.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
