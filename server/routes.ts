@@ -2585,6 +2585,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate payslips preview for all active employees
+  app.post("/api/payslips/preview", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { payPeriod, payDate } = req.body;
+      
+      if (!payPeriod || !payDate) {
+        return res.status(400).json({ message: "Pay period and pay date are required" });
+      }
+
+      // Validate pay period format (YYYY-MM)
+      if (!/^\d{4}-\d{2}$/.test(payPeriod)) {
+        return res.status(400).json({ message: "Pay period must be in YYYY-MM format" });
+      }
+
+      const preview = await storage.generatePayslipsPreview(payPeriod, payDate);
+      res.json(preview);
+    } catch (error) {
+      console.error("Error generating payslips preview:", error);
+      res.status(500).json({ message: "Failed to generate payslips preview" });
+    }
+  });
+
+  // Create bulk payslips after verification
+  app.post("/api/payslips/bulk", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { payslips: payslipData } = req.body;
+      
+      if (!Array.isArray(payslipData) || payslipData.length === 0) {
+        return res.status(400).json({ message: "Payslips data is required" });
+      }
+
+      // Validate each payslip data
+      for (const data of payslipData) {
+        if (!data.employeePassport || !data.payPeriod || !data.payDate || typeof data.grossSalary !== 'number') {
+          return res.status(400).json({ message: "Invalid payslip data format" });
+        }
+      }
+
+      const createdPayslips = await storage.createBulkPayslips(payslipData);
+      res.json(createdPayslips);
+    } catch (error) {
+      console.error("Error creating bulk payslips:", error);
+      res.status(500).json({ message: "Failed to create bulk payslips" });
+    }
+  });
+
   // Generate payslip PDF with enhanced professional design
   app.get("/api/payslips/:id/pdf", isAuthenticated, async (req: Request, res: Response) => {
     try {

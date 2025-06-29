@@ -817,6 +817,54 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
+  async generatePayslipsPreview(payPeriod: string, payDate: string): Promise<Array<{ employee: Employee; payslip: Omit<InsertPayslip, 'employeePassport'> & { calculations: PayslipCalculation } }>> {
+    const activeEmployees = await this.getActiveEmployees();
+    
+    // Check if payslips already exist for this period
+    const existingPayslips = await db
+      .select()
+      .from(payslips)
+      .where(eq(payslips.payPeriod, payPeriod));
+    
+    const existingEmployeePassports = new Set(existingPayslips.map(p => p.employeePassport));
+    
+    const payslipPreviews = activeEmployees
+      .filter(employee => !existingEmployeePassports.has(employee.passport))
+      .map(employee => {
+        const calculations = this.calculatePayslipDeductions(employee.monthlySalary);
+        
+        return {
+          employee,
+          payslip: {
+            payPeriod,
+            payDate,
+            grossSalary: employee.monthlySalary, // Already in cents
+            notes: `Auto-generated for ${payPeriod}`,
+            calculations
+          }
+        };
+      });
+    
+    return payslipPreviews;
+  }
+
+  async createBulkPayslips(payslipData: Array<{ employeePassport: string; payPeriod: string; payDate: string; grossSalary: number; notes?: string }>): Promise<Payslip[]> {
+    const payslipsToInsert = payslipData.map(data => {
+      const calculations = this.calculatePayslipDeductions(data.grossSalary);
+      
+      return {
+        ...data,
+        socialInsurance: Math.round(calculations.socialInsurance * 100), // Convert to cents
+        gesy: Math.round(calculations.gesy * 100),
+        totalDeductions: Math.round(calculations.totalDeductions * 100),
+        netPay: Math.round(calculations.netPay * 100),
+      };
+    });
+
+    const insertedPayslips = await db.insert(payslips).values(payslipsToInsert).returning();
+    return insertedPayslips;
+  }
+
   // Regulatory check methods
   async getAllRegulatoryChecks(): Promise<RegulatoryCheck[]> {
     return await db.select().from(regulatoryChecks).orderBy(desc(regulatoryChecks.createdAt));
