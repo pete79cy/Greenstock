@@ -1,0 +1,153 @@
+// server.js
+const express = require('express');
+const PDFDocument = require('pdfkit');
+const fs = require('fs');
+const path = require('path');
+const cors = require('cors');
+
+const app = express();
+const PORT = 3000;
+
+app.use(cors());
+app.use(express.json());
+
+// This makes the 'public' folder accessible for static files like fonts
+app.use(express.static('public'));
+
+// --- MOCK DATA ---
+// In a real application, this data would come from your database.
+const mockEmployees = [
+    { id: 1, name: 'John Doe', baseSalary: 50000, department: 'Engineering' },
+    { id: 2, name: 'Jane Smith', baseSalary: 75000, department: 'Marketing' },
+    { id: 3, name: 'Peter Jones', baseSalary: 90000, department: 'Management' },
+    { id: 4, name: 'Maria Garcia', baseSalary: 62000, department: 'Engineering' },
+    { id: 5, name: 'Li Wang', baseSalary: 85000, department: 'Marketing' },
+];
+
+const getPayslipDataForMonth = (month) => {
+    return mockEmployees.map(emp => ({
+        employeeId: emp.id,
+        name: emp.name,
+        month: month,
+        payDate: `${month}-28`,
+        grossSalary: (emp.baseSalary / 12).toFixed(2),
+        deductions: ((emp.baseSalary / 12) * 0.1).toFixed(2),
+        netSalary: ((emp.baseSalary / 12) * 0.9).toFixed(2),
+    }));
+};
+
+/**
+ * API route to generate a single PDF containing all payslips for a given month.
+ * URL: /api/payslips/month/YYYY-MM/print
+ */
+app.get('/api/payslips/month/:month/print', (req, res) => {
+    const { month } = req.params;
+
+    try {
+        const payslips = getPayslipDataForMonth(month);
+
+        if (!payslips || payslips.length === 0) {
+            return res.status(404).json({ message: 'No payslips found for the selected month.' });
+        }
+        
+        // Set HTTP headers for PDF response
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="payslips-${month}.pdf"`);
+
+        const doc = new PDFDocument({
+            size: 'A4',
+            margin: 50,
+            autoFirstPage: false, // We will add pages manually
+        });
+        
+        doc.pipe(res);
+
+        // ======================= ROBUST FONT LOADING =======================
+        // The previous method likely failed due to relative path issues on the server.
+        // This new approach is more robust:
+        // 1. We construct an absolute path to the font file using `process.cwd()`,
+        //    which gives the root directory of the project.
+        // 2. We read the font file into a buffer using `fs.readFileSync`.
+        // 3. We register the font buffer with pdfkit under a specific name.
+        
+        const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansGreek-Regular.ttf');
+        const boldFontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansGreek-Bold.ttf');
+
+        // Ensure the font file exists before trying to use it
+        if (!fs.existsSync(fontPath)) {
+            // This will be caught by the catch block and send a helpful error.
+            throw new Error(`Font not found at: ${fontPath}. Please ensure the font file is in the public/fonts directory.`);
+        }
+        
+        // Register the font from the buffer
+        doc.registerFont('NotoSansGreek', fs.readFileSync(fontPath));
+        
+        // Register bold font if it exists, otherwise fall back to regular
+        if (fs.existsSync(boldFontPath)) {
+            doc.registerFont('NotoSansGreek-Bold', fs.readFileSync(boldFontPath));
+        } else {
+            // If bold font is missing, register the regular font under the bold alias
+            doc.registerFont('NotoSansGreek-Bold', fs.readFileSync(fontPath));
+        }
+        // =================================================================
+
+        // Loop through each payslip and add it to the PDF
+        payslips.forEach((payslip, index) => {
+            doc.addPage();
+            
+            // --- Header ---
+            doc.font('NotoSansGreek-Bold').fontSize(16).text('Company XYZ', { align: 'center' });
+            doc.moveDown();
+            doc.font('NotoSansGreek').fontSize(14).text(`Payslip for ${payslip.month}`, { align: 'center' });
+            doc.moveDown(2);
+
+            // --- Employee Details ---
+            doc.font('NotoSansGreek-Bold').fontSize(12).text('Employee Name:', { continued: true }).font('NotoSansGreek').text(` ${payslip.name}`);
+            doc.font('NotoSansGreek-Bold').fontSize(12).text('Employee ID:', { continued: true }).font('NotoSansGreek').text(` ${payslip.employeeId}`);
+            doc.moveDown();
+            
+            // --- Salary Details ---
+            const tableTop = doc.y;
+            doc.font('NotoSansGreek-Bold');
+            doc.text('Description', 50, tableTop);
+            doc.text('Amount (€)', 400, tableTop, { align: 'right' });
+            doc.font('NotoSansGreek');
+            
+            const drawRow = (y, description, amount) => {
+                doc.text(description, 50, y);
+                doc.text(`${amount}`, 400, y, { align: 'right' });
+                doc.moveTo(50, y + 15).lineTo(550, y + 15).strokeColor("#cccccc").stroke();
+            };
+
+            let y = tableTop + 20;
+            drawRow(y, 'Gross Salary', payslip.grossSalary);
+            y += 20;
+            drawRow(y, 'Deductions', `-${payslip.deductions}`);
+            y += 20;
+            
+            doc.font('NotoSansGreek-Bold');
+            drawRow(y, 'Net Salary', payslip.netSalary);
+            doc.font('NotoSansGreek');
+
+
+            // --- Footer ---
+            doc.fontSize(8).text(`Page ${index + 1} of ${payslips.length}`, 50, 750, { align: 'right' });
+        });
+
+        // Finalize the PDF and end the stream
+        doc.end();
+
+    } catch (error) {
+        console.error('Error generating mass print PDF:', error);
+        // Send a more detailed error back to the client for easier debugging
+        res.status(500).json({ 
+            message: 'Failed to generate mass print PDF.',
+            error: error.message // This provides the specific reason for failure
+        });
+    }
+});
+
+app.listen(PORT, () => {
+    console.log(`Server is running on http://localhost:${PORT}`);
+    console.log('To test, open a browser to http://localhost:3000/api/payslips/month/2025-06/print');
+});
