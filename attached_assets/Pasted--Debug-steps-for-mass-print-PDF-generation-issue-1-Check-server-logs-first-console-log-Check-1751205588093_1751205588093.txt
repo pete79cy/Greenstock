@@ -1,0 +1,206 @@
+// Debug steps for mass print PDF generation issue
+
+// 1. Check server logs first
+console.log("Check your server console for detailed error messages");
+
+// 2. Verify font file exists and path is correct
+const fs = require('fs');
+const path = require('path');
+
+// Check if font file exists
+const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansGreek-Regular.ttf');
+console.log('Font path:', fontPath);
+console.log('Font exists:', fs.existsSync(fontPath));
+
+// 3. Enhanced error handling in your mass print endpoint
+app.get('/api/payslips/month/:month/print', authenticateToken, async (req, res) => {
+  try {
+    const { month } = req.params;
+    console.log(`Starting mass print for month: ${month}`);
+    
+    // Get payslips for the month
+    const payslips = await getPayslipsForMonth(month);
+    console.log(`Found ${payslips.length} payslips for month ${month}`);
+    
+    if (payslips.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'No payslips found for this month' 
+      });
+    }
+
+    // Check font file before PDF generation
+    const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansGreek-Regular.ttf');
+    if (!fs.existsSync(fontPath)) {
+      console.error('Font file not found at:', fontPath);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Font file not found' 
+      });
+    }
+
+    console.log('Font file verified, starting PDF generation...');
+    
+    // Create PDF document
+    const PDFDocument = require('pdfkit');
+    const doc = new PDFDocument({ 
+      size: 'A4',
+      margins: { top: 50, bottom: 50, left: 50, right: 50 }
+    });
+
+    // Set response headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="payslips-${month}.pdf"`);
+
+    // Pipe PDF to response
+    doc.pipe(res);
+
+    // Register font with error handling
+    try {
+      doc.registerFont('NotoSansGreek', fontPath);
+      doc.font('NotoSansGreek');
+      console.log('Font registered successfully');
+    } catch (fontError) {
+      console.error('Font registration error:', fontError);
+      // Fallback to default font
+      doc.font('Helvetica');
+    }
+
+    // Generate PDF content for each payslip
+    for (let i = 0; i < payslips.length; i++) {
+      const payslip = payslips[i];
+      console.log(`Processing payslip ${i + 1}/${payslips.length} for employee: ${payslip.employee_name}`);
+      
+      // Add new page for each payslip (except first)
+      if (i > 0) {
+        doc.addPage();
+      }
+
+      // Add payslip content
+      try {
+        await generatePayslipContent(doc, payslip);
+        console.log(`Successfully generated content for ${payslip.employee_name}`);
+      } catch (contentError) {
+        console.error(`Error generating content for ${payslip.employee_name}:`, contentError);
+        // Continue with next payslip instead of failing completely
+        doc.text(`Error generating payslip for ${payslip.employee_name}`, 50, 100);
+      }
+    }
+
+    // Finalize PDF
+    doc.end();
+    console.log('PDF generation completed successfully');
+
+  } catch (error) {
+    console.error('Mass print error:', error);
+    console.error('Error stack:', error.stack);
+    
+    // Send proper error response
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to generate mass print PDF',
+        error: error.message 
+      });
+    }
+  }
+});
+
+// 4. Helper function to generate individual payslip content
+async function generatePayslipContent(doc, payslip) {
+  const startY = doc.y;
+  
+  try {
+    // Company header
+    doc.fontSize(16).text('PAYSLIP', 50, startY, { align: 'center' });
+    doc.moveDown();
+    
+    // Employee information
+    doc.fontSize(12);
+    doc.text(`Employee: ${payslip.employee_name}`, 50);
+    doc.text(`Employee ID: ${payslip.employee_id}`, 50);
+    doc.text(`Month: ${payslip.month}`, 50);
+    doc.text(`Pay Date: ${new Date(payslip.pay_date).toLocaleDateString()}`, 50);
+    doc.moveDown();
+    
+    // Salary details
+    doc.text('EARNINGS:', 50);
+    doc.text(`Basic Salary: €${parseFloat(payslip.basic_salary || 0).toFixed(2)}`, 70);
+    doc.text(`Overtime: €${parseFloat(payslip.overtime_pay || 0).toFixed(2)}`, 70);
+    doc.text(`Bonuses: €${parseFloat(payslip.bonuses || 0).toFixed(2)}`, 70);
+    
+    const grossSalary = parseFloat(payslip.basic_salary || 0) + 
+                       parseFloat(payslip.overtime_pay || 0) + 
+                       parseFloat(payslip.bonuses || 0);
+    
+    doc.text(`Gross Salary: €${grossSalary.toFixed(2)}`, 50);
+    doc.moveDown();
+    
+    // Deductions
+    doc.text('DEDUCTIONS:', 50);
+    doc.text(`Social Security: €${parseFloat(payslip.social_security || 0).toFixed(2)}`, 70);
+    doc.text(`Income Tax: €${parseFloat(payslip.income_tax || 0).toFixed(2)}`, 70);
+    doc.text(`Other Deductions: €${parseFloat(payslip.other_deductions || 0).toFixed(2)}`, 70);
+    
+    const totalDeductions = parseFloat(payslip.social_security || 0) + 
+                           parseFloat(payslip.income_tax || 0) + 
+                           parseFloat(payslip.other_deductions || 0);
+    
+    doc.text(`Total Deductions: €${totalDeductions.toFixed(2)}`, 50);
+    doc.moveDown();
+    
+    // Net salary
+    const netSalary = grossSalary - totalDeductions;
+    doc.fontSize(14).text(`NET SALARY: €${netSalary.toFixed(2)}`, 50);
+    
+    // Add some space for next payslip
+    doc.moveDown(3);
+    
+  } catch (error) {
+    console.error('Error in generatePayslipContent:', error);
+    throw error;
+  }
+}
+
+// 5. Alternative simpler approach if the above doesn't work
+app.get('/api/payslips/month/:month/print-simple', authenticateToken, async (req, res) => {
+  try {
+    const { month } = req.params;
+    
+    // Get payslips
+    const payslips = await getPayslipsForMonth(month);
+    
+    if (payslips.length === 0) {
+      return res.status(404).json({ message: 'No payslips found' });
+    }
+
+    // Simple PDF without custom fonts
+    const PDFDocument = require('pdfkit');
+    const doc = new PDFDocument();
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="payslips-${month}.pdf"`);
+    
+    doc.pipe(res);
+    
+    // Use default font only
+    doc.font('Helvetica');
+    
+    payslips.forEach((payslip, index) => {
+      if (index > 0) doc.addPage();
+      
+      doc.fontSize(16).text('PAYSLIP', { align: 'center' });
+      doc.moveDown();
+      doc.fontSize(12);
+      doc.text(`Employee: ${payslip.employee_name}`);
+      doc.text(`Month: ${payslip.month}`);
+      doc.text(`Net Salary: €${payslip.net_salary || '0.00'}`);
+    });
+    
+    doc.end();
+    
+  } catch (error) {
+    console.error('Simple mass print error:', error);
+    res.status(500).json({ message: 'Failed to generate PDF' });
+  }
+});

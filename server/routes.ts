@@ -2659,6 +2659,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create a combined PDF with all payslips
       const pdfDoc = await PDFDocument.create();
       
+      // Register fontkit with PDFDocument to enable custom font embedding
+      pdfDoc.registerFontkit(fontkit);
+      
       // Robust font loading with absolute path and synchronous file operations
       const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansGreek-Regular.ttf');
       const boldFontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansGreek-Bold.ttf');

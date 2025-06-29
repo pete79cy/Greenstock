@@ -1,0 +1,88 @@
+I can see from your screenshot that the mass print functionality is failing with the error "Failed to generate mass print PDF". Based on the conversation history, it looks like you've been working on fixing font path issues and other problems with the PDF generation.
+
+Let me help you diagnose and fix this issue. The error suggests there's still a problem with the PDF generation process. Here are the most likely causes and solutions:Now let me provide you with specific troubleshooting steps:
+
+## Immediate Actions to Take:
+
+1. **Check your server console logs** - Look for detailed error messages when you click the mass print button. The logs should show exactly what's failing.
+
+2. **Verify the font file exists** - Check if `public/fonts/NotoSansGreek-Regular.ttf` actually exists in your project directory.
+
+3. **Test the endpoint directly** - Try accessing the URL `http://your-server/api/payslips/month/2025-06/print` directly in your browser to see the raw error.
+
+4. **Check the database query** - Make sure there are actually payslips for June 2025 in your database.
+
+## Common Issues and Solutions:
+
+**Font Issues:**
+- The font path might still be wrong
+- The font file might be corrupted
+- Try using the default font (Helvetica) first
+
+**Memory Issues:**
+- If generating many payslips, you might hit memory limits
+- Try processing fewer payslips at once
+
+**Database Issues:**
+- The payslips query might be returning empty results
+- Check your database connection
+
+**Authentication Issues:**
+- The API might not be properly authenticated
+- Check if your auth token is valid
+
+## Quick Fix to Try:
+
+Replace your current mass print function with this simplified version that avoids font issues:
+
+```javascript
+// Simplified mass print without custom fonts
+app.get('/api/payslips/month/:month/print', authenticateToken, async (req, res) => {
+  try {
+    const { month } = req.params;
+    console.log('Mass print requested for month:', month);
+    
+    // Your existing payslips query here
+    const payslips = await getPayslipsForMonth(month);
+    
+    if (!payslips || payslips.length === 0) {
+      return res.status(404).json({ message: 'No payslips found for this month' });
+    }
+    
+    const PDFDocument = require('pdfkit');
+    const doc = new PDFDocument();
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="payslips-${month}.pdf"`);
+    
+    doc.pipe(res);
+    doc.font('Helvetica'); // Use default font
+    
+    // Simple payslip generation
+    payslips.forEach((payslip, index) => {
+      if (index > 0) doc.addPage();
+      
+      doc.fontSize(16).text('PAYSLIP', { align: 'center' });
+      doc.moveDown();
+      doc.fontSize(12);
+      doc.text(`Employee: ${payslip.employee_name || 'N/A'}`);
+      doc.text(`Month: ${payslip.month || month}`);
+      doc.text(`Basic Salary: €${payslip.basic_salary || '0.00'}`);
+      doc.text(`Net Salary: €${payslip.net_salary || '0.00'}`);
+    });
+    
+    doc.end();
+    
+  } catch (error) {
+    console.error('Mass print error:', error);
+    res.status(500).json({ message: 'PDF generation failed: ' + error.message });
+  }
+});
+```
+
+Can you:
+1. Check your server console logs and share what errors you see?
+2. Verify if the font file exists at `public/fonts/NotoSansGreek-Regular.ttf`?
+3. Try the simplified version above?
+
+This will help us identify the exact cause of the issue.
