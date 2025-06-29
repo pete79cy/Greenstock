@@ -63,8 +63,9 @@ export default function Payslips() {
   const previewMutation = useMutation({
     mutationFn: async (data: { payPeriod: string; payDate: string }) => {
       try {
-        const result = await apiRequest("/api/payslips/preview", "POST", data);
-        return result as unknown as PayslipPreview[];
+        const response = await apiRequest("/api/payslips/preview", "POST", data);
+        const result = await response.json();
+        return result as PayslipPreview[];
       } catch (error) {
         console.error("Preview mutation error:", error);
         throw error;
@@ -103,8 +104,9 @@ export default function Payslips() {
 
   const bulkCreateMutation = useMutation({
     mutationFn: async (payslipData: Array<{ employeePassport: string; payPeriod: string; payDate: string; grossSalary: number; notes?: string }>) => {
-      const result = await apiRequest("/api/payslips/bulk", "POST", { payslips: payslipData });
-      return result as unknown as Payslip[];
+      const response = await apiRequest("/api/payslips/bulk", "POST", { payslips: payslipData });
+      const result = await response.json();
+      return result as Payslip[];
     },
     onSuccess: (data: Payslip[]) => {
       queryClient.invalidateQueries({ queryKey: ["/api/payslips"] });
