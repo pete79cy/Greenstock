@@ -1,0 +1,166 @@
+// server.js
+const express = require('express');
+const { PDFDocument, rgb } = require('pdf-lib');
+const fs = require('fs');
+const path = require('path');
+const cors = require('cors');
+
+const app = express();
+const PORT = 3000;
+
+app.use(cors());
+app.use(express.json());
+
+// This makes the 'public' folder accessible for static files
+app.use(express.static('public'));
+
+// --- MOCK DATA ---
+// In a real application, this data would come from your database.
+const mockEmployees = [
+    { id: 1, name: 'John Doe', baseSalary: 50000, department: 'Engineering' },
+    { id: 2, name: 'Jane Smith', baseSalary: 75000, department: 'Marketing' },
+    { id: 3, name: 'Peter Jones', baseSalary: 90000, department: 'Management' },
+    { id: 4, name: 'Maria Garcia', baseSalary: 62000, department: 'Engineering' },
+    { id: 5, name: 'Li Wang', baseSalary: 85000, department: 'Marketing' },
+    { id: 6, name: 'David Chen', baseSalary: 120000, department: 'Management' },
+    { id: 7, name: 'Emily White', baseSalary: 55000, department: 'Engineering' },
+];
+
+const getPayslipDataForMonth = (month) => {
+    return mockEmployees.map(emp => ({
+        employeeId: emp.id,
+        name: emp.name,
+        month: month,
+        payDate: `${month}-28`,
+        grossSalary: (emp.baseSalary / 12).toFixed(2),
+        deductions: ((emp.baseSalary / 12) * 0.1).toFixed(2),
+        netSalary: ((emp.baseSalary / 12) * 0.9).toFixed(2),
+    }));
+};
+
+/**
+ * API route to generate a single PDF with all payslips for a given month using pdf-lib.
+ * URL: /api/payslips/month/YYYY-MM/print
+ */
+app.get('/api/payslips/month/:month/print', async (req, res) => {
+    const { month } = req.params;
+
+    try {
+        const payslips = getPayslipDataForMonth(month);
+
+        if (!payslips || payslips.length === 0) {
+            return res.status(404).json({ message: 'No payslips found for the selected month.' });
+        }
+
+        // Create a new PDFDocument with pdf-lib
+        const pdfDoc = await PDFDocument.create();
+
+        // --- ROBUST FONT LOADING for pdf-lib ---
+        const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansGreek-Regular.ttf');
+        const boldFontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansGreek-Bold.ttf');
+
+        if (!fs.existsSync(fontPath)) {
+            throw new Error(`Font not found at: ${fontPath}.`);
+        }
+        
+        // Read font files into buffers
+        const fontBytes = fs.readFileSync(fontPath);
+        
+        // Embed the regular font
+        const notoSansGreekRegular = await pdfDoc.embedFont(fontBytes);
+
+        // Embed the bold font if it exists, otherwise use regular as a fallback
+        let notoSansGreekBold;
+        if (fs.existsSync(boldFontPath)) {
+            const boldFontBytes = fs.readFileSync(boldFontPath);
+            notoSansGreekBold = await pdfDoc.embedFont(boldFontBytes);
+        } else {
+            notoSansGreekBold = notoSansGreekRegular; // Fallback to regular font
+        }
+        
+        // --- Loop through each payslip and add a page for it ---
+        for (const [index, payslip] of payslips.entries()) {
+            const page = pdfDoc.addPage();
+            const { width, height } = page.getSize();
+            const fontSize = 12;
+            const headerFontSize = 16;
+            let y = height - 50;
+
+            // --- Header ---
+            page.drawText('Company XYZ', {
+                x: 50,
+                y,
+                font: notoSansGreekBold,
+                size: headerFontSize,
+                color: rgb(0, 0, 0),
+            });
+            y -= 25;
+            page.drawText(`Payslip for ${payslip.month}`, {
+                x: 50,
+                y,
+                font: notoSansGreekRegular,
+                size: 14,
+                color: rgb(0.2, 0.2, 0.2),
+            });
+            y -= 40;
+
+            // --- Employee Details ---
+            page.drawText(`Employee Name: ${payslip.name}`, { x: 50, y, font: notoSansGreekRegular, size: fontSize });
+            y -= 20;
+            page.drawText(`Employee ID: ${payslip.employeeId}`, { x: 50, y, font: notoSansGreekRegular, size: fontSize });
+            y -= 30;
+
+            // --- Salary Details Table ---
+            const tableTop = y;
+            const tableLeft = 50;
+            const tableRight = width - 50;
+
+            page.drawText('Description', { x: tableLeft, y: tableTop, font: notoSansGreekBold, size: fontSize });
+            page.drawText('Amount (€)', { x: tableRight - 100, y: tableTop, font: notoSansGreekBold, size: fontSize });
+            y -= 5;
+            page.drawLine({ start: { x: tableLeft, y }, end: { x: tableRight, y }, thickness: 1, color: rgb(0.8, 0.8, 0.8) });
+            
+            const drawRow = (yPos, description, amount, isBold = false) => {
+                yPos -= 20;
+                page.drawText(description, { x: tableLeft, y: yPos, font: isBold ? notoSansGreekBold : notoSansGreekRegular, size: fontSize });
+                page.drawText(`${amount}`, { x: tableRight - 100, y: yPos, font: isBold ? notoSansGreekBold : notoSansGreekRegular, size: fontSize });
+                return yPos;
+            };
+
+            y = drawRow(y, 'Gross Salary', payslip.grossSalary);
+            y = drawRow(y, 'Deductions', `-${payslip.deductions}`);
+            y -= 5;
+            page.drawLine({ start: { x: tableLeft, y }, end: { x: tableRight, y }, thickness: 1, color: rgb(0.8, 0.8, 0.8) });
+            y = drawRow(y, 'Net Salary', payslip.netSalary, true);
+
+            // --- Footer ---
+            page.drawText(`Page ${index + 1} of ${payslips.length}`, {
+                x: 50,
+                y: 50,
+                font: notoSansGreekRegular,
+                size: 8,
+                color: rgb(0.5, 0.5, 0.5),
+            });
+        }
+
+        // Serialize the PDFDocument to bytes (a Uint8Array)
+        const pdfBytes = await pdfDoc.save();
+
+        // Set headers and send the response
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="payslips-${month}.pdf"`);
+        res.send(Buffer.from(pdfBytes));
+
+    } catch (error) {
+        console.error('Error generating mass print PDF with pdf-lib:', error);
+        res.status(500).json({
+            message: 'Failed to generate mass print PDF.',
+            error: error.message
+        });
+    }
+});
+
+app.listen(PORT, () => {
+    console.log(`Server is running on http://localhost:${PORT}`);
+    console.log('To test, open a browser to http://localhost:3000/api/payslips/month/2025-06/print');
+});

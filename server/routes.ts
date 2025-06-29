@@ -2659,23 +2659,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create a combined PDF with all payslips
       const pdfDoc = await PDFDocument.create();
       
-      // Robust font loading with absolute path and existence check
-      const fontPath = path.join(process.cwd(), 'public/fonts/NotoSansGreek-Regular.ttf');
-      const boldFontPath = path.join(process.cwd(), 'public/fonts/NotoSansGreek-Bold.ttf');
+      // Robust font loading with absolute path and synchronous file operations
+      const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansGreek-Regular.ttf');
+      const boldFontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansGreek-Bold.ttf');
 
-      // Check if regular font exists
-      if (!await fs.promises.access(fontPath).then(() => true).catch(() => false)) {
+      // Check if regular font exists using synchronous method
+      if (!fs.existsSync(fontPath)) {
         throw new Error(`Font not found at: ${fontPath}. Please ensure the font file is in the public/fonts directory.`);
       }
 
-      // Load regular font
-      const fontBytes = await fs.promises.readFile(fontPath);
+      // Load fonts synchronously for better reliability
+      const fontBytes = fs.readFileSync(fontPath);
       const font = await pdfDoc.embedFont(fontBytes);
       
       // Load bold font if it exists, otherwise use regular font for bold text
       let boldFont;
-      if (await fs.promises.access(boldFontPath).then(() => true).catch(() => false)) {
-        const boldFontBytes = await fs.promises.readFile(boldFontPath);
+      if (fs.existsSync(boldFontPath)) {
+        const boldFontBytes = fs.readFileSync(boldFontPath);
         boldFont = await pdfDoc.embedFont(boldFontBytes);
       } else {
         // Use regular font for bold text if bold font is not available
