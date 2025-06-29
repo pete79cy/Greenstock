@@ -103,6 +103,8 @@ This is a full-stack business management application built with React, Express.j
 
 Changelog:
 - June 29, 2025. Initial setup
+- June 29, 2025. Added auto-generate payslips feature with verification system
+- June 29, 2025. Added mass print functionality for monthly payslips
 
 ## User Preferences
 

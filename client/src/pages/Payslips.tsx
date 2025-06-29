@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Download, Calendar, DollarSign, Calculator, Printer, FileText, TrendingUp, Zap, Eye, Check, X } from "lucide-react";
+import { Plus, Download, Calendar, DollarSign, Calculator, Printer, FileText, TrendingUp, Zap, Eye, Check, X, PrinterIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -72,13 +72,7 @@ export default function Payslips() {
       }
     },
     onSuccess: (data: any) => {
-      console.log("Preview data received:", data);
-      console.log("Data type:", typeof data);
-      console.log("Is array:", Array.isArray(data));
-      
       const previewData = Array.isArray(data) ? data : [];
-      console.log("Preview data length:", previewData.length);
-      
       setPayslipPreviews(previewData);
       setSelectedPayslips(new Set(previewData.map(p => p.employee.passport)));
       
@@ -235,6 +229,36 @@ export default function Payslips() {
     }
 
     bulkCreateMutation.mutate(selectedPreviewData);
+  };
+
+  const handleMassPrint = (payPeriod: string) => {
+    if (!payPeriod) {
+      toast({
+        title: "Error",
+        description: "Please select a month to print",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const monthlyPayslipsForPeriod = getPayslipsForMonth(payPeriod);
+    if (monthlyPayslipsForPeriod.length === 0) {
+      toast({
+        title: "No Payslips Found",
+        description: `No payslips found for ${formatPeriod(payPeriod)}`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Open the mass print PDF in a new window
+    window.open(`/api/payslips/month/${payPeriod}/print`, '_blank');
+    
+    toast({
+      title: "Mass Print Generated",
+      description: `Generated combined PDF with ${monthlyPayslipsForPeriod.length} payslips`,
+      variant: "default"
+    });
   };
 
   const formatCurrency = (cents: number) => {
@@ -535,17 +559,26 @@ export default function Payslips() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button 
-                  variant="outline"
-                  onClick={() => {
-                    const url = `/api/reports/monthly-payroll?month=${selectedReportMonth}`;
-                    window.open(url, '_blank');
-                  }}
-                  className="mt-6"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Export PDF
-                </Button>
+                <div className="flex gap-2 mt-6">
+                  <Button 
+                    variant="outline"
+                    onClick={() => {
+                      const url = `/api/reports/monthly-payroll?month=${selectedReportMonth}`;
+                      window.open(url, '_blank');
+                    }}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Export PDF
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={() => handleMassPrint(selectedReportMonth)}
+                    disabled={monthlyPayslips.length === 0}
+                  >
+                    <Printer className="h-4 w-4 mr-2" />
+                    Mass Print Payslips
+                  </Button>
+                </div>
               </div>
 
               {monthlyPayslips.length > 0 ? (

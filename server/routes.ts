@@ -2634,6 +2634,205 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Mass print payslips for a specific month
+  app.get("/api/payslips/month/:payPeriod/print", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { payPeriod } = req.params;
+      
+      // Validate pay period format (YYYY-MM)
+      if (!/^\d{4}-\d{2}$/.test(payPeriod)) {
+        return res.status(400).json({ message: "Pay period must be in YYYY-MM format" });
+      }
+
+      // Get all payslips for the specified month
+      const monthlyPayslips = await storage.getPayslipsByPeriod(payPeriod);
+      
+      if (monthlyPayslips.length === 0) {
+        return res.status(404).json({ message: "No payslips found for this period" });
+      }
+
+      // Get all employees
+      const allEmployees = await storage.getAllEmployees();
+      
+      console.log(`Generating mass print for ${monthlyPayslips.length} payslips in period ${payPeriod}`);
+
+      // Create a combined PDF with all payslips
+      const pdfDoc = await PDFDocument.create();
+      
+      // Embed fonts
+      const fontBytes = await fs.promises.readFile(path.join(__dirname, '../assets/fonts/NotoSansGreek-Regular.ttf'));
+      const font = await pdfDoc.embedFont(fontBytes);
+      const boldFontBytes = await fs.promises.readFile(path.join(__dirname, '../assets/fonts/NotoSansGreek-Bold.ttf'));
+      const boldFont = await pdfDoc.embedFont(boldFontBytes);
+
+      for (const payslip of monthlyPayslips) {
+        const employee = allEmployees.find(emp => emp.passport === payslip.employeePassport);
+        if (!employee) continue;
+
+        // Add a new page for each payslip
+        const page = pdfDoc.addPage([595.28, 841.89]); // A4 size
+        const { width, height } = page.getSize();
+        const margin = 50;
+        let currentY = height - margin;
+
+        // Company header
+        page.drawText('PLANT INVENTORY MANAGEMENT SYSTEM', {
+          x: margin,
+          y: currentY,
+          size: 16,
+          font: boldFont,
+          color: rgb(0.11, 0.46, 0.28),
+        });
+        currentY -= 25;
+
+        page.drawText('Employee Payslip', {
+          x: margin,
+          y: currentY,
+          size: 14,
+          font: boldFont,
+        });
+        currentY -= 40;
+
+        // Employee information
+        const employeeInfo = [
+          `Employee: ${employee.name}`,
+          `Designation: ${employee.designation}`,
+          `Passport: ${employee.passport}`,
+          `ARC: ${employee.arc || 'N/A'}`,
+          `Pay Period: ${payslip.payPeriod}`,
+          `Pay Date: ${payslip.payDate}`,
+        ];
+
+        employeeInfo.forEach(info => {
+          page.drawText(info, {
+            x: margin,
+            y: currentY,
+            size: 11,
+            font: font,
+          });
+          currentY -= 18;
+        });
+
+        currentY -= 20;
+
+        // Salary breakdown
+        const grossSalary = payslip.grossSalary / 100;
+        const socialInsurance = payslip.socialInsurance / 100;
+        const gesy = payslip.gesy / 100;
+        const netPay = payslip.netPay / 100;
+
+        // Gross salary
+        page.drawText('GROSS SALARY', {
+          x: margin + 20,
+          y: currentY,
+          size: 12,
+          font: boldFont,
+        });
+        page.drawText(`€${grossSalary.toFixed(2)}`, {
+          x: width - margin - 80,
+          y: currentY,
+          size: 12,
+          font: boldFont,
+        });
+        currentY -= 25;
+
+        // Deductions
+        page.drawText('DEDUCTIONS:', {
+          x: margin,
+          y: currentY,
+          size: 11,
+          font: boldFont,
+          color: rgb(0.6, 0.1, 0.1),
+        });
+        currentY -= 18;
+
+        page.drawText('Social Insurance (8.3%)', {
+          x: margin + 20,
+          y: currentY,
+          size: 11,
+          font: font,
+          color: rgb(0.6, 0.1, 0.1),
+        });
+        page.drawText(`-${socialInsurance.toFixed(2)}`, {
+          x: width - margin - 80,
+          y: currentY,
+          size: 11,
+          font: font,
+          color: rgb(0.6, 0.1, 0.1),
+        });
+        currentY -= 18;
+
+        page.drawText('GESY (2.65%)', {
+          x: margin + 20,
+          y: currentY,
+          size: 11,
+          font: font,
+          color: rgb(0.6, 0.1, 0.1),
+        });
+        page.drawText(`-${gesy.toFixed(2)}`, {
+          x: width - margin - 80,
+          y: currentY,
+          size: 11,
+          font: font,
+          color: rgb(0.6, 0.1, 0.1),
+        });
+        currentY -= 25;
+
+        // Net pay
+        page.drawRectangle({
+          x: margin + 10,
+          y: currentY - 25,
+          width: width - 2 * margin - 20,
+          height: 20,
+          color: rgb(0.11, 0.46, 0.28),
+        });
+
+        page.drawText('NET PAY', {
+          x: margin + 20,
+          y: currentY - 20,
+          size: 12,
+          font: boldFont,
+          color: rgb(1, 1, 1),
+        });
+        page.drawText(`€${netPay.toFixed(2)}`, {
+          x: width - margin - 80,
+          y: currentY - 20,
+          size: 12,
+          font: boldFont,
+          color: rgb(1, 1, 1),
+        });
+
+        // Notes
+        if (payslip.notes) {
+          currentY -= 50;
+          page.drawText('Notes:', {
+            x: margin,
+            y: currentY,
+            size: 10,
+            font: boldFont,
+          });
+          currentY -= 15;
+          page.drawText(payslip.notes, {
+            x: margin,
+            y: currentY,
+            size: 9,
+            font: font,
+          });
+        }
+      }
+
+      const pdfBytes = await pdfDoc.save();
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="payslips-${payPeriod}.pdf"`);
+      res.send(Buffer.from(pdfBytes));
+
+    } catch (error) {
+      console.error("Error generating mass print PDF:", error);
+      res.status(500).json({ message: "Failed to generate mass print PDF" });
+    }
+  });
+
   // Generate payslip PDF with enhanced professional design
   app.get("/api/payslips/:id/pdf", isAuthenticated, async (req: Request, res: Response) => {
     try {

@@ -728,6 +728,12 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(payslips).orderBy(desc(payslips.createdAt));
   }
 
+  async getPayslipsByPeriod(payPeriod: string): Promise<Payslip[]> {
+    return await db.select().from(payslips)
+      .where(eq(payslips.payPeriod, payPeriod))
+      .orderBy(payslips.employeePassport);
+  }
+
   async getPayslip(id: number): Promise<Payslip | undefined> {
     const [payslip] = await db.select().from(payslips).where(eq(payslips.id, id));
     return payslip || undefined;
