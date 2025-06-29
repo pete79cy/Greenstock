@@ -2660,10 +2660,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pdfDoc = await PDFDocument.create();
       
       // Embed fonts
-      const fontBytes = await fs.promises.readFile(path.join(process.cwd(), 'assets/fonts/NotoSansGreek-Regular.ttf'));
+      const fontBytes = await fs.promises.readFile(path.join(process.cwd(), 'public/fonts/NotoSansGreek-Regular.ttf'));
       const font = await pdfDoc.embedFont(fontBytes);
-      const boldFontBytes = await fs.promises.readFile(path.join(process.cwd(), 'assets/fonts/NotoSansGreek-Bold.ttf'));
-      const boldFont = await pdfDoc.embedFont(boldFontBytes);
+      // Use the same font for bold text since bold font is not available
+      const boldFont = font;
 
       for (const payslip of monthlyPayslips) {
         const employee = allEmployees.find(emp => emp.passport === payslip.employeePassport);
