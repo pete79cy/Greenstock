@@ -2660,9 +2660,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pdfDoc = await PDFDocument.create();
       
       // Embed fonts
-      const fontBytes = await fs.promises.readFile(path.join(__dirname, '../assets/fonts/NotoSansGreek-Regular.ttf'));
+      const fontBytes = await fs.promises.readFile(path.join(process.cwd(), 'assets/fonts/NotoSansGreek-Regular.ttf'));
       const font = await pdfDoc.embedFont(fontBytes);
-      const boldFontBytes = await fs.promises.readFile(path.join(__dirname, '../assets/fonts/NotoSansGreek-Bold.ttf'));
+      const boldFontBytes = await fs.promises.readFile(path.join(process.cwd(), 'assets/fonts/NotoSansGreek-Bold.ttf'));
       const boldFont = await pdfDoc.embedFont(boldFontBytes);
 
       for (const payslip of monthlyPayslips) {
