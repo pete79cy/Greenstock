@@ -2689,156 +2689,297 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const employee = allEmployees.find(emp => emp.passport === payslip.employeePassport);
         if (!employee) continue;
 
-        // Add a new page for each payslip
-        const page = pdfDoc.addPage([595.28, 841.89]); // A4 size
-        const { width, height } = page.getSize();
-        const margin = 50;
-        let currentY = height - margin;
-
-        // Company header
-        page.drawText('PLANT INVENTORY MANAGEMENT SYSTEM', {
-          x: margin,
-          y: currentY,
-          size: 16,
-          font: boldFont,
-          color: rgb(0.11, 0.46, 0.28),
-        });
-        currentY -= 25;
-
-        page.drawText('Employee Payslip', {
-          x: margin,
-          y: currentY,
-          size: 14,
-          font: boldFont,
-        });
-        currentY -= 40;
-
-        // Employee information
-        const employeeInfo = [
-          `Employee: ${employee.name}`,
-          `Designation: ${employee.designation}`,
-          `Passport: ${employee.passport}`,
-          `ARC: ${employee.arc || 'N/A'}`,
-          `Pay Period: ${payslip.payPeriod}`,
-          `Pay Date: ${payslip.payDate}`,
-        ];
-
-        employeeInfo.forEach(info => {
-          page.drawText(info, {
-            x: margin,
-            y: currentY,
-            size: 11,
-            font: font,
-          });
-          currentY -= 18;
-        });
-
-        currentY -= 20;
-
-        // Salary breakdown
         const grossSalary = payslip.grossSalary / 100;
         const socialInsurance = payslip.socialInsurance / 100;
         const gesy = payslip.gesy / 100;
         const netPay = payslip.netPay / 100;
 
-        // Gross salary
-        page.drawText('GROSS SALARY', {
-          x: margin + 20,
-          y: currentY,
-          size: 12,
-          font: boldFont,
-        });
-        page.drawText(`€${grossSalary.toFixed(2)}`, {
-          x: width - margin - 80,
-          y: currentY,
-          size: 12,
-          font: boldFont,
-        });
-        currentY -= 25;
-
-        // Deductions
-        page.drawText('DEDUCTIONS:', {
+        // Add a new page for each payslip - match single payslip format exactly
+        const page = pdfDoc.addPage([595, 842]); // A4 size
+        const { width, height } = page.getSize();
+        const margin = 50;
+        let currentY = height - margin;
+        
+        // Company Header with professional styling - same as single payslip
+        page.drawRectangle({
           x: margin,
-          y: currentY,
-          size: 11,
+          y: currentY - 60,
+          width: width - 2 * margin,
+          height: 50,
+          color: rgb(0.11, 0.46, 0.28), // Company green color
+        });
+        
+        page.drawText('PAYSLIP', {
+          x: width / 2 - 45,
+          y: currentY - 30,
+          size: 24,
           font: boldFont,
-          color: rgb(0.6, 0.1, 0.1),
+          color: rgb(1, 1, 1),
+        });
+        currentY -= 70;
+
+        // Company details
+        page.drawText('Andreas Pakkoutis & Sons Ltd', {
+          x: width / 2 - 100,
+          y: currentY,
+          size: 14,
+          font: boldFont,
+          color: rgb(0.11, 0.46, 0.28),
         });
         currentY -= 18;
-
-        page.drawText('Social Insurance (8.3%)', {
-          x: margin + 20,
+        
+        page.drawText('Griva Digeni 39, Avgorou', {
+          x: width / 2 - 70,
           y: currentY,
+          size: 10,
+          font: font,
+          color: rgb(0.3, 0.3, 0.3),
+        });
+        currentY -= 40;
+
+        // Employee Information Box
+        page.drawRectangle({
+          x: margin,
+          y: currentY - 80,
+          width: width - 2 * margin,
+          height: 75,
+          borderColor: rgb(0.8, 0.8, 0.8),
+          borderWidth: 1,
+        });
+
+        page.drawText('EMPLOYEE INFORMATION', {
+          x: margin + 15,
+          y: currentY - 20,
+          size: 12,
+          font: boldFont,
+          color: rgb(0.11, 0.46, 0.28),
+        });
+
+        page.drawText(`Name: ${employee.name}`, {
+          x: margin + 15,
+          y: currentY - 40,
           size: 11,
           font: font,
-          color: rgb(0.6, 0.1, 0.1),
+        });
+
+        page.drawText(`Designation: ${employee.designation}`, {
+          x: margin + 15,
+          y: currentY - 55,
+          size: 11,
+          font: font,
+        });
+
+        page.drawText(`Pay Period: ${payslip.payPeriod}`, {
+          x: width - margin - 120,
+          y: currentY - 40,
+          size: 11,
+          font: font,
+        });
+        
+        page.drawText(`Pay Date: ${new Date(payslip.payDate).toLocaleDateString("en-GB")}`, {
+          x: width - margin - 120,
+          y: currentY - 55,
+          size: 11,
+          font: font,
+        });
+        currentY -= 100;
+
+        // Identification & Documentation Box
+        page.drawRectangle({
+          x: margin,
+          y: currentY - 100,
+          width: width - 2 * margin,
+          height: 95,
+          borderColor: rgb(0.8, 0.8, 0.8),
+          borderWidth: 1,
+        });
+
+        page.drawText('IDENTIFICATION & DOCUMENTATION', {
+          x: margin + 15,
+          y: currentY - 20,
+          size: 12,
+          font: boldFont,
+          color: rgb(0.11, 0.46, 0.28),
+        });
+
+        page.drawText(`Passport No.: ${employee.passport ?? "—"}`, {
+          x: margin + 15,
+          y: currentY - 40,
+          size: 11,
+          font: font,
+        });
+
+        page.drawText(`ARC No.: ${employee.arc ?? "—"}`, {
+          x: margin + 15,
+          y: currentY - 55,
+          size: 11,
+          font: font,
+        });
+
+        page.drawText(`Social Insurance: ${employee.socialInsurance ?? "—"}`, {
+          x: width - margin - 200,
+          y: currentY - 40,
+          size: 11,
+          font: font,
+        });
+
+        page.drawText(`Tax ID: ${employee.taxId ?? "—"}`, {
+          x: width - margin - 200,
+          y: currentY - 55,
+          size: 11,
+          font: font,
+        });
+        currentY -= 120;
+
+        // Salary Breakdown Box
+        page.drawRectangle({
+          x: margin,
+          y: currentY - 140,
+          width: width - 2 * margin,
+          height: 135,
+          borderColor: rgb(0.8, 0.8, 0.8),
+          borderWidth: 1,
+        });
+
+        page.drawText('SALARY BREAKDOWN', {
+          x: margin + 15,
+          y: currentY - 20,
+          size: 12,
+          font: boldFont,
+          color: rgb(0.11, 0.46, 0.28),
+        });
+
+        // Table headers background
+        page.drawRectangle({
+          x: margin + 10,
+          y: currentY - 50,
+          width: width - 2 * margin - 20,
+          height: 20,
+          color: rgb(0.95, 0.95, 0.95),
+        });
+
+        page.drawText('Description', {
+          x: margin + 20,
+          y: currentY - 45,
+          size: 10,
+          font: boldFont,
+        });
+
+        page.drawText('Amount (€)', {
+          x: width - margin - 100,
+          y: currentY - 45,
+          size: 10,
+          font: boldFont,
+        });
+
+        // Gross Salary
+        page.drawText('Gross Salary', {
+          x: margin + 20,
+          y: currentY - 70,
+          size: 11,
+          font: font,
+        });
+        page.drawText(`${grossSalary.toFixed(2)}`, {
+          x: width - margin - 80,
+          y: currentY - 70,
+          size: 11,
+          font: font,
+        });
+
+        // Social Insurance
+        page.drawText('Social Insurance (8.3%)', {
+          x: margin + 20,
+          y: currentY - 90,
+          size: 11,
+          font: font,
+          color: rgb(0.8, 0.2, 0.2),
         });
         page.drawText(`-${socialInsurance.toFixed(2)}`, {
           x: width - margin - 80,
-          y: currentY,
+          y: currentY - 90,
           size: 11,
           font: font,
-          color: rgb(0.6, 0.1, 0.1),
+          color: rgb(0.8, 0.2, 0.2),
         });
-        currentY -= 18;
 
+        // GESY
         page.drawText('GESY (2.65%)', {
           x: margin + 20,
-          y: currentY,
+          y: currentY - 110,
           size: 11,
           font: font,
-          color: rgb(0.6, 0.1, 0.1),
+          color: rgb(0.8, 0.2, 0.2),
         });
         page.drawText(`-${gesy.toFixed(2)}`, {
           x: width - margin - 80,
-          y: currentY,
+          y: currentY - 110,
           size: 11,
           font: font,
-          color: rgb(0.6, 0.1, 0.1),
+          color: rgb(0.8, 0.2, 0.2),
         });
-        currentY -= 25;
+        currentY -= 160;
 
-        // Net pay
+        // Net Pay Box
         page.drawRectangle({
-          x: margin + 10,
-          y: currentY - 25,
-          width: width - 2 * margin - 20,
-          height: 20,
+          x: margin,
+          y: currentY - 40,
+          width: width - 2 * margin,
+          height: 35,
           color: rgb(0.11, 0.46, 0.28),
         });
 
         page.drawText('NET PAY', {
           x: margin + 20,
-          y: currentY - 20,
-          size: 12,
-          font: boldFont,
-          color: rgb(1, 1, 1),
-        });
-        page.drawText(`€${netPay.toFixed(2)}`, {
-          x: width - margin - 80,
-          y: currentY - 20,
-          size: 12,
+          y: currentY - 25,
+          size: 14,
           font: boldFont,
           color: rgb(1, 1, 1),
         });
 
-        // Notes
+        page.drawText(`€${netPay.toFixed(2)}`, {
+          x: width - margin - 80,
+          y: currentY - 25,
+          size: 14,
+          font: boldFont,
+          color: rgb(1, 1, 1),
+        });
+        currentY -= 60;
+
+        // Notes section if present
         if (payslip.notes) {
-          currentY -= 50;
           page.drawText('Notes:', {
             x: margin,
             y: currentY,
-            size: 10,
+            size: 11,
             font: boldFont,
           });
-          currentY -= 15;
+          currentY -= 20;
           page.drawText(payslip.notes, {
             x: margin,
             y: currentY,
-            size: 9,
+            size: 10,
             font: font,
+            color: rgb(0.4, 0.4, 0.4),
           });
+          currentY -= 30;
         }
+
+        // Footer
+        currentY = 80;
+        page.drawText('This is a system-generated payslip.', {
+          x: width / 2 - 90,
+          y: currentY,
+          size: 9,
+          font: font,
+          color: rgb(0.5, 0.5, 0.5),
+        });
+        
+        page.drawText('Employee Signature: _____________________', {
+          x: width / 2 - 100,
+          y: currentY - 20,
+          size: 10,
+          font: font,
+        });
       }
 
       const pdfBytes = await pdfDoc.save();
