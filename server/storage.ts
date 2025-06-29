@@ -819,6 +819,7 @@ export class DatabaseStorage implements IStorage {
 
   async generatePayslipsPreview(payPeriod: string, payDate: string): Promise<Array<{ employee: Employee; payslip: Omit<InsertPayslip, 'employeePassport'> & { calculations: PayslipCalculation } }>> {
     const activeEmployees = await this.getActiveEmployees();
+    console.log("Active employees count:", activeEmployees.length);
     
     // Check if payslips already exist for this period
     const existingPayslips = await db
@@ -826,11 +827,16 @@ export class DatabaseStorage implements IStorage {
       .from(payslips)
       .where(eq(payslips.payPeriod, payPeriod));
     
-    const existingEmployeePassports = new Set(existingPayslips.map(p => p.employeePassport));
+    console.log("Existing payslips for period", payPeriod, ":", existingPayslips.length);
     
-    const payslipPreviews = activeEmployees
-      .filter(employee => !existingEmployeePassports.has(employee.passport))
-      .map(employee => {
+    const existingEmployeePassports = new Set(existingPayslips.map(p => p.employeePassport));
+    console.log("Existing employee passports:", Array.from(existingEmployeePassports));
+    
+    const eligibleEmployees = activeEmployees.filter(employee => !existingEmployeePassports.has(employee.passport));
+    console.log("Eligible employees count:", eligibleEmployees.length);
+    console.log("Eligible employees:", eligibleEmployees.map(e => ({ passport: e.passport, name: e.name })));
+    
+    const payslipPreviews = eligibleEmployees.map(employee => {
         const calculations = this.calculatePayslipDeductions(employee.monthlySalary);
         
         return {
@@ -845,6 +851,7 @@ export class DatabaseStorage implements IStorage {
         };
       });
     
+    console.log("Generated preview count:", payslipPreviews.length);
     return payslipPreviews;
   }
 

@@ -2590,6 +2590,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { payPeriod, payDate } = req.body;
       
+      console.log("Preview request:", { payPeriod, payDate });
+      
       if (!payPeriod || !payDate) {
         return res.status(400).json({ message: "Pay period and pay date are required" });
       }
@@ -2600,6 +2602,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const preview = await storage.generatePayslipsPreview(payPeriod, payDate);
+      console.log("Preview result:", { payPeriod, previewCount: preview.length });
       res.json(preview);
     } catch (error) {
       console.error("Error generating payslips preview:", error);
