@@ -62,15 +62,31 @@ export default function Payslips() {
 
   const previewMutation = useMutation({
     mutationFn: async (data: { payPeriod: string; payDate: string }) => {
-      const result = await apiRequest("/api/payslips/preview", "POST", data);
-      return result as unknown as PayslipPreview[];
+      try {
+        const result = await apiRequest("/api/payslips/preview", "POST", data);
+        return result as unknown as PayslipPreview[];
+      } catch (error) {
+        console.error("Preview mutation error:", error);
+        throw error;
+      }
     },
-    onSuccess: (data: PayslipPreview[]) => {
-      setPayslipPreviews(data);
-      setSelectedPayslips(new Set(data.map(p => p.employee.passport)));
+    onSuccess: (data: any) => {
+      console.log("Preview data received:", data);
+      const previewData = Array.isArray(data) ? data : [];
+      setPayslipPreviews(previewData);
+      setSelectedPayslips(new Set(previewData.map(p => p.employee.passport)));
+      
+      if (previewData.length === 0) {
+        toast({ 
+          title: "No Payslips to Generate", 
+          description: "All active employees already have payslips for this period or no active employees found.",
+          variant: "default"
+        });
+      }
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      console.error("Preview error:", error);
+      toast({ title: "Error", description: error.message || "Failed to generate preview", variant: "destructive" });
     },
   });
 
