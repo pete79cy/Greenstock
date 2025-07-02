@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { Leaf, BarChart3, Warehouse, Settings, X, FileText, ShoppingCart, TrendingUp, Receipt, Users, Calculator, Shield, CheckCircle, Package, PieChart, ChevronDown, ChevronRight, UserCheck, Activity } from "lucide-react";
+import { Leaf, BarChart3, Warehouse, Settings, X, FileText, ShoppingCart, TrendingUp, Receipt, Users, Calculator, Shield, CheckCircle, Package, PieChart, ChevronDown, ChevronRight, UserCheck, Activity, TreePine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface SidebarProps {
@@ -13,6 +13,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const [location] = useLocation();
   const [hrMenuOpen, setHrMenuOpen] = useState(false);
   const [monitoringMenuOpen, setMonitoringMenuOpen] = useState(false);
+  const [agricultureMenuOpen, setAgricultureMenuOpen] = useState(false);
 
   // Auto-expand menus when on related pages
   useEffect(() => {
@@ -21,6 +22,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     }
     if (location === "/plant-purchases" || location === "/plant-purchase-analysis") {
       setMonitoringMenuOpen(true);
+    }
+    if (location === "/py8-purchases" || location === "/py8-batch-purchases" || location === "/py9-sales") {
+      setAgricultureMenuOpen(true);
     }
   }, [location]);
 
@@ -91,44 +95,68 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               </div>
             </Link>
           </li>
+          {/* Agriculture Department ΠΥ8 & ΠΥ9 Menu */}
           <li>
-            <Link href="/py8-purchases">
-              <div className={cn(
+            <div 
+              className={cn(
                 "flex items-center p-2 rounded-md cursor-pointer",
-                location === "/py8-purchases" 
+                (location === "/py8-purchases" || location === "/py8-batch-purchases" || location === "/py9-sales") 
                   ? "bg-primary bg-opacity-10 text-primary" 
                   : "hover:bg-gray-100"
-              )}>
-                <ShoppingCart className="mr-3 h-5 w-5" />
-                <span>ΠΥ8 - Αγορές</span>
-              </div>
-            </Link>
-          </li>
-          <li>
-            <Link href="/py8-batch-purchases">
-              <div className={cn(
-                "flex items-center p-2 rounded-md cursor-pointer",
-                location === "/py8-batch-purchases" 
-                  ? "bg-primary bg-opacity-10 text-primary" 
-                  : "hover:bg-gray-100"
-              )}>
-                <Receipt className="mr-3 h-5 w-5" />
-                <span>ΠΥ8 - Παραστατικό</span>
-              </div>
-            </Link>
-          </li>
-          <li>
-            <Link href="/py9-sales">
-              <div className={cn(
-                "flex items-center p-2 rounded-md cursor-pointer",
-                location === "/py9-sales" 
-                  ? "bg-primary bg-opacity-10 text-primary" 
-                  : "hover:bg-gray-100"
-              )}>
-                <TrendingUp className="mr-3 h-5 w-5" />
-                <span>ΠΥ9 - Πωλήσεις</span>
-              </div>
-            </Link>
+              )}
+              onClick={() => setAgricultureMenuOpen(!agricultureMenuOpen)}
+            >
+              <TreePine className="mr-3 h-5 w-5" />
+              <span className="flex-1">Τμήμα Γεωργίας ΠΥ8 & ΠΥ9</span>
+              {agricultureMenuOpen ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </div>
+            {agricultureMenuOpen && (
+              <ul className="ml-6 mt-2 space-y-1">
+                <li>
+                  <Link href="/py8-purchases">
+                    <div className={cn(
+                      "flex items-center p-2 rounded-md cursor-pointer text-sm",
+                      location === "/py8-purchases" 
+                        ? "bg-primary bg-opacity-10 text-primary" 
+                        : "hover:bg-gray-100"
+                    )}>
+                      <ShoppingCart className="mr-3 h-4 w-4" />
+                      <span>ΠΥ8 - Αγορές</span>
+                    </div>
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/py8-batch-purchases">
+                    <div className={cn(
+                      "flex items-center p-2 rounded-md cursor-pointer text-sm",
+                      location === "/py8-batch-purchases" 
+                        ? "bg-primary bg-opacity-10 text-primary" 
+                        : "hover:bg-gray-100"
+                    )}>
+                      <Receipt className="mr-3 h-4 w-4" />
+                      <span>ΠΥ8 - Παραστατικό</span>
+                    </div>
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/py9-sales">
+                    <div className={cn(
+                      "flex items-center p-2 rounded-md cursor-pointer text-sm",
+                      location === "/py9-sales" 
+                        ? "bg-primary bg-opacity-10 text-primary" 
+                        : "hover:bg-gray-100"
+                    )}>
+                      <TrendingUp className="mr-3 h-4 w-4" />
+                      <span>ΠΥ9 - Πωλήσεις</span>
+                    </div>
+                  </Link>
+                </li>
+              </ul>
+            )}
           </li>
           {/* Human Resources Menu */}
           <li>

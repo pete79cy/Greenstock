@@ -105,6 +105,10 @@ Changelog:
 - June 29, 2025. Initial setup
 - June 29, 2025. Added auto-generate payslips feature with verification system
 - June 29, 2025. Added mass print functionality for monthly payslips
+- July 2, 2025. Reorganized sidebar navigation into grouped expandable menus:
+  - Human Resources (Employees, Payslips)
+  - Monitoring Plant Purchases (Αγορές Φυτών, Ανάλυση Αγορών)
+  - Τμήμα Γεωργίας ΠΥ8 & ΠΥ9 (ΠΥ8 - Αγορές, ΠΥ8 - Παραστατικό, ΠΥ9 - Πωλήσεις)
 
 ## User Preferences
 
