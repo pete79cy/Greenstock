@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { Leaf, BarChart3, Warehouse, Settings, X, FileText, ShoppingCart, TrendingUp, Receipt, Users, Calculator, Shield, CheckCircle, Package, PieChart, ChevronDown, ChevronRight, UserCheck } from "lucide-react";
+import { Leaf, BarChart3, Warehouse, Settings, X, FileText, ShoppingCart, TrendingUp, Receipt, Users, Calculator, Shield, CheckCircle, Package, PieChart, ChevronDown, ChevronRight, UserCheck, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface SidebarProps {
@@ -12,11 +12,15 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const [location] = useLocation();
   const [hrMenuOpen, setHrMenuOpen] = useState(false);
+  const [monitoringMenuOpen, setMonitoringMenuOpen] = useState(false);
 
-  // Auto-expand HR menu when on HR pages
+  // Auto-expand menus when on related pages
   useEffect(() => {
     if (location === "/employees" || location === "/payslips") {
       setHrMenuOpen(true);
+    }
+    if (location === "/plant-purchases" || location === "/plant-purchase-analysis") {
+      setMonitoringMenuOpen(true);
     }
   }, [location]);
 
@@ -189,31 +193,55 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               </div>
             </Link>
           </li>
+          {/* Monitoring Plant Purchases Menu */}
           <li>
-            <Link href="/plant-purchases">
-              <div className={cn(
+            <div 
+              className={cn(
                 "flex items-center p-2 rounded-md cursor-pointer",
-                location === "/plant-purchases" 
+                (location === "/plant-purchases" || location === "/plant-purchase-analysis") 
                   ? "bg-primary bg-opacity-10 text-primary" 
                   : "hover:bg-gray-100"
-              )}>
-                <Package className="mr-3 h-5 w-5" />
-                <span>Αγορές Φυτών</span>
-              </div>
-            </Link>
-          </li>
-          <li>
-            <Link href="/plant-purchase-analysis">
-              <div className={cn(
-                "flex items-center p-2 rounded-md cursor-pointer",
-                location === "/plant-purchase-analysis" 
-                  ? "bg-primary bg-opacity-10 text-primary" 
-                  : "hover:bg-gray-100"
-              )}>
-                <PieChart className="mr-3 h-5 w-5" />
-                <span>Ανάλυση Αγορών</span>
-              </div>
-            </Link>
+              )}
+              onClick={() => setMonitoringMenuOpen(!monitoringMenuOpen)}
+            >
+              <Activity className="mr-3 h-5 w-5" />
+              <span className="flex-1">Monitoring Plant Purchases</span>
+              {monitoringMenuOpen ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </div>
+            {monitoringMenuOpen && (
+              <ul className="ml-6 mt-2 space-y-1">
+                <li>
+                  <Link href="/plant-purchases">
+                    <div className={cn(
+                      "flex items-center p-2 rounded-md cursor-pointer text-sm",
+                      location === "/plant-purchases" 
+                        ? "bg-primary bg-opacity-10 text-primary" 
+                        : "hover:bg-gray-100"
+                    )}>
+                      <Package className="mr-3 h-4 w-4" />
+                      <span>Αγορές Φυτών</span>
+                    </div>
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/plant-purchase-analysis">
+                    <div className={cn(
+                      "flex items-center p-2 rounded-md cursor-pointer text-sm",
+                      location === "/plant-purchase-analysis" 
+                        ? "bg-primary bg-opacity-10 text-primary" 
+                        : "hover:bg-gray-100"
+                    )}>
+                      <PieChart className="mr-3 h-4 w-4" />
+                      <span>Ανάλυση Αγορών</span>
+                    </div>
+                  </Link>
+                </li>
+              </ul>
+            )}
           </li>
           <li>
             <Link href="/backup-restore">
