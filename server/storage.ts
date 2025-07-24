@@ -1206,7 +1206,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db.execute(sql`
         SELECT COUNT(*) as count 
         FROM plant_purchases 
-        WHERE purchase_date LIKE ${month + '%'}
+        WHERE purchase_date::text LIKE ${month + '%'}
       `);
       return Number(result.rows[0]?.count) || 0;
     } catch (error) {
@@ -1221,7 +1221,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db.execute(sql`
         SELECT COUNT(DISTINCT supplier_name) as count 
         FROM plant_purchases 
-        WHERE purchase_date >= date('now', '-30 days')
+        WHERE purchase_date >= CURRENT_DATE - INTERVAL '30 days'
       `);
       return Number(result.rows[0]?.count) || 0;
     } catch (error) {

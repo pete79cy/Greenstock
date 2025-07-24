@@ -109,6 +109,12 @@ Changelog:
   - Human Resources (Employees, Payslips)
   - Monitoring Plant Purchases (Αγορές Φυτών, Ανάλυση Αγορών)
   - Τμήμα Γεωργίας ΠΥ8 & ΠΥ9 (ΠΥ8 - Αγορές, ΠΥ8 - Παραστατικό, ΠΥ9 - Πωλήσεις)
+- July 24, 2025. Fixed critical authentication and PDF generation issues:
+  - Reset user password and resolved login authentication
+  - Fixed PDF generation to support Greek characters with DejaVu fonts
+  - Implemented text cleaning for fallback fonts
+  - Fixed PostgreSQL database query syntax errors
+  - Resolved WinAnsi encoding errors for multilingual content
 
 ## User Preferences
 

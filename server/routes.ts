@@ -3020,8 +3020,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const page = pdfDoc.addPage([595, 842]);
       const { width, height } = page.getSize();
 
-      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      // Try to load a Unicode-compatible font, fallback to Helvetica for ASCII-only content
+      let font, boldFont;
+      try {
+        // First try to embed a system font that supports Greek characters
+        const fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
+        const boldFontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
+        
+        if (fs.existsSync(fontPath) && fs.existsSync(boldFontPath)) {
+          pdfDoc.registerFontkit(fontkit);
+          const fontBytes = fs.readFileSync(fontPath);
+          const boldFontBytes = fs.readFileSync(boldFontPath);
+          font = await pdfDoc.embedFont(fontBytes);
+          boldFont = await pdfDoc.embedFont(boldFontBytes);
+        } else {
+          throw new Error('DejaVu fonts not found');
+        }
+      } catch (error: any) {
+        console.log('Using fallback fonts due to:', error.message);
+        // Fallback to standard fonts and clean the text
+        font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      }
+
+      // Track if we're using fallback fonts
+      const usingFallbackFonts = font.constructor.name === 'StandardFontEmbedder';
+
+      // Helper function to clean text for fonts that don't support Greek characters
+      const cleanTextForFont = (text: string) => {
+        if (!text) return text;
+        // If using fallback fonts, transliterate Greek characters
+        if (usingFallbackFonts) {
+          return text
+            .replace(/Π/g, 'P')
+            .replace(/π/g, 'p')
+            .replace(/Α/g, 'A')
+            .replace(/α/g, 'a')
+            .replace(/Β/g, 'B')
+            .replace(/β/g, 'b')
+            .replace(/Γ/g, 'G')
+            .replace(/γ/g, 'g')
+            .replace(/Δ/g, 'D')
+            .replace(/δ/g, 'd')
+            .replace(/Ε/g, 'E')
+            .replace(/ε/g, 'e')
+            .replace(/Ζ/g, 'Z')
+            .replace(/ζ/g, 'z')
+            .replace(/Η/g, 'H')
+            .replace(/η/g, 'h')
+            .replace(/Θ/g, 'Th')
+            .replace(/θ/g, 'th')
+            .replace(/Ι/g, 'I')
+            .replace(/ι/g, 'i')
+            .replace(/Κ/g, 'K')
+            .replace(/κ/g, 'k')
+            .replace(/Λ/g, 'L')
+            .replace(/λ/g, 'l')
+            .replace(/Μ/g, 'M')
+            .replace(/μ/g, 'm')
+            .replace(/Ν/g, 'N')
+            .replace(/ν/g, 'n')
+            .replace(/Ξ/g, 'X')
+            .replace(/ξ/g, 'x')
+            .replace(/Ο/g, 'O')
+            .replace(/ο/g, 'o')
+            .replace(/Ρ/g, 'R')
+            .replace(/ρ/g, 'r')
+            .replace(/Σ/g, 'S')
+            .replace(/σ/g, 's')
+            .replace(/ς/g, 's')
+            .replace(/Τ/g, 'T')
+            .replace(/τ/g, 't')
+            .replace(/Υ/g, 'Y')
+            .replace(/υ/g, 'y')
+            .replace(/Φ/g, 'F')
+            .replace(/φ/g, 'f')
+            .replace(/Χ/g, 'Ch')
+            .replace(/χ/g, 'ch')
+            .replace(/Ψ/g, 'Ps')
+            .replace(/ψ/g, 'ps')
+            .replace(/Ω/g, 'O')
+            .replace(/ω/g, 'o');
+        }
+        return text;
+      };
       
       const margin = 50;
       let currentY = height - margin;
@@ -3081,21 +3163,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         color: rgb(0.11, 0.46, 0.28),
       });
 
-      page.drawText(`Name: ${employee.name}`, {
+      page.drawText(`Name: ${cleanTextForFont(employee.name)}`, {
         x: margin + 15,
         y: currentY - 40,
         size: 11,
         font: font,
       });
 
-      page.drawText(`Designation: ${employee.designation}`, {
+      page.drawText(`Designation: ${cleanTextForFont(employee.designation)}`, {
         x: margin + 15,
         y: currentY - 55,
         size: 11,
         font: font,
       });
 
-      page.drawText(`Pay Period: ${payslip.payPeriod}`, {
+      page.drawText(`Pay Period: ${cleanTextForFont(payslip.payPeriod)}`, {
         x: width - margin - 120,
         y: currentY - 40,
         size: 11,
@@ -3128,28 +3210,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         color: rgb(0.11, 0.46, 0.28),
       });
 
-      page.drawText(`Passport No.: ${employee.passport ?? "—"}`, {
+      page.drawText(`Passport No.: ${cleanTextForFont(employee.passport ?? "—")}`, {
         x: margin + 15,
         y: currentY - 40,
         size: 11,
         font: font,
       });
 
-      page.drawText(`ARC No.: ${employee.arc ?? "—"}`, {
+      page.drawText(`ARC No.: ${cleanTextForFont(employee.arc ?? "—")}`, {
         x: margin + 15,
         y: currentY - 55,
         size: 11,
         font: font,
       });
 
-      page.drawText(`Social Insurance: ${employee.socialInsurance ?? "—"}`, {
+      page.drawText(`Social Insurance: ${cleanTextForFont(employee.socialInsurance ?? "—")}`, {
         x: width - margin - 200,
         y: currentY - 40,
         size: 11,
         font: font,
       });
 
-      page.drawText(`Tax ID: ${employee.taxId ?? "—"}`, {
+      page.drawText(`Tax ID: ${cleanTextForFont(employee.taxId ?? "—")}`, {
         x: width - margin - 200,
         y: currentY - 55,
         size: 11,
@@ -3281,7 +3363,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           font: boldFont,
         });
         currentY -= 20;
-        page.drawText(payslip.notes, {
+        page.drawText(cleanTextForFont(payslip.notes), {
           x: margin,
           y: currentY,
           size: 10,
@@ -3311,7 +3393,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pdfBytes = await pdfDoc.save();
       
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `inline; filename="payslip-${employee.name.replace(/\s+/g, '-')}-${payslip.payPeriod}.pdf"`);
+      res.setHeader('Content-Disposition', `inline; filename="payslip-${cleanTextForFont(employee.name).replace(/\s+/g, '-')}-${payslip.payPeriod}.pdf"`);
       res.setHeader('Content-Length', pdfBytes.length.toString());
       res.send(Buffer.from(pdfBytes));
     } catch (error) {
