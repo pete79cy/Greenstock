@@ -128,6 +128,7 @@ export interface PlantView extends PlantBase {
 // ΠΥ8 - Purchase entries table
 export const purchasesPy8 = pgTable("purchases_py8", {
   id: serial("id").primaryKey(),
+  invoiceNumber: text("invoice_number"),
   date: text("date").notNull(), // Using text for date to avoid timezone issues
   species: text("species").notNull(),
   variety: text("variety"),

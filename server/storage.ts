@@ -64,9 +64,10 @@ export interface IStorage {
   // ΠΥ8 Purchase methods
   getAllPurchasesPy8(): Promise<PurchasesPy8[]>;
   getPurchasePy8(id: number): Promise<PurchasesPy8 | undefined>;
-  createPurchasePy8(purchase: InsertPurchasesPy8): Promise<PurchasesPy8>;
+  createPurchasePy8(purchase: InsertPurchasesPy8 & { invoiceNumber?: string }): Promise<PurchasesPy8>;
   updatePurchasePy8(id: number, purchase: UpdatePurchasesPy8): Promise<PurchasesPy8 | undefined>;
   deletePurchasePy8(id: number): Promise<boolean>;
+  getNextInvoiceNumberPy8(year: number): Promise<string>;
   
   // ΠΥ9 Sales methods
   getAllSalesPy9(): Promise<SalesPy9[]>;
@@ -612,7 +613,7 @@ export class DatabaseStorage implements IStorage {
     return purchase || undefined;
   }
 
-  async createPurchasePy8(insertPurchase: InsertPurchasesPy8): Promise<PurchasesPy8> {
+  async createPurchasePy8(insertPurchase: InsertPurchasesPy8 & { invoiceNumber?: string }): Promise<PurchasesPy8> {
     const [purchase] = await db.insert(purchasesPy8).values(insertPurchase).returning();
     return purchase;
   }
@@ -629,6 +630,28 @@ export class DatabaseStorage implements IStorage {
   async deletePurchasePy8(id: number): Promise<boolean> {
     const result = await db.delete(purchasesPy8).where(eq(purchasesPy8.id, id));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  async getNextInvoiceNumberPy8(year: number): Promise<string> {
+    // Get the highest invoice number for the given year
+    const [result] = await db
+      .select({ 
+        maxInvoice: sql<string>`MAX(invoice_number)` 
+      })
+      .from(purchasesPy8)
+      .where(sql`invoice_number LIKE ${year + '-%'}`);
+    
+    let nextNumber = 1;
+    if (result?.maxInvoice) {
+      // Extract the number part after the year and dash
+      const parts = result.maxInvoice.split('-');
+      if (parts.length === 2) {
+        nextNumber = parseInt(parts[1]) + 1;
+      }
+    }
+    
+    // Format as YYYY-NNN (e.g., 2025-001)
+    return `${year}-${nextNumber.toString().padStart(3, '0')}`;
   }
 
   // ΠΥ9 Sales methods

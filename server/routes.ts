@@ -2104,6 +2104,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid request: date and items array required" });
       }
 
+      // Generate invoice number for the current year
+      const year = new Date(date).getFullYear();
+      const invoiceNumber = await storage.getNextInvoiceNumberPy8(year);
+
       // Create all purchases with shared invoice data
       const purchases = [];
       for (const item of items) {
@@ -2112,6 +2116,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         const purchaseData = {
+          invoiceNumber: invoiceNumber,
           date: date, // Keep as string for validation
           documentsOrigin: documentsOrigin || null,
           category: category || null,
@@ -2120,20 +2125,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           quantity: item.quantity
         };
 
-        // Validate each purchase item
-        const validationResult = insertPurchasesPy8Schema.safeParse(purchaseData);
+        // Validate each purchase item (omit invoiceNumber from validation as it's generated)
+        const validationData = {
+          date: purchaseData.date,
+          documentsOrigin: purchaseData.documentsOrigin,
+          category: purchaseData.category,
+          species: purchaseData.species,
+          variety: purchaseData.variety,
+          quantity: purchaseData.quantity
+        };
+        
+        const validationResult = insertPurchasesPy8Schema.safeParse(validationData);
         if (!validationResult.success) {
           const validationError = fromZodError(validationResult.error);
           return res.status(400).json({ message: `Item validation error: ${validationError.message}` });
         }
 
-        const purchase = await storage.createPurchasePy8(validationResult.data);
+        const purchase = await storage.createPurchasePy8({...validationResult.data, invoiceNumber});
         purchases.push(purchase);
       }
 
       res.status(201).json({ 
         success: true, 
         count: purchases.length,
+        invoiceNumber: invoiceNumber,
         purchases 
       });
     } catch (error) {

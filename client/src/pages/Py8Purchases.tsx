@@ -520,6 +520,7 @@ export default function Py8Purchases() {
               <thead>
                 <tr className="bg-gray-50">
                   <th className="border border-gray-300 px-4 py-2 text-left">Ημερομηνία</th>
+                  <th className="border border-gray-300 px-4 py-2 text-left">Αρ. Παραστατικού</th>
                   <th className="border border-gray-300 px-4 py-2 text-left">Είδος</th>
                   <th className="border border-gray-300 px-4 py-2 text-left">Ποικιλία</th>
                   <th className="border border-gray-300 px-4 py-2 text-left">Ποσότητα</th>
@@ -531,6 +532,7 @@ export default function Py8Purchases() {
                 {purchases.map((purchase) => (
                   <tr key={purchase.id} className="hover:bg-gray-50">
                     <td className="border border-gray-300 px-4 py-2">{purchase.date}</td>
+                    <td className="border border-gray-300 px-4 py-2 font-medium">{purchase.invoiceNumber || "-"}</td>
                     <td className="border border-gray-300 px-4 py-2">{purchase.species}</td>
                     <td className="border border-gray-300 px-4 py-2">{purchase.variety || "-"}</td>
                     <td className="border border-gray-300 px-4 py-2">{purchase.quantity}</td>
@@ -548,7 +550,7 @@ export default function Py8Purchases() {
                 ))}
                 {purchases.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="border border-gray-300 px-4 py-8 text-center text-gray-500">
+                    <td colSpan={7} className="border border-gray-300 px-4 py-8 text-center text-gray-500">
                       Δεν υπάρχουν καταχωρίσεις αγορών
                     </td>
                   </tr>

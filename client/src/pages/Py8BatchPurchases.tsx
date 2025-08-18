@@ -98,10 +98,10 @@ export default function Py8BatchPurchases() {
       });
       return await response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "Επιτυχία!",
-        description: "Οι αγορές ΠΥ8 καταχωρήθηκαν επιτυχώς.",
+        description: `Οι αγορές ΠΥ8 καταχωρήθηκαν επιτυχώς με αριθμό παραστατικού: ${data.invoiceNumber}`,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/purchases-py8"] });
       form.reset({
