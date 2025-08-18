@@ -135,17 +135,8 @@ export default function Py8BatchPurchases() {
   };
 
   const addLineItem = () => {
-    const lastItem = fields[fields.length - 1];
-    if (lastItem) {
-      // Pre-fill with last item's species and category for faster entry
-      append({ 
-        species: form.getValues(`items.${fields.length - 1}.species`) || "", 
-        variety: "", 
-        quantity: 1 
-      });
-    } else {
-      append({ species: "", variety: "", quantity: 1 });
-    }
+    // Always start with empty values for better flexibility
+    append({ species: "", variety: "", quantity: 1 });
   };
 
   return (
