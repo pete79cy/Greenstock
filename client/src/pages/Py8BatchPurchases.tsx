@@ -66,11 +66,7 @@ interface PlantVariety {
 export default function Py8BatchPurchases() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [speciesSearchOpen, setSpeciesSearchOpen] = useState<number | null>(null);
-  const [varietySearchOpen, setVarietySearchOpen] = useState<number | null>(null);
   const [categorySearchOpen, setCategorySearchOpen] = useState(false);
-  const [speciesSearch, setSpeciesSearch] = useState<{ [key: number]: string }>({});
-  const [varietySearch, setVarietySearch] = useState<{ [key: number]: string }>({});
 
   // Fetch varieties from database
   const { data: varieties = [], isLoading: varietiesLoading } = useQuery<PlantVariety[]>({
@@ -130,18 +126,7 @@ export default function Py8BatchPurchases() {
   };
 
   const addLineItem = () => {
-    // Get current form values to ensure they're preserved
-    const currentValues = form.getValues('items');
-    console.log('Current items before append:', currentValues);
-    
-    // Append new item
     append({ species: "", variety: "", quantity: 1, size: undefined });
-    
-    // Debug: Check values after append
-    setTimeout(() => {
-      const newValues = form.getValues('items');
-      console.log('Items after append:', newValues);
-    }, 100);
   };
 
   return (
@@ -347,94 +332,20 @@ export default function Py8BatchPurchases() {
                               name={`items.${index}.species`}
                               render={({ field }) => (
                                 <FormItem>
-                                  <Popover 
-                                    open={speciesSearchOpen === index} 
-                                    onOpenChange={(open) => setSpeciesSearchOpen(open ? index : null)}
-                                  >
-                                    <PopoverTrigger asChild>
-                                      <FormControl>
-                                        <Button
-                                          variant="outline"
-                                          role="combobox"
-                                          className="w-full justify-between h-8 text-xs"
-                                        >
-                                          {field.value || "Επιλέξτε είδος..."}
-                                          <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
-                                        </Button>
-                                      </FormControl>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-full p-2">
-                                      <div className="space-y-2">
-                                        <Input
-                                          type="text"
-                                          placeholder="Αναζήτηση είδους ή πληκτρολογήστε νέο..."
-                                          value={speciesSearch[index] || ""}
-                                          onChange={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            setSpeciesSearch(prev => ({ ...prev, [index]: e.target.value }));
-                                          }}
-                                          onKeyDown={(e) => {
-                                            e.stopPropagation();
-                                            if (e.key === 'Enter') {
-                                              e.preventDefault();
-                                              const searchValue = speciesSearch[index];
-                                              if (searchValue) {
-                                                field.onChange(searchValue);
-                                                setSpeciesSearchOpen(null);
-                                                setSpeciesSearch(prev => ({ ...prev, [index]: "" }));
-                                              }
-                                            }
-                                          }}
-                                          className="h-8"
-                                        />
-                                        <div className="max-h-[200px] overflow-y-auto space-y-1">
-                                          {speciesSearch[index] && !PLANT_SPECIES.some(s => s.toLowerCase().includes(speciesSearch[index].toLowerCase())) && (
-                                            <Button
-                                              type="button"
-                                              variant="ghost"
-                                              size="sm"
-                                              className="w-full justify-start text-xs"
-                                              onClick={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                field.onChange(speciesSearch[index]);
-                                                setSpeciesSearchOpen(null);
-                                                setSpeciesSearch(prev => ({ ...prev, [index]: "" }));
-                                              }}
-                                            >
-                                              Προσθήκη "{speciesSearch[index]}"
-                                            </Button>
-                                          )}
-                                          {PLANT_SPECIES.filter(species => 
-                                            !speciesSearch[index] || species.toLowerCase().includes(speciesSearch[index].toLowerCase())
-                                          ).map((species) => (
-                                            <Button
-                                              key={species}
-                                              type="button"
-                                              variant="ghost"
-                                              size="sm"
-                                              className="w-full justify-start text-xs"
-                                              onClick={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                field.onChange(species);
-                                                setSpeciesSearchOpen(null);
-                                                setSpeciesSearch(prev => ({ ...prev, [index]: "" }));
-                                              }}
-                                            >
-                                              <Check
-                                                className={`mr-2 h-4 w-4 ${
-                                                  field.value === species ? "opacity-100" : "opacity-0"
-                                                }`}
-                                              />
-                                              {species}
-                                            </Button>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    </PopoverContent>
-                                  </Popover>
+                                  <FormControl>
+                                    <Input
+                                      type="text"
+                                      placeholder="Είδος (π.χ. ΛΕΜΟΝΟΔΕΝΤΡΑ)"
+                                      className="h-8"
+                                      {...field}
+                                      list={`species-list-${index}`}
+                                    />
+                                  </FormControl>
+                                  <datalist id={`species-list-${index}`}>
+                                    {PLANT_SPECIES.map((species) => (
+                                      <option key={species} value={species} />
+                                    ))}
+                                  </datalist>
                                   <FormMessage />
                                 </FormItem>
                               )}
@@ -446,94 +357,20 @@ export default function Py8BatchPurchases() {
                               name={`items.${index}.variety`}
                               render={({ field }) => (
                                 <FormItem>
-                                  <Popover 
-                                    open={varietySearchOpen === index} 
-                                    onOpenChange={(open) => setVarietySearchOpen(open ? index : null)}
-                                  >
-                                    <PopoverTrigger asChild>
-                                      <FormControl>
-                                        <Button
-                                          variant="outline"
-                                          role="combobox"
-                                          className="w-full justify-between h-8 text-xs"
-                                        >
-                                          {field.value || "Επιλέξτε ποικιλία..."}
-                                          <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
-                                        </Button>
-                                      </FormControl>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-full p-2">
-                                      <div className="space-y-2">
-                                        <Input
-                                          type="text"
-                                          placeholder="Αναζήτηση ποικιλίας ή πληκτρολογήστε νέα..."
-                                          value={varietySearch[index] || ""}
-                                          onChange={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            setVarietySearch(prev => ({ ...prev, [index]: e.target.value }));
-                                          }}
-                                          onKeyDown={(e) => {
-                                            e.stopPropagation();
-                                            if (e.key === 'Enter') {
-                                              e.preventDefault();
-                                              const searchValue = varietySearch[index];
-                                              if (searchValue) {
-                                                field.onChange(searchValue);
-                                                setVarietySearchOpen(null);
-                                                setVarietySearch(prev => ({ ...prev, [index]: "" }));
-                                              }
-                                            }
-                                          }}
-                                          className="h-8"
-                                        />
-                                        <div className="max-h-[200px] overflow-y-auto space-y-1">
-                                          {varietySearch[index] && !varieties.some(v => v.name.toLowerCase().includes(varietySearch[index].toLowerCase())) && (
-                                            <Button
-                                              type="button"
-                                              variant="ghost"
-                                              size="sm"
-                                              className="w-full justify-start text-xs"
-                                              onClick={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                field.onChange(varietySearch[index]);
-                                                setVarietySearchOpen(null);
-                                                setVarietySearch(prev => ({ ...prev, [index]: "" }));
-                                              }}
-                                            >
-                                              Προσθήκη "{varietySearch[index]}"
-                                            </Button>
-                                          )}
-                                          {varieties.filter(variety => 
-                                            !varietySearch[index] || variety.name.toLowerCase().includes(varietySearch[index].toLowerCase())
-                                          ).map((variety) => (
-                                            <Button
-                                              key={variety.id}
-                                              type="button"
-                                              variant="ghost"
-                                              size="sm"
-                                              className="w-full justify-start text-xs"
-                                              onClick={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                field.onChange(variety.name);
-                                                setVarietySearchOpen(null);
-                                                setVarietySearch(prev => ({ ...prev, [index]: "" }));
-                                              }}
-                                            >
-                                              <Check
-                                                className={`mr-2 h-4 w-4 ${
-                                                  field.value === variety.name ? "opacity-100" : "opacity-0"
-                                                }`}
-                                              />
-                                              {variety.name}
-                                            </Button>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    </PopoverContent>
-                                  </Popover>
+                                  <FormControl>
+                                    <Input
+                                      type="text"
+                                      placeholder="Ποικιλία"
+                                      className="h-8"
+                                      {...field}
+                                      list={`variety-list-${index}`}
+                                    />
+                                  </FormControl>
+                                  <datalist id={`variety-list-${index}`}>
+                                    {varieties.map((variety) => (
+                                      <option key={variety.id} value={variety.name} />
+                                    ))}
+                                  </datalist>
                                   <FormMessage />
                                 </FormItem>
                               )}
@@ -588,20 +425,7 @@ export default function Py8BatchPurchases() {
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                onClick={() => {
-                                  remove(index);
-                                  // Clean up search states
-                                  setSpeciesSearch(prev => {
-                                    const newState = { ...prev };
-                                    delete newState[index];
-                                    return newState;
-                                  });
-                                  setVarietySearch(prev => {
-                                    const newState = { ...prev };
-                                    delete newState[index];
-                                    return newState;
-                                  });
-                                }}
+                                onClick={() => remove(index)}
                                 className="h-8 w-8 p-0"
                               >
                                 <Trash2 className="h-3 w-3" />
