@@ -89,16 +89,15 @@ export default function Py8BatchPurchases() {
   });
 
   const mutation = useMutation({
-    mutationFn: (data: BatchPurchaseForm) => 
-      apiRequest("/api/purchases-py8/batch", {
-        method: "POST",
-        body: JSON.stringify({
-          date: data.date.toISOString(),
-          documentsOrigin: data.documentsOrigin,
-          category: data.category,
-          items: data.items
-        })
-      }),
+    mutationFn: async (data: BatchPurchaseForm) => {
+      const response = await apiRequest("/api/purchases-py8/batch", "POST", {
+        date: data.date.toISOString(),
+        documentsOrigin: data.documentsOrigin,
+        category: data.category,
+        items: data.items
+      });
+      return await response.json();
+    },
     onSuccess: () => {
       toast({
         title: "Επιτυχία!",
