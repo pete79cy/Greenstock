@@ -2112,7 +2112,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         const purchaseData = {
-          date: new Date(date),
+          date: date, // Keep as string for validation
           documentsOrigin: documentsOrigin || null,
           category: category || null,
           species: item.species,
