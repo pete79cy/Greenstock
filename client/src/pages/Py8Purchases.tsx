@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Download, Calendar, Package } from "lucide-react";
+import { Plus, Download, Calendar, Package, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -88,11 +88,10 @@ export default function Py8Purchases() {
 
   // Mutation for creating purchases
   const createPurchaseMutation = useMutation({
-    mutationFn: (data: InsertPurchasesPy8) => 
-      apiRequest("/api/purchases-py8", {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
+    mutationFn: async (data: InsertPurchasesPy8) => {
+      const response = await apiRequest("/api/purchases-py8", "POST", data);
+      return await response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/purchases-py8"] });
       setIsAddModalOpen(false);
@@ -106,6 +105,28 @@ export default function Py8Purchases() {
       toast({
         title: "Σφάλμα",
         description: error.message || "Σφάλμα κατά την προσθήκη της καταχώρισης",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation for deleting purchases
+  const deletePurchaseMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await apiRequest(`/api/purchases-py8/${id}`, "DELETE");
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/purchases-py8"] });
+      toast({
+        title: "Επιτυχία",
+        description: "Η καταχώριση διαγράφηκε επιτυχώς",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Σφάλμα",
+        description: error.message || "Σφάλμα κατά τη διαγραφή της καταχώρισης",
         variant: "destructive",
       });
     },
@@ -350,7 +371,11 @@ export default function Py8Purchases() {
                       <FormItem>
                         <FormLabel>Έγγραφα Προέλευσης (Προαιρετικό)</FormLabel>
                         <FormControl>
-                          <Textarea placeholder="Στοιχεία παραστατικών" {...field} />
+                          <Textarea 
+                            placeholder="Στοιχεία παραστατικών" 
+                            {...field} 
+                            value={field.value || ""}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -526,6 +551,7 @@ export default function Py8Purchases() {
                   <th className="border border-gray-300 px-4 py-2 text-left">Ποσότητα</th>
                   <th className="border border-gray-300 px-4 py-2 text-left">Κατηγορία</th>
                   <th className="border border-gray-300 px-4 py-2 text-left">Έγγραφα</th>
+                  <th className="border border-gray-300 px-4 py-2 text-center">Ενέργειες</th>
                 </tr>
               </thead>
               <tbody>
@@ -546,11 +572,21 @@ export default function Py8Purchases() {
                         </span>
                       ) : "-"}
                     </td>
+                    <td className="border border-gray-300 px-4 py-2 text-center">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => deletePurchaseMutation.mutate(purchase.id)}
+                        disabled={deletePurchaseMutation.isPending}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
+                    </td>
                   </tr>
                 ))}
                 {purchases.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="border border-gray-300 px-4 py-8 text-center text-gray-500">
+                    <td colSpan={8} className="border border-gray-300 px-4 py-8 text-center text-gray-500">
                       Δεν υπάρχουν καταχωρίσεις αγορών
                     </td>
                   </tr>
