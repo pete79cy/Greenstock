@@ -114,7 +114,8 @@ export default function Py8Purchases() {
   const deletePurchaseMutation = useMutation({
     mutationFn: async (id: number) => {
       const response = await apiRequest(`/api/purchases-py8/${id}`, "DELETE");
-      return await response.json();
+      // DELETE endpoints may return empty response, so we just return success
+      return { success: true };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/purchases-py8"] });
