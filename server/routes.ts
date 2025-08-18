@@ -2094,6 +2094,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/purchases-py8/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid purchase ID" });
+      }
+
+      const deleted = await storage.deletePurchasePy8(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Purchase not found" });
+      }
+
+      res.status(200).send("OK");
+    } catch (error) {
+      console.error("Error deleting ΠΥ8 purchase:", error);
+      res.status(500).json({ message: "Failed to delete purchase entry" });
+    }
+  });
+
   // Batch create multiple ΠΥ8 purchases under single invoice
   app.post("/api/purchases-py8/batch", isAuthenticated, async (req: Request, res: Response) => {
     try {
