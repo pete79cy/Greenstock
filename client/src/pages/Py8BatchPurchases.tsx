@@ -69,6 +69,8 @@ export default function Py8BatchPurchases() {
   const [speciesSearchOpen, setSpeciesSearchOpen] = useState<number | null>(null);
   const [varietySearchOpen, setVarietySearchOpen] = useState<number | null>(null);
   const [categorySearchOpen, setCategorySearchOpen] = useState(false);
+  const [speciesSearch, setSpeciesSearch] = useState<{ [key: number]: string }>({});
+  const [varietySearch, setVarietySearch] = useState<{ [key: number]: string }>({});
 
   // Fetch varieties from database
   const { data: varieties = [], isLoading: varietiesLoading } = useQuery<PlantVariety[]>({
@@ -354,23 +356,44 @@ export default function Py8BatchPurchases() {
                                       <Command>
                                         <CommandInput 
                                           placeholder="Αναζήτηση είδους ή πληκτρολογήστε νέο..." 
-                                          value={field.value || ""}
-                                          onValueChange={field.onChange}
+                                          value={speciesSearch[index] || ""}
+                                          onValueChange={(value) => {
+                                            setSpeciesSearch(prev => ({ ...prev, [index]: value }));
+                                          }}
                                         />
                                         <CommandList>
                                           <CommandEmpty>
                                             <div className="p-2 text-sm">
-                                              Δεν βρέθηκε είδος. Πατήστε Enter για να προσθέσετε "{field.value}"
+                                              {speciesSearch[index] ? (
+                                                <Button
+                                                  type="button"
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  className="w-full justify-start"
+                                                  onClick={() => {
+                                                    field.onChange(speciesSearch[index]);
+                                                    setSpeciesSearchOpen(null);
+                                                    setSpeciesSearch(prev => ({ ...prev, [index]: "" }));
+                                                  }}
+                                                >
+                                                  Προσθήκη "{speciesSearch[index]}"
+                                                </Button>
+                                              ) : (
+                                                "Πληκτρολογήστε για αναζήτηση..."
+                                              )}
                                             </div>
                                           </CommandEmpty>
                                           <CommandGroup>
-                                            {PLANT_SPECIES.map((species) => (
+                                            {PLANT_SPECIES.filter(species => 
+                                              !speciesSearch[index] || species.toLowerCase().includes(speciesSearch[index].toLowerCase())
+                                            ).map((species) => (
                                               <CommandItem
                                                 key={species}
                                                 value={species}
                                                 onSelect={() => {
                                                   field.onChange(species);
                                                   setSpeciesSearchOpen(null);
+                                                  setSpeciesSearch(prev => ({ ...prev, [index]: "" }));
                                                 }}
                                               >
                                                 <Check
@@ -417,23 +440,44 @@ export default function Py8BatchPurchases() {
                                       <Command>
                                         <CommandInput 
                                           placeholder="Αναζήτηση ποικιλίας ή πληκτρολογήστε νέα..." 
-                                          value={field.value || ""}
-                                          onValueChange={field.onChange}
+                                          value={varietySearch[index] || ""}
+                                          onValueChange={(value) => {
+                                            setVarietySearch(prev => ({ ...prev, [index]: value }));
+                                          }}
                                         />
                                         <CommandList>
                                           <CommandEmpty>
                                             <div className="p-2 text-sm">
-                                              Δεν βρέθηκε ποικιλία. Πατήστε Enter για να προσθέσετε "{field.value}"
+                                              {varietySearch[index] ? (
+                                                <Button
+                                                  type="button"
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  className="w-full justify-start"
+                                                  onClick={() => {
+                                                    field.onChange(varietySearch[index]);
+                                                    setVarietySearchOpen(null);
+                                                    setVarietySearch(prev => ({ ...prev, [index]: "" }));
+                                                  }}
+                                                >
+                                                  Προσθήκη "{varietySearch[index]}"
+                                                </Button>
+                                              ) : (
+                                                "Πληκτρολογήστε για αναζήτηση..."
+                                              )}
                                             </div>
                                           </CommandEmpty>
                                           <CommandGroup>
-                                            {varieties.map((variety) => (
+                                            {varieties.filter(variety => 
+                                              !varietySearch[index] || variety.name.toLowerCase().includes(varietySearch[index].toLowerCase())
+                                            ).map((variety) => (
                                               <CommandItem
                                                 key={variety.id}
                                                 value={variety.name}
                                                 onSelect={() => {
                                                   field.onChange(variety.name);
                                                   setVarietySearchOpen(null);
+                                                  setVarietySearch(prev => ({ ...prev, [index]: "" }));
                                                 }}
                                               >
                                                 <Check
@@ -503,7 +547,20 @@ export default function Py8BatchPurchases() {
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                onClick={() => remove(index)}
+                                onClick={() => {
+                                  remove(index);
+                                  // Clean up search states
+                                  setSpeciesSearch(prev => {
+                                    const newState = { ...prev };
+                                    delete newState[index];
+                                    return newState;
+                                  });
+                                  setVarietySearch(prev => {
+                                    const newState = { ...prev };
+                                    delete newState[index];
+                                    return newState;
+                                  });
+                                }}
                                 className="h-8 w-8 p-0"
                               >
                                 <Trash2 className="h-3 w-3" />
