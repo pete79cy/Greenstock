@@ -28,11 +28,10 @@ export function PlantVarietyModal({ onVarietyAdded }: PlantVarietyModalProps) {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: (data: { name: string; category?: string }) =>
-      apiRequest("/api/plant-varieties", {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
+    mutationFn: async (data: { name: string; category?: string }) => {
+      const response = await apiRequest("/api/plant-varieties", "POST", data);
+      return await response.json();
+    },
     onSuccess: (newVariety) => {
       toast({
         title: "Επιτυχία!",

@@ -39,10 +39,10 @@ export default function PlantVarietiesManagement() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) =>
-      apiRequest(`/api/plant-varieties/${id}`, {
-        method: "DELETE",
-      }),
+    mutationFn: async (id: number) => {
+      const response = await apiRequest(`/api/plant-varieties/${id}`, "DELETE");
+      return response;
+    },
     onSuccess: () => {
       toast({
         title: "Επιτυχία!",
