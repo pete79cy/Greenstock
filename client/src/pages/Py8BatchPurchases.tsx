@@ -79,6 +79,7 @@ export default function Py8BatchPurchases() {
 
   const form = useForm<BatchPurchaseForm>({
     resolver: zodResolver(batchPurchaseSchema),
+    mode: "onSubmit",
     defaultValues: {
       date: new Date(),
       documentsOrigin: "",
@@ -129,8 +130,18 @@ export default function Py8BatchPurchases() {
   };
 
   const addLineItem = () => {
-    // Always start with empty values for better flexibility
+    // Get current form values to ensure they're preserved
+    const currentValues = form.getValues('items');
+    console.log('Current items before append:', currentValues);
+    
+    // Append new item
     append({ species: "", variety: "", quantity: 1, size: undefined });
+    
+    // Debug: Check values after append
+    setTimeout(() => {
+      const newValues = form.getValues('items');
+      console.log('Items after append:', newValues);
+    }, 100);
   };
 
   return (
@@ -352,61 +363,76 @@ export default function Py8BatchPurchases() {
                                         </Button>
                                       </FormControl>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-full p-0">
-                                      <Command>
-                                        <CommandInput 
-                                          placeholder="Αναζήτηση είδους ή πληκτρολογήστε νέο..." 
+                                    <PopoverContent className="w-full p-2">
+                                      <div className="space-y-2">
+                                        <Input
+                                          type="text"
+                                          placeholder="Αναζήτηση είδους ή πληκτρολογήστε νέο..."
                                           value={speciesSearch[index] || ""}
-                                          onValueChange={(value) => {
-                                            setSpeciesSearch(prev => ({ ...prev, [index]: value }));
+                                          onChange={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setSpeciesSearch(prev => ({ ...prev, [index]: e.target.value }));
                                           }}
+                                          onKeyDown={(e) => {
+                                            e.stopPropagation();
+                                            if (e.key === 'Enter') {
+                                              e.preventDefault();
+                                              const searchValue = speciesSearch[index];
+                                              if (searchValue) {
+                                                field.onChange(searchValue);
+                                                setSpeciesSearchOpen(null);
+                                                setSpeciesSearch(prev => ({ ...prev, [index]: "" }));
+                                              }
+                                            }
+                                          }}
+                                          className="h-8"
                                         />
-                                        <CommandList>
-                                          <CommandEmpty>
-                                            <div className="p-2 text-sm">
-                                              {speciesSearch[index] ? (
-                                                <Button
-                                                  type="button"
-                                                  variant="ghost"
-                                                  size="sm"
-                                                  className="w-full justify-start"
-                                                  onClick={() => {
-                                                    field.onChange(speciesSearch[index]);
-                                                    setSpeciesSearchOpen(null);
-                                                    setSpeciesSearch(prev => ({ ...prev, [index]: "" }));
-                                                  }}
-                                                >
-                                                  Προσθήκη "{speciesSearch[index]}"
-                                                </Button>
-                                              ) : (
-                                                "Πληκτρολογήστε για αναζήτηση..."
-                                              )}
-                                            </div>
-                                          </CommandEmpty>
-                                          <CommandGroup>
-                                            {PLANT_SPECIES.filter(species => 
-                                              !speciesSearch[index] || species.toLowerCase().includes(speciesSearch[index].toLowerCase())
-                                            ).map((species) => (
-                                              <CommandItem
-                                                key={species}
-                                                value={species}
-                                                onSelect={() => {
-                                                  field.onChange(species);
-                                                  setSpeciesSearchOpen(null);
-                                                  setSpeciesSearch(prev => ({ ...prev, [index]: "" }));
-                                                }}
-                                              >
-                                                <Check
-                                                  className={`mr-2 h-4 w-4 ${
-                                                    field.value === species ? "opacity-100" : "opacity-0"
-                                                  }`}
-                                                />
-                                                {species}
-                                              </CommandItem>
-                                            ))}
-                                          </CommandGroup>
-                                        </CommandList>
-                                      </Command>
+                                        <div className="max-h-[200px] overflow-y-auto space-y-1">
+                                          {speciesSearch[index] && !PLANT_SPECIES.some(s => s.toLowerCase().includes(speciesSearch[index].toLowerCase())) && (
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="sm"
+                                              className="w-full justify-start text-xs"
+                                              onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                field.onChange(speciesSearch[index]);
+                                                setSpeciesSearchOpen(null);
+                                                setSpeciesSearch(prev => ({ ...prev, [index]: "" }));
+                                              }}
+                                            >
+                                              Προσθήκη "{speciesSearch[index]}"
+                                            </Button>
+                                          )}
+                                          {PLANT_SPECIES.filter(species => 
+                                            !speciesSearch[index] || species.toLowerCase().includes(speciesSearch[index].toLowerCase())
+                                          ).map((species) => (
+                                            <Button
+                                              key={species}
+                                              type="button"
+                                              variant="ghost"
+                                              size="sm"
+                                              className="w-full justify-start text-xs"
+                                              onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                field.onChange(species);
+                                                setSpeciesSearchOpen(null);
+                                                setSpeciesSearch(prev => ({ ...prev, [index]: "" }));
+                                              }}
+                                            >
+                                              <Check
+                                                className={`mr-2 h-4 w-4 ${
+                                                  field.value === species ? "opacity-100" : "opacity-0"
+                                                }`}
+                                              />
+                                              {species}
+                                            </Button>
+                                          ))}
+                                        </div>
+                                      </div>
                                     </PopoverContent>
                                   </Popover>
                                   <FormMessage />
@@ -436,61 +462,76 @@ export default function Py8BatchPurchases() {
                                         </Button>
                                       </FormControl>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-full p-0">
-                                      <Command>
-                                        <CommandInput 
-                                          placeholder="Αναζήτηση ποικιλίας ή πληκτρολογήστε νέα..." 
+                                    <PopoverContent className="w-full p-2">
+                                      <div className="space-y-2">
+                                        <Input
+                                          type="text"
+                                          placeholder="Αναζήτηση ποικιλίας ή πληκτρολογήστε νέα..."
                                           value={varietySearch[index] || ""}
-                                          onValueChange={(value) => {
-                                            setVarietySearch(prev => ({ ...prev, [index]: value }));
+                                          onChange={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setVarietySearch(prev => ({ ...prev, [index]: e.target.value }));
                                           }}
+                                          onKeyDown={(e) => {
+                                            e.stopPropagation();
+                                            if (e.key === 'Enter') {
+                                              e.preventDefault();
+                                              const searchValue = varietySearch[index];
+                                              if (searchValue) {
+                                                field.onChange(searchValue);
+                                                setVarietySearchOpen(null);
+                                                setVarietySearch(prev => ({ ...prev, [index]: "" }));
+                                              }
+                                            }
+                                          }}
+                                          className="h-8"
                                         />
-                                        <CommandList>
-                                          <CommandEmpty>
-                                            <div className="p-2 text-sm">
-                                              {varietySearch[index] ? (
-                                                <Button
-                                                  type="button"
-                                                  variant="ghost"
-                                                  size="sm"
-                                                  className="w-full justify-start"
-                                                  onClick={() => {
-                                                    field.onChange(varietySearch[index]);
-                                                    setVarietySearchOpen(null);
-                                                    setVarietySearch(prev => ({ ...prev, [index]: "" }));
-                                                  }}
-                                                >
-                                                  Προσθήκη "{varietySearch[index]}"
-                                                </Button>
-                                              ) : (
-                                                "Πληκτρολογήστε για αναζήτηση..."
-                                              )}
-                                            </div>
-                                          </CommandEmpty>
-                                          <CommandGroup>
-                                            {varieties.filter(variety => 
-                                              !varietySearch[index] || variety.name.toLowerCase().includes(varietySearch[index].toLowerCase())
-                                            ).map((variety) => (
-                                              <CommandItem
-                                                key={variety.id}
-                                                value={variety.name}
-                                                onSelect={() => {
-                                                  field.onChange(variety.name);
-                                                  setVarietySearchOpen(null);
-                                                  setVarietySearch(prev => ({ ...prev, [index]: "" }));
-                                                }}
-                                              >
-                                                <Check
-                                                  className={`mr-2 h-4 w-4 ${
-                                                    field.value === variety.name ? "opacity-100" : "opacity-0"
-                                                  }`}
-                                                />
-                                                {variety.name}
-                                              </CommandItem>
-                                            ))}
-                                          </CommandGroup>
-                                        </CommandList>
-                                      </Command>
+                                        <div className="max-h-[200px] overflow-y-auto space-y-1">
+                                          {varietySearch[index] && !varieties.some(v => v.name.toLowerCase().includes(varietySearch[index].toLowerCase())) && (
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="sm"
+                                              className="w-full justify-start text-xs"
+                                              onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                field.onChange(varietySearch[index]);
+                                                setVarietySearchOpen(null);
+                                                setVarietySearch(prev => ({ ...prev, [index]: "" }));
+                                              }}
+                                            >
+                                              Προσθήκη "{varietySearch[index]}"
+                                            </Button>
+                                          )}
+                                          {varieties.filter(variety => 
+                                            !varietySearch[index] || variety.name.toLowerCase().includes(varietySearch[index].toLowerCase())
+                                          ).map((variety) => (
+                                            <Button
+                                              key={variety.id}
+                                              type="button"
+                                              variant="ghost"
+                                              size="sm"
+                                              className="w-full justify-start text-xs"
+                                              onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                field.onChange(variety.name);
+                                                setVarietySearchOpen(null);
+                                                setVarietySearch(prev => ({ ...prev, [index]: "" }));
+                                              }}
+                                            >
+                                              <Check
+                                                className={`mr-2 h-4 w-4 ${
+                                                  field.value === variety.name ? "opacity-100" : "opacity-0"
+                                                }`}
+                                              />
+                                              {variety.name}
+                                            </Button>
+                                          ))}
+                                        </div>
+                                      </div>
                                     </PopoverContent>
                                   </Popover>
                                   <FormMessage />
