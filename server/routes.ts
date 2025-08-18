@@ -2141,7 +2141,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           category: category || null,
           species: item.species,
           variety: item.variety,
-          quantity: item.quantity
+          quantity: item.quantity,
+          size: item.size || null
         };
 
         // Validate each purchase item (omit invoiceNumber from validation as it's generated)
@@ -2151,7 +2152,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           category: purchaseData.category,
           species: purchaseData.species,
           variety: purchaseData.variety,
-          quantity: purchaseData.quantity
+          quantity: purchaseData.quantity,
+          size: purchaseData.size
         };
         
         const validationResult = insertPurchasesPy8Schema.safeParse(validationData);

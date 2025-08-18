@@ -15,6 +15,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import BackToMenuButton from "@/components/BackToMenuButton";
@@ -40,7 +41,8 @@ const PLANT_CATEGORIES = [
 const lineItemSchema = z.object({
   species: z.string().min(1, "Είδος είναι υποχρεωτικό"),
   variety: z.string().min(1, "Ποικιλία είναι υποχρεωτική"),
-  quantity: z.number().min(1, "Ποσότητα πρέπει να είναι μεγαλύτερη από 0")
+  quantity: z.number().min(1, "Ποσότητα πρέπει να είναι μεγαλύτερη από 0"),
+  size: z.enum(["Μικρό", "Μεσαίο", "Μεγάλο"]).optional()
 });
 
 // Schema for the complete batch form
@@ -79,7 +81,7 @@ export default function Py8BatchPurchases() {
       date: new Date(),
       documentsOrigin: "",
       category: "",
-      items: [{ species: "", variety: "", quantity: 1 }]
+      items: [{ species: "", variety: "", quantity: 1, size: undefined }]
     }
   });
 
@@ -108,7 +110,7 @@ export default function Py8BatchPurchases() {
         date: new Date(),
         documentsOrigin: "",
         category: "",
-        items: [{ species: "", variety: "", quantity: 1 }]
+        items: [{ species: "", variety: "", quantity: 1, size: undefined }]
       });
     },
     onError: (error: any) => {
@@ -126,7 +128,7 @@ export default function Py8BatchPurchases() {
 
   const addLineItem = () => {
     // Always start with empty values for better flexibility
-    append({ species: "", variety: "", quantity: 1 });
+    append({ species: "", variety: "", quantity: 1, size: undefined });
   };
 
   return (
@@ -316,9 +318,10 @@ export default function Py8BatchPurchases() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[30%]">Είδος *</TableHead>
-                        <TableHead className="w-[35%]">Ποικιλία *</TableHead>
-                        <TableHead className="w-[20%]">Ποσότητα *</TableHead>
+                        <TableHead className="w-[25%]">Είδος *</TableHead>
+                        <TableHead className="w-[25%]">Ποικιλία *</TableHead>
+                        <TableHead className="w-[15%]">Ποσότητα *</TableHead>
+                        <TableHead className="w-[20%]">Μέγεθος</TableHead>
                         <TableHead className="w-[15%]">Ενέργειες</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -466,6 +469,29 @@ export default function Py8BatchPurchases() {
                                       onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
                                     />
                                   </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <FormField
+                              control={form.control}
+                              name={`items.${index}.size`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <Select onValueChange={field.onChange} value={field.value || undefined}>
+                                    <FormControl>
+                                      <SelectTrigger className="h-8">
+                                        <SelectValue placeholder="Επιλέξτε..." />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="Μικρό">Μικρό</SelectItem>
+                                      <SelectItem value="Μεσαίο">Μεσαίο</SelectItem>
+                                      <SelectItem value="Μεγάλο">Μεγάλο</SelectItem>
+                                    </SelectContent>
+                                  </Select>
                                   <FormMessage />
                                 </FormItem>
                               )}

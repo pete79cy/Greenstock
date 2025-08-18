@@ -81,6 +81,7 @@ export default function Py8Purchases() {
       species: "",
       variety: "",
       quantity: 0,
+      size: undefined,
       documentsOrigin: "",
       category: "",
     },
@@ -367,6 +368,28 @@ export default function Py8Purchases() {
                   />
                   <FormField
                     control={form.control}
+                    name="size"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Μέγεθος (Προαιρετικό)</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Επιλέξτε μέγεθος..." />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Μικρό">Μικρό</SelectItem>
+                            <SelectItem value="Μεσαίο">Μεσαίο</SelectItem>
+                            <SelectItem value="Μεγάλο">Μεγάλο</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
                     name="documentsOrigin"
                     render={({ field }) => (
                       <FormItem>
@@ -550,6 +573,7 @@ export default function Py8Purchases() {
                   <th className="border border-gray-300 px-4 py-2 text-left">Είδος</th>
                   <th className="border border-gray-300 px-4 py-2 text-left">Ποικιλία</th>
                   <th className="border border-gray-300 px-4 py-2 text-left">Ποσότητα</th>
+                  <th className="border border-gray-300 px-4 py-2 text-left">Μέγεθος</th>
                   <th className="border border-gray-300 px-4 py-2 text-left">Κατηγορία</th>
                   <th className="border border-gray-300 px-4 py-2 text-left">Έγγραφα</th>
                   <th className="border border-gray-300 px-4 py-2 text-center">Ενέργειες</th>
@@ -563,6 +587,7 @@ export default function Py8Purchases() {
                     <td className="border border-gray-300 px-4 py-2">{purchase.species}</td>
                     <td className="border border-gray-300 px-4 py-2">{purchase.variety || "-"}</td>
                     <td className="border border-gray-300 px-4 py-2">{purchase.quantity}</td>
+                    <td className="border border-gray-300 px-4 py-2">{purchase.size || "-"}</td>
                     <td className="border border-gray-300 px-4 py-2">{purchase.category || "-"}</td>
                     <td className="border border-gray-300 px-4 py-2">
                       {purchase.documentsOrigin ? (
@@ -587,7 +612,7 @@ export default function Py8Purchases() {
                 ))}
                 {purchases.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="border border-gray-300 px-4 py-8 text-center text-gray-500">
+                    <td colSpan={9} className="border border-gray-300 px-4 py-8 text-center text-gray-500">
                       Δεν υπάρχουν καταχωρίσεις αγορών
                     </td>
                   </tr>

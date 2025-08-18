@@ -613,7 +613,7 @@ export class DatabaseStorage implements IStorage {
     return purchase || undefined;
   }
 
-  async createPurchasePy8(insertPurchase: InsertPurchasesPy8 & { invoiceNumber?: string }): Promise<PurchasesPy8> {
+  async createPurchasePy8(insertPurchase: InsertPurchasesPy8 & { invoiceNumber?: string | null }): Promise<PurchasesPy8> {
     const [purchase] = await db.insert(purchasesPy8).values(insertPurchase).returning();
     return purchase;
   }

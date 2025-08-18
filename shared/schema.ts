@@ -133,6 +133,7 @@ export const purchasesPy8 = pgTable("purchases_py8", {
   species: text("species").notNull(),
   variety: text("variety"),
   quantity: integer("quantity").notNull(),
+  size: text("size"), // Size: Μικρό, Μεσαίο, Μεγάλο
   documentsOrigin: text("documents_origin"),
   category: text("category"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -142,6 +143,7 @@ export const insertPurchasesPy8Schema = createInsertSchema(purchasesPy8, {
   date: z.string().min(1, "Date is required"),
   species: z.string().min(1, "Species is required"),
   quantity: z.number().int().positive("Quantity must be positive"),
+  size: z.enum(["Μικρό", "Μεσαίο", "Μεγάλο"]).optional().nullable(),
 }).omit({
   id: true,
   createdAt: true,
