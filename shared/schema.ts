@@ -384,6 +384,25 @@ export const insertEmployeeLeaveBalanceSchema = createInsertSchema(employeeLeave
 export type EmployeeLeaveBalance = typeof employeeLeaveBalances.$inferSelect;
 export type InsertEmployeeLeaveBalance = z.infer<typeof insertEmployeeLeaveBalanceSchema>;
 
+// Plant varieties table for ΠΥ8 compliance
+export const plantVarieties = pgTable("plant_varieties", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  category: text("category"), // Optional category like fruit tree, citrus, etc.
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertPlantVarietySchema = createInsertSchema(plantVarieties, {
+  name: z.string().min(1, "Variety name is required"),
+  category: z.string().optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type PlantVariety = typeof plantVarieties.$inferSelect;
+export type InsertPlantVariety = z.infer<typeof insertPlantVarietySchema>;
+
 // Plant purchases from external sources for planning and cost analysis
 export const plantPurchases = pgTable("plant_purchases", {
   id: serial("id").primaryKey(),

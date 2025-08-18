@@ -20,6 +20,7 @@ import { allowInsecurePrototypeAccess } from "@handlebars/allow-prototype-access
 import { configureSession, registerAuthRoutes, isAuthenticated } from "./auth";
 import cors from "cors";
 import { encryptFile, decryptFile, generateSecureFilename, secureDeleteFile, validateEncryptionSetup } from "./encryption";
+import plantVarietiesRouter from "./routes/plantVarieties";
 
 // Define a type for the request with file
 interface MulterRequest extends Request {
@@ -4337,6 +4338,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch expiring documents" });
     }
   });
+
+  // Plant varieties routes
+  app.use("/api/plant-varieties", plantVarietiesRouter);
 
   const httpServer = createServer(app);
   return httpServer;

@@ -23,7 +23,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     if (location === "/plant-purchases" || location === "/plant-purchase-analysis") {
       setMonitoringMenuOpen(true);
     }
-    if (location === "/py8-purchases" || location === "/py8-batch-purchases" || location === "/py9-sales") {
+    if (location === "/py8-purchases" || location === "/py8-batch-purchases" || location === "/py9-sales" || location === "/plant-varieties") {
       setAgricultureMenuOpen(true);
     }
   }, [location]);
@@ -100,7 +100,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <div 
               className={cn(
                 "flex items-center p-2 rounded-md cursor-pointer",
-                (location === "/py8-purchases" || location === "/py8-batch-purchases" || location === "/py9-sales") 
+                (location === "/py8-purchases" || location === "/py8-batch-purchases" || location === "/py9-sales" || location === "/plant-varieties") 
                   ? "bg-primary bg-opacity-10 text-primary" 
                   : "hover:bg-gray-100"
               )}
@@ -152,6 +152,19 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                     )}>
                       <TrendingUp className="mr-3 h-4 w-4" />
                       <span>ΠΥ9 - Πωλήσεις</span>
+                    </div>
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/plant-varieties">
+                    <div className={cn(
+                      "flex items-center p-2 rounded-md cursor-pointer text-sm",
+                      location === "/plant-varieties" 
+                        ? "bg-primary bg-opacity-10 text-primary" 
+                        : "hover:bg-gray-100"
+                    )}>
+                      <Leaf className="mr-3 h-4 w-4" />
+                      <span>Διαχείριση Ποικιλιών</span>
                     </div>
                   </Link>
                 </li>

@@ -21,6 +21,7 @@ import RegulatoryChecks from "@/pages/RegulatoryChecks";
 import DocumentCategoryPage from "@/pages/documents/DocumentCategoryPage";
 import PlantPurchasesSimpleFixed from "@/pages/PlantPurchasesSimpleFixed";
 import PlantPurchaseAnalysisNew from "@/pages/PlantPurchaseAnalysisNew";
+import PlantVarietiesManagement from "@/pages/PlantVarietiesManagement";
 import Layout from "@/components/Layout";
 import { ThemeProvider } from "next-themes";
 import { useAuth } from "@/hooks/useAuth";
@@ -114,6 +115,7 @@ function Router() {
       <Route path="/documents/:categoryCode" component={ProtectedWithLayout(DocumentCategoryPage)} />
       <Route path="/plant-purchases" component={ProtectedWithLayout(PlantPurchasesSimpleFixed)} />
       <Route path="/plant-purchase-analysis" component={ProtectedWithLayout(PlantPurchaseAnalysisNew)} />
+      <Route path="/plant-varieties" component={ProtectedWithLayout(PlantVarietiesManagement)} />
       <Route path="/backup-restore" component={ProtectedWithLayout(BackupRestore)} />
       <Route path="/settings" component={ProtectedWithLayout(Settings)} />
       

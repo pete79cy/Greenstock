@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Calendar, Plus, Trash2, Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -18,66 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import BackToMenuButton from "@/components/BackToMenuButton";
-
-// Authentic plant varieties for ΠΥ8 compliance - sorted alphabetically
-const PLANT_VARIETIES = [
-  "Avocado",
-  "Grapefruit", 
-  "Lime",
-  "Αμυγδαλιά Τέξας",
-  "Αμυγδαλιά Φερραντούζ",
-  "Αχλαδιά Conference",
-  "Αχλαδιά Coscia",
-  "Αχλαδιά Κρυστάλι",
-  "Αχλαδιά Santa Maria",
-  "Αχλαδιά William",
-  "Βερικοκιά Εάρλι",
-  "Βερικοκιά Πρίνσα",
-  "Βερικοκιά Τιλτόν",
-  "Διάφορα",
-  "Ελιά",
-  "Καρυδιά Γκράντ",
-  "Καρυδιά Μοχώκ",
-  "Κερασιά Bing",
-  "Κερασιά Burlat",
-  "Κερασιά Napoleon",
-  "Κερασιά Van",
-  "Κινότο",
-  "Κιτρομήλου",
-  "Λεμονιά Επιρρώτικο",
-  "Λεμονιά Μεσογειακό",
-  "Λεμονιά Μπολομπάσι",
-  "Λεμονιά Σαντ Τερέζα",
-  "Λεμονιά Τσακώνικο",
-  "Μανταρίνι Αμερικάνικο",
-  "Μανταρίνι Κλεμεντίνη",
-  "Μανταρίνι Νόβα",
-  "Μανταρίνι Ορτανίκ",
-  "Μανταρίνι Σατσούμα",
-  "Μανταρίνι Φορτούνα",
-  "Μηλιά Γκάλα",
-  "Μηλιά Γκράνι Σμιθ",
-  "Μηλιά Golden Delicious",
-  "Μηλιά Red Delicious",
-  "Μηλιά Starking Delicious",
-  "Πορτοκαλιά Βαλένσια",
-  "Πορτοκαλιά Γκρέι Φουστ",
-  "Πορτοκαλιά Ναβέλ",
-  "Πορτοκαλιά Σαντγουίνια",
-  "Πορτοκαλιά Τρίφα",
-  "Ροδακινιά Cardinal",
-  "Ροδακινιά Έλμπερτα",
-  "Ροδακινιά Ούφο",
-  "Ροδιά Σοκολάτα",
-  "Ροδιά Φτανόφυλλη",
-  "Ροδιά Wonderfull",
-  "Συκιά Βάρδικο",
-  "Συκιά Βασιλικό",
-  "Συκιά Ναπολιτάνα Νέκρα",
-  "Συκιά Σμυρνέικο",
-  "Χαρουπιά Άγρια",
-  "Χαρουπιά Εμβολιασμένη"
-];
+import { PlantVarietyModal } from "@/components/PlantVarietyModal";
 
 // Authentic species categories for ΠΥ8 compliance
 const PLANT_SPECIES = [
@@ -114,12 +55,23 @@ const batchPurchaseSchema = z.object({
 
 type BatchPurchaseForm = z.infer<typeof batchPurchaseSchema>;
 
+interface PlantVariety {
+  id: number;
+  name: string;
+  category?: string;
+}
+
 export default function Py8BatchPurchases() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [speciesSearchOpen, setSpeciesSearchOpen] = useState<number | null>(null);
   const [varietySearchOpen, setVarietySearchOpen] = useState<number | null>(null);
   const [categorySearchOpen, setCategorySearchOpen] = useState(false);
+
+  // Fetch varieties from database
+  const { data: varieties = [], isLoading: varietiesLoading } = useQuery<PlantVariety[]>({
+    queryKey: ["/api/plant-varieties"],
+  });
 
   const form = useForm<BatchPurchaseForm>({
     resolver: zodResolver(batchPurchaseSchema),
@@ -347,15 +299,18 @@ export default function Py8BatchPurchases() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold">Προϊόντα</h3>
-                  <Button
-                    type="button"
-                    onClick={addLineItem}
-                    size="sm"
-                    className="flex items-center gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Προσθήκη Γραμμής
-                  </Button>
+                  <div className="flex gap-2">
+                    <PlantVarietyModal />
+                    <Button
+                      type="button"
+                      onClick={addLineItem}
+                      size="sm"
+                      className="flex items-center gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Προσθήκη Γραμμής
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="border rounded-lg overflow-hidden">
@@ -470,21 +425,21 @@ export default function Py8BatchPurchases() {
                                             </div>
                                           </CommandEmpty>
                                           <CommandGroup>
-                                            {PLANT_VARIETIES.map((variety) => (
+                                            {varieties.map((variety) => (
                                               <CommandItem
-                                                key={variety}
-                                                value={variety}
+                                                key={variety.id}
+                                                value={variety.name}
                                                 onSelect={() => {
-                                                  field.onChange(variety);
+                                                  field.onChange(variety.name);
                                                   setVarietySearchOpen(null);
                                                 }}
                                               >
                                                 <Check
                                                   className={`mr-2 h-4 w-4 ${
-                                                    field.value === variety ? "opacity-100" : "opacity-0"
+                                                    field.value === variety.name ? "opacity-100" : "opacity-0"
                                                   }`}
                                                 />
-                                                {variety}
+                                                {variety.name}
                                               </CommandItem>
                                             ))}
                                           </CommandGroup>
