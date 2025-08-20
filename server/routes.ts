@@ -2264,6 +2264,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'Είδος': purchase.species,
         'Ποικιλία': purchase.variety || '',
         'Ποσότητα': purchase.quantity,
+        'Μέγεθος': purchase.size || '',
         'Έγγραφα Προέλευσης': purchase.documentsOrigin || '',
         'Κατηγορία': purchase.category || ''
       })));
