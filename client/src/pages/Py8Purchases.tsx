@@ -82,6 +82,14 @@ export default function Py8Purchases() {
     queryKey: ["/api/purchases-py8/stats/by-size"],
   });
 
+  // Calculate year-to-date purchases for correct totals
+  const currentYear = new Date().getFullYear();
+  const yearStartDate = `${currentYear}-01-01`;
+  const today = new Date().toISOString().split('T')[0];
+  const yearToDatePurchases = purchases.filter(purchase => {
+    return purchase.date >= yearStartDate && purchase.date <= today;
+  });
+
   // Form setup
   const form = useForm<InsertPurchasesPy8>({
     resolver: zodResolver(insertPurchasesPy8Schema),
@@ -522,7 +530,7 @@ export default function Py8Purchases() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Συνολικές Αγορές</CardTitle>
@@ -530,17 +538,31 @@ export default function Py8Purchases() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{purchases.length}</div>
+            <p className="text-xs text-muted-foreground">Όλες οι καταχωρίσεις</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Συνολική Ποσότητα</CardTitle>
+            <CardTitle className="text-sm font-medium">Ποσότητα (Όλες)</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
               {purchases.reduce((sum, p) => sum + p.quantity, 0)}
             </div>
+            <p className="text-xs text-muted-foreground">Σύνολο όλων</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Ποσότητα {currentYear}</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {yearToDatePurchases.reduce((sum, p) => sum + p.quantity, 0)}
+            </div>
+            <p className="text-xs text-muted-foreground">01/01 - σήμερα</p>
           </CardContent>
         </Card>
         <Card>
@@ -552,6 +574,7 @@ export default function Py8Purchases() {
             <div className="text-2xl font-bold">
               {new Set(purchases.map(p => p.species)).size}
             </div>
+            <p className="text-xs text-muted-foreground">Μοναδικά είδη</p>
           </CardContent>
         </Card>
         <Card>
@@ -563,6 +586,7 @@ export default function Py8Purchases() {
             <div className="text-2xl font-bold">
               {purchases.length > 0 ? purchases[0].date : "Καμία"}
             </div>
+            <p className="text-xs text-muted-foreground">Ημερομηνία</p>
           </CardContent>
         </Card>
       </div>
