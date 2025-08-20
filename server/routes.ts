@@ -2113,6 +2113,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get ΠΥ8 purchases statistics by size (from January 1st to today)
+  app.get("/api/purchases-py8/stats/by-size", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const purchases = await storage.getAllPurchasesPy8();
+      
+      // Get current year and create date range
+      const currentYear = new Date().getFullYear();
+      const startDate = `${currentYear}-01-01`;
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Filter purchases from January 1st to today
+      const filteredPurchases = purchases.filter(purchase => {
+        return purchase.date >= startDate && purchase.date <= today;
+      });
+      
+      // Calculate quantities by size
+      const sizeStats = {
+        'Μικρό': 0,
+        'Μεσαίο': 0,
+        'Μεγάλο': 0,
+        'Χωρίς μέγεθος': 0
+      };
+      
+      filteredPurchases.forEach(purchase => {
+        const size = purchase.size || 'Χωρίς μέγεθος';
+        if (size === 'Μικρό' || size === 'Μεσαίο' || size === 'Μεγάλο') {
+          sizeStats[size] += purchase.quantity;
+        } else {
+          sizeStats['Χωρίς μέγεθος'] += purchase.quantity;
+        }
+      });
+      
+      res.json({
+        period: `${startDate} - ${today}`,
+        stats: sizeStats,
+        total: filteredPurchases.reduce((sum, p) => sum + p.quantity, 0)
+      });
+    } catch (error) {
+      console.error("Error fetching ΠΥ8 size statistics:", error);
+      res.status(500).json({ message: "Failed to fetch size statistics" });
+    }
+  });
+
   // Batch create multiple ΠΥ8 purchases under single invoice
   app.post("/api/purchases-py8/batch", isAuthenticated, async (req: Request, res: Response) => {
     try {

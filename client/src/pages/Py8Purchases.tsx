@@ -73,6 +73,15 @@ export default function Py8Purchases() {
     queryKey: ["/api/purchases-py8"],
   });
 
+  // Query for fetching size statistics
+  const { data: sizeStats } = useQuery<{
+    period: string;
+    stats: { [key: string]: number };
+    total: number;
+  }>({
+    queryKey: ["/api/purchases-py8/stats/by-size"],
+  });
+
   // Form setup
   const form = useForm<InsertPurchasesPy8>({
     resolver: zodResolver(insertPurchasesPy8Schema),
@@ -95,6 +104,7 @@ export default function Py8Purchases() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/purchases-py8"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/purchases-py8/stats/by-size"] });
       setIsAddModalOpen(false);
       form.reset();
       toast({
@@ -120,6 +130,7 @@ export default function Py8Purchases() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/purchases-py8"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/purchases-py8/stats/by-size"] });
       toast({
         title: "Επιτυχία",
         description: "Η καταχώριση διαγράφηκε επιτυχώς",
@@ -555,6 +566,43 @@ export default function Py8Purchases() {
           </CardContent>
         </Card>
       </div>
+
+      {sizeStats && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Ποσότητες ανά Μέγεθος</CardTitle>
+            <CardDescription>
+              Περίοδος: {sizeStats.period}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <div className="text-sm text-muted-foreground">Μικρό</div>
+                <div className="text-2xl font-bold">{sizeStats.stats['Μικρό'] || 0}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm text-muted-foreground">Μεσαίο</div>
+                <div className="text-2xl font-bold">{sizeStats.stats['Μεσαίο'] || 0}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm text-muted-foreground">Μεγάλο</div>
+                <div className="text-2xl font-bold">{sizeStats.stats['Μεγάλο'] || 0}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm text-muted-foreground">Χωρίς μέγεθος</div>
+                <div className="text-2xl font-bold">{sizeStats.stats['Χωρίς μέγεθος'] || 0}</div>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Σύνολο ποσότητας:</span>
+                <span className="text-lg font-bold">{sizeStats.total}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
