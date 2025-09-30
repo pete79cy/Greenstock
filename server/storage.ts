@@ -17,7 +17,7 @@ import {
   documentCategories, type DocumentCategory, type InsertDocumentCategory
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, asc, desc, sql } from "drizzle-orm";
+import { eq, and, asc, desc, sql, gte, lte } from "drizzle-orm";
 
 // Modify the interface with CRUD methods for plants
 export interface IStorage {
@@ -68,6 +68,7 @@ export interface IStorage {
   updatePurchasePy8(id: number, purchase: UpdatePurchasesPy8): Promise<PurchasesPy8 | undefined>;
   deletePurchasePy8(id: number): Promise<boolean>;
   getNextInvoiceNumberPy8(year: number): Promise<string>;
+  getPurchasesPy8ByDateRange(startDate: string, endDate: string): Promise<PurchasesPy8[]>;
   
   // ΠΥ9 Sales methods
   getAllSalesPy9(): Promise<SalesPy9[]>;
@@ -652,6 +653,17 @@ export class DatabaseStorage implements IStorage {
     
     // Format as YYYY-NNN (e.g., 2025-001)
     return `${year}-${nextNumber.toString().padStart(3, '0')}`;
+  }
+
+  async getPurchasesPy8ByDateRange(startDate: string, endDate: string): Promise<PurchasesPy8[]> {
+    return await db
+      .select()
+      .from(purchasesPy8)
+      .where(and(
+        gte(purchasesPy8.date, startDate),
+        lte(purchasesPy8.date, endDate)
+      ))
+      .orderBy(asc(purchasesPy8.date));
   }
 
   // ΠΥ9 Sales methods
