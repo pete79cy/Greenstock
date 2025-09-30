@@ -10,6 +10,11 @@ import { type PurchasesPy8 } from "@shared/schema";
 import BackToMenuButton from "@/components/BackToMenuButton";
 import * as XLSX from "xlsx";
 
+const formatDateToDDMMYYYY = (dateStr: string): string => {
+  const [year, month, day] = dateStr.split('-');
+  return `${day}/${month}/${year}`;
+};
+
 export default function Py8Report() {
   const currentYear = new Date().getFullYear();
   const [startDate, setStartDate] = useState(`${currentYear}-01-01`);
@@ -31,7 +36,7 @@ export default function Py8Report() {
     const workbook = XLSX.utils.book_new();
     const worksheet = XLSX.utils.json_to_sheet(
       purchases.map(purchase => ({
-        'Ημερομηνία': purchase.date,
+        'Ημερομηνία': formatDateToDDMMYYYY(purchase.date),
         'Είδος': purchase.species,
         'Ποικιλία': purchase.variety || '',
         'Ποσότητα': purchase.quantity,
@@ -147,7 +152,7 @@ export default function Py8Report() {
                 <TableBody>
                   {purchases.map((purchase) => (
                     <TableRow key={purchase.id} data-testid={`row-purchase-${purchase.id}`}>
-                      <TableCell data-testid={`cell-date-${purchase.id}`}>{purchase.date}</TableCell>
+                      <TableCell data-testid={`cell-date-${purchase.id}`}>{formatDateToDDMMYYYY(purchase.date)}</TableCell>
                       <TableCell data-testid={`cell-species-${purchase.id}`}>{purchase.species}</TableCell>
                       <TableCell data-testid={`cell-variety-${purchase.id}`}>{purchase.variety || '-'}</TableCell>
                       <TableCell className="text-right" data-testid={`cell-quantity-${purchase.id}`}>
