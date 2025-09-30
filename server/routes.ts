@@ -2330,6 +2330,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ΠΥ8 Report with date filtering
+  app.get("/api/reports/py8", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { startDate, endDate } = req.query;
+      
+      if (!startDate || !endDate) {
+        return res.status(400).json({ message: "Start date and end date are required" });
+      }
+      
+      const purchases = await storage.getPurchasesPy8ByDateRange(
+        startDate as string, 
+        endDate as string
+      );
+      
+      res.json(purchases);
+    } catch (error) {
+      console.error("Error fetching ΠΥ8 report:", error);
+      res.status(500).json({ message: "Failed to fetch ΠΥ8 report" });
+    }
+  });
+
   // ΠΥ9 Template download
   app.get("/api/sales-py9/template", isAuthenticated, async (req: Request, res: Response) => {
     try {
