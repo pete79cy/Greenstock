@@ -44,7 +44,8 @@ export default function Py8Report() {
   const handleExportToExcel = () => {
     const workbook = XLSX.utils.book_new();
     const worksheet = XLSX.utils.json_to_sheet(
-      purchases.map(purchase => ({
+      purchases.map((purchase, index) => ({
+        'Α/Α': index + 1,
         'Ημερομηνία': formatDateToDDMMYYYY(purchase.date),
         'Είδος': purchase.species,
         'Ποικιλία': purchase.variety || '',
@@ -150,6 +151,7 @@ export default function Py8Report() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-16" data-testid="header-number">Α/Α</TableHead>
                     <TableHead data-testid="header-date">Ημερομηνία</TableHead>
                     <TableHead data-testid="header-species">Είδος</TableHead>
                     <TableHead data-testid="header-variety">Ποικιλία</TableHead>
@@ -159,8 +161,9 @@ export default function Py8Report() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {purchases.map((purchase) => (
+                  {purchases.map((purchase, index) => (
                     <TableRow key={purchase.id} data-testid={`row-purchase-${purchase.id}`}>
+                      <TableCell data-testid={`cell-number-${purchase.id}`}>{index + 1}</TableCell>
                       <TableCell data-testid={`cell-date-${purchase.id}`}>{formatDateToDDMMYYYY(purchase.date)}</TableCell>
                       <TableCell data-testid={`cell-species-${purchase.id}`}>{purchase.species}</TableCell>
                       <TableCell data-testid={`cell-variety-${purchase.id}`}>{purchase.variety || '-'}</TableCell>
