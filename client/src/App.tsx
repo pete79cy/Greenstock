@@ -13,6 +13,7 @@ import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Py8Purchases from "@/pages/Py8Purchases";
 import Py8BatchPurchases from "@/pages/Py8BatchPurchases";
+import Py8Report from "@/pages/Py8Report";
 import Py9Sales from "@/pages/Py9Sales";
 import Employees from "@/pages/Employees";
 import Payslips from "@/pages/Payslips";
@@ -108,6 +109,7 @@ function Router() {
       <Route path="/reports" component={ProtectedWithLayout(Reports)} />
       <Route path="/py8-purchases" component={ProtectedWithLayout(Py8Purchases)} />
       <Route path="/py8-batch-purchases" component={ProtectedWithLayout(Py8BatchPurchases)} />
+      <Route path="/py8-report" component={ProtectedWithLayout(Py8Report)} />
       <Route path="/py9-sales" component={ProtectedWithLayout(Py9Sales)} />
       <Route path="/employees" component={ProtectedWithLayout(Employees)} />
       <Route path="/payslips" component={ProtectedWithLayout(Payslips)} />
