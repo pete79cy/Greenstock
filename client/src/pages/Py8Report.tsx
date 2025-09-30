@@ -11,7 +11,16 @@ import BackToMenuButton from "@/components/BackToMenuButton";
 import * as XLSX from "xlsx";
 
 const formatDateToDDMMYYYY = (dateStr: string): string => {
-  const [year, month, day] = dateStr.split('-');
+  if (!dateStr) return '';
+  
+  // Parse the date string (handles both YYYY-MM-DD and ISO timestamp formats)
+  const date = new Date(dateStr);
+  
+  // Extract day, month, year
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  
   return `${day}/${month}/${year}`;
 };
 
