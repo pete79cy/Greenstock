@@ -732,9 +732,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateEmployee(passport: string, updateEmployee: UpdateEmployee): Promise<Employee | undefined> {
+    // If a retirement date is being set, automatically update status to RETIRED
+    let dataToUpdate: any = { ...updateEmployee, updatedAt: new Date() };
+    if (updateEmployee.retirementDate) {
+      dataToUpdate.status = "RETIRED";
+      dataToUpdate.isActive = 0; // Also update legacy field
+    }
+    
     const [employee] = await db
       .update(employees)
-      .set({ ...updateEmployee, updatedAt: new Date() })
+      .set(dataToUpdate)
       .where(eq(employees.passport, passport))
       .returning();
     return employee || undefined;
