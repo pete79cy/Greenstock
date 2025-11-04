@@ -22,10 +22,12 @@ export default function Employees() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
+  const [isRetireDialogOpen, setIsRetireDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
   const [leavingEmployee, setLeavingEmployee] = useState<Employee | null>(null);
-  const [employeeFilter, setEmployeeFilter] = useState<"ALL" | "ACTIVE" | "FORMER">("ACTIVE");
+  const [retiringEmployee, setRetiringEmployee] = useState<Employee | null>(null);
+  const [employeeFilter, setEmployeeFilter] = useState<"ALL" | "ACTIVE" | "FORMER" | "RETIRED">("ACTIVE");
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -66,6 +68,20 @@ export default function Employees() {
       setIsLeaveDialogOpen(false);
       setLeavingEmployee(null);
       toast({ title: "Success", description: "Employee marked as left successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const markAsRetiredMutation = useMutation({
+    mutationFn: ({ passport, date }: { passport: string; date: string }) =>
+      apiRequest(`/api/employees/${passport}/retire`, "PUT", { date }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
+      setIsRetireDialogOpen(false);
+      setRetiringEmployee(null);
+      toast({ title: "Success", description: "Employee marked as retired successfully" });
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -143,6 +159,11 @@ export default function Employees() {
     setIsLeaveDialogOpen(true);
   };
 
+  const handleMarkAsRetired = (employee: Employee) => {
+    setRetiringEmployee(employee);
+    setIsRetireDialogOpen(true);
+  };
+
   const formatCurrency = (amountInCents: number) => {
     return `€${(amountInCents / 100).toFixed(2)}`;
   };
@@ -151,6 +172,7 @@ export default function Employees() {
     if (employeeFilter === "ALL") return true;
     if (employeeFilter === "ACTIVE") return employee.status === "ACTIVE" || (!employee.status && employee.isActive);
     if (employeeFilter === "FORMER") return employee.status === "FORMER" || (!employee.status && !employee.isActive);
+    if (employeeFilter === "RETIRED") return employee.status === "RETIRED";
     return true;
   });
 
@@ -180,13 +202,14 @@ export default function Employees() {
 
       <div className="flex items-center gap-4">
         <label className="text-sm font-medium">Show:</label>
-        <Select value={employeeFilter} onValueChange={(value: "ALL" | "ACTIVE" | "FORMER") => setEmployeeFilter(value)}>
+        <Select value={employeeFilter} onValueChange={(value: "ALL" | "ACTIVE" | "FORMER" | "RETIRED") => setEmployeeFilter(value)}>
           <SelectTrigger className="w-40">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ACTIVE">Active Employees</SelectItem>
             <SelectItem value="FORMER">Former Employees</SelectItem>
+            <SelectItem value="RETIRED">Retired Employees</SelectItem>
             <SelectItem value="ALL">All Employees</SelectItem>
           </SelectContent>
         </Select>
@@ -202,10 +225,19 @@ export default function Employees() {
                   <p className="text-sm text-muted-foreground">{employee.designation}</p>
                 </div>
                 <Badge 
-                  variant={(employee.status === "ACTIVE" || (!employee.status && employee.isActive)) ? "default" : "secondary"}
-                  className={(employee.status === "ACTIVE" || (!employee.status && employee.isActive)) ? "bg-sky-600 text-white" : "bg-gray-400 text-white"}
+                  variant={
+                    (employee.status === "ACTIVE" || (!employee.status && employee.isActive)) ? "default" : 
+                    employee.status === "RETIRED" ? "outline" : "secondary"
+                  }
+                  className={
+                    (employee.status === "ACTIVE" || (!employee.status && employee.isActive)) ? "bg-sky-600 text-white" : 
+                    employee.status === "RETIRED" ? "bg-amber-600 text-white" : "bg-gray-400 text-white"
+                  }
                 >
-                  {(employee.status === "ACTIVE" || (!employee.status && employee.isActive)) ? "Active" : "Former"}
+                  {
+                    (employee.status === "ACTIVE" || (!employee.status && employee.isActive)) ? "Active" : 
+                    employee.status === "RETIRED" ? "Retired" : "Former"
+                  }
                 </Badge>
               </div>
             </CardHeader>
@@ -592,6 +624,12 @@ export default function Employees() {
                           <p className="text-sm">{new Date(viewingEmployee.leftOn).toLocaleDateString()}</p>
                         </div>
                       )}
+                      {viewingEmployee.retirementDate && (
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">Retirement Date</label>
+                          <p className="text-sm">{new Date(viewingEmployee.retirementDate).toLocaleDateString()}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -695,6 +733,63 @@ export default function Employees() {
                   disabled={markAsLeftMutation.isPending}
                 >
                   {markAsLeftMutation.isPending ? "Processing..." : "End Employment"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Retire Employee Modal */}
+      <Dialog open={isRetireDialogOpen} onOpenChange={setIsRetireDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Mark Employee as Retired</DialogTitle>
+          </DialogHeader>
+          
+          {retiringEmployee && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Mark <span className="font-medium">{retiringEmployee.name}</span> as retired.
+              </p>
+              
+              <div>
+                <label className="text-sm font-medium">Retirement Date</label>
+                <Input
+                  type="date"
+                  defaultValue={retiringEmployee.retirementDate || new Date().toISOString().split('T')[0]}
+                  onChange={(e) => {
+                    if (retiringEmployee) {
+                      setRetiringEmployee({
+                        ...retiringEmployee,
+                        retirementDate: e.target.value
+                      });
+                    }
+                  }}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsRetireDialogOpen(false)}
+                  disabled={markAsRetiredMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="bg-amber-600 hover:bg-amber-700 text-white"
+                  onClick={() => {
+                    if (retiringEmployee) {
+                      markAsRetiredMutation.mutate({
+                        passport: retiringEmployee.passport,
+                        date: retiringEmployee.retirementDate || new Date().toISOString().split('T')[0]
+                      });
+                    }
+                  }}
+                  disabled={markAsRetiredMutation.isPending}
+                >
+                  {markAsRetiredMutation.isPending ? "Processing..." : "Mark as Retired"}
                 </Button>
               </div>
             </div>
