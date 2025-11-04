@@ -81,11 +81,13 @@ export interface IStorage {
   getAllEmployees(): Promise<Employee[]>;
   getActiveEmployees(): Promise<Employee[]>;
   getFormerEmployees(): Promise<Employee[]>;
+  getRetiredEmployees(): Promise<Employee[]>;
   getEmployee(passport: string): Promise<Employee | undefined>;
   createEmployee(employee: InsertEmployee): Promise<Employee>;
   updateEmployee(passport: string, employee: UpdateEmployee): Promise<Employee | undefined>;
   deleteEmployee(passport: string): Promise<boolean>;
   markEmployeeAsLeft(passport: string, leftDate: string): Promise<Employee | undefined>;
+  markEmployeeAsRetired(passport: string, retirementDate: string): Promise<Employee | undefined>;
   
   // Payslip methods
   getAllPayslips(): Promise<Payslip[]>;
@@ -708,6 +710,10 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(employees).where(eq(employees.status, "FORMER")).orderBy(asc(employees.name));
   }
 
+  async getRetiredEmployees(): Promise<Employee[]> {
+    return await db.select().from(employees).where(eq(employees.status, "RETIRED")).orderBy(asc(employees.name));
+  }
+
   async getEmployee(passport: string): Promise<Employee | undefined> {
     const [employee] = await db.select().from(employees).where(eq(employees.passport, passport));
     return employee || undefined;
@@ -750,6 +756,20 @@ export class DatabaseStorage implements IStorage {
       .set({ 
         status: "FORMER", 
         leftOn: leftDate, 
+        isActive: 0, // Also update legacy field for compatibility
+        updatedAt: new Date() 
+      })
+      .where(eq(employees.passport, passport))
+      .returning();
+    return employee || undefined;
+  }
+
+  async markEmployeeAsRetired(passport: string, retirementDate: string): Promise<Employee | undefined> {
+    const [employee] = await db
+      .update(employees)
+      .set({ 
+        status: "RETIRED", 
+        retirementDate: retirementDate, 
         isActive: 0, // Also update legacy field for compatibility
         updatedAt: new Date() 
       })

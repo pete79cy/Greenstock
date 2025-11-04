@@ -2564,6 +2564,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // New endpoint for marking employee as retired
+  app.put("/api/employees/:id/retire", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const passport = req.params.id;
+      const { date } = req.body as { date: string };
+      
+      if (!date) {
+        return res.status(400).json({ message: "Retirement date is required" });
+      }
+
+      const employee = await storage.markEmployeeAsRetired(passport, date);
+      if (!employee) {
+        return res.status(404).json({ message: "Employee not found" });
+      }
+      
+      res.json(employee);
+    } catch (error) {
+      console.error("Error marking employee as retired:", error);
+      res.status(500).json({ message: "Failed to mark employee as retired" });
+    }
+  });
+
   // New endpoints for filtered employee lists
   app.get("/api/employees/active", isAuthenticated, async (req: Request, res: Response) => {
     try {
@@ -2582,6 +2604,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching former employees:", error);
       res.status(500).json({ message: "Failed to fetch former employees" });
+    }
+  });
+
+  app.get("/api/employees/retired", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const employees = await storage.getRetiredEmployees();
+      res.json(employees);
+    } catch (error) {
+      console.error("Error fetching retired employees:", error);
+      res.status(500).json({ message: "Failed to fetch retired employees" });
     }
   });
 
