@@ -184,7 +184,7 @@ export type InsertSalesPy9 = z.infer<typeof insertSalesPy9Schema>;
 export type UpdateSalesPy9 = z.infer<typeof updateSalesPy9Schema>;
 
 // Employment status enum
-export const employmentStatusEnum = pgEnum("employment_status", ["ACTIVE", "FORMER"]);
+export const employmentStatusEnum = pgEnum("employment_status", ["ACTIVE", "FORMER", "RETIRED"]);
 
 // Employee table for payslip management
 export const employees = pgTable("employees", {
@@ -200,6 +200,7 @@ export const employees = pgTable("employees", {
   isActive: integer("is_active").notNull().default(1), // 1 for active, 0 for inactive (legacy field)
   status: employmentStatusEnum("status").default("ACTIVE").notNull(),
   leftOn: date("left_on"), // Date when employee left (null if still working)
+  retirementDate: date("retirement_date"), // Date when employee is scheduled to retire or has retired
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
