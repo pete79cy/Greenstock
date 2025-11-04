@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useForm } from "react-hook-form";
@@ -84,6 +84,7 @@ export default function Employees() {
       socialInsurance: "",
       taxId: "",
       monthlySalary: 0,
+      retirementDate: "",
     },
   });
 
@@ -110,6 +111,7 @@ export default function Employees() {
       socialInsurance: "",
       taxId: "",
       monthlySalary: 0,
+      retirementDate: "",
     });
     setIsDialogOpen(true);
   };
@@ -126,6 +128,7 @@ export default function Employees() {
       socialInsurance: employee.socialInsurance || "",
       taxId: employee.taxId || "",
       monthlySalary: employee.monthlySalary / 100,
+      retirementDate: employee.retirementDate || "",
     });
     setIsDialogOpen(true);
   };
@@ -386,6 +389,27 @@ export default function Employees() {
                               <SelectItem value="Check">Check</SelectItem>
                             </SelectContent>
                           </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="retirementDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Retirement Date</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="date" 
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Employee will be marked as retired on this date
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
