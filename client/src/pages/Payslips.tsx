@@ -18,6 +18,57 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import BackToMenuButton from "@/components/BackToMenuButton";
 
+async function downloadPdf(url: string, filename: string): Promise<void> {
+  const response = await fetch(url, {
+    method: 'GET',
+    credentials: 'include',
+  });
+  
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('Not authenticated. Please log in again.');
+    }
+    throw new Error(`Failed to download PDF: ${response.statusText}`);
+  }
+  
+  const blob = await response.blob();
+  const blobUrl = URL.createObjectURL(blob);
+  
+  const link = document.createElement('a');
+  link.href = blobUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(blobUrl);
+}
+
+async function printPdf(url: string): Promise<void> {
+  const response = await fetch(url, {
+    method: 'GET',
+    credentials: 'include',
+  });
+  
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('Not authenticated. Please log in again.');
+    }
+    throw new Error(`Failed to load PDF: ${response.statusText}`);
+  }
+  
+  const blob = await response.blob();
+  const blobUrl = URL.createObjectURL(blob);
+  
+  const printWindow = window.open(blobUrl, '_blank');
+  if (printWindow) {
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+      }, 500);
+    };
+  }
+}
+
 interface PayslipPreview {
   employee: Employee;
   payslip: Omit<InsertPayslip, 'employeePassport'> & { calculations: PayslipCalculation };
@@ -231,7 +282,7 @@ export default function Payslips() {
     bulkCreateMutation.mutate(selectedPreviewData);
   };
 
-  const handleMassPrint = (payPeriod: string) => {
+  const handleMassPrint = async (payPeriod: string) => {
     if (!payPeriod) {
       toast({
         title: "Error",
@@ -251,14 +302,45 @@ export default function Payslips() {
       return;
     }
 
-    // Open the mass print PDF in a new window
-    window.open(`/api/payslips/month/${payPeriod}/print`, '_blank');
-    
-    toast({
-      title: "Mass Print Generated",
-      description: `Generated combined PDF with ${monthlyPayslipsForPeriod.length} payslips`,
-      variant: "default"
-    });
+    try {
+      await printPdf(`/api/payslips/month/${payPeriod}/print`);
+      toast({
+        title: "Mass Print Generated",
+        description: `Generated combined PDF with ${monthlyPayslipsForPeriod.length} payslips`,
+        variant: "default"
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to print payslips",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const handleDownloadPayslip = async (payslipId: number, employeeName: string, payPeriod: string) => {
+    try {
+      const filename = `payslip-${employeeName.replace(/\s+/g, '-')}-${payPeriod}.pdf`;
+      await downloadPdf(`/api/payslips/${payslipId}/pdf`, filename);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to download payslip",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const handlePrintPayslip = async (payslipId: number) => {
+    try {
+      await printPdf(`/api/payslips/${payslipId}/pdf`);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to print payslip",
+        variant: "destructive"
+      });
+    }
   };
 
   const formatCurrency = (cents: number) => {
@@ -426,7 +508,7 @@ export default function Payslips() {
                       variant="outline" 
                       size="sm" 
                       className="flex-1"
-                      onClick={() => window.open(`/api/payslips/${payslip.id}/pdf`, '_blank')}
+                      onClick={() => handleDownloadPayslip(payslip.id, getEmployeeName(payslip.employeePassport), payslip.payPeriod)}
                     >
                       <Download className="h-3 w-3 mr-2" />
                       Download
@@ -435,14 +517,7 @@ export default function Payslips() {
                       variant="outline" 
                       size="sm" 
                       className="flex-1"
-                      onClick={() => {
-                        const printWindow = window.open(`/api/payslips/${payslip.id}/pdf`, '_blank');
-                        if (printWindow) {
-                          printWindow.onload = () => {
-                            printWindow.print();
-                          };
-                        }
-                      }}
+                      onClick={() => handlePrintPayslip(payslip.id)}
                     >
                       <Printer className="h-3 w-3 mr-2" />
                       Print
@@ -498,21 +573,14 @@ export default function Payslips() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => window.open(`/api/payslips/${payslip.id}/pdf`, '_blank')}
+                                onClick={() => handleDownloadPayslip(payslip.id, getEmployeeName(payslip.employeePassport), payslip.payPeriod)}
                               >
                                 <Download className="h-3 w-3" />
                               </Button>
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => {
-                                  const printWindow = window.open(`/api/payslips/${payslip.id}/pdf`, '_blank');
-                                  if (printWindow) {
-                                    printWindow.onload = () => {
-                                      printWindow.print();
-                                    };
-                                  }
-                                }}
+                                onClick={() => handlePrintPayslip(payslip.id)}
                               >
                                 <Printer className="h-3 w-3" />
                               </Button>
@@ -562,9 +630,16 @@ export default function Payslips() {
                 <div className="flex gap-2 mt-6">
                   <Button 
                     variant="outline"
-                    onClick={() => {
-                      const url = `/api/reports/monthly-payroll?month=${selectedReportMonth}`;
-                      window.open(url, '_blank');
+                    onClick={async () => {
+                      try {
+                        await downloadPdf(`/api/reports/monthly-payroll?month=${selectedReportMonth}`, `payroll-report-${selectedReportMonth}.pdf`);
+                      } catch (error: any) {
+                        toast({
+                          title: "Error",
+                          description: error.message || "Failed to download report",
+                          variant: "destructive"
+                        });
+                      }
                     }}
                   >
                     <Download className="h-4 w-4 mr-2" />
