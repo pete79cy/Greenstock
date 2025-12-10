@@ -722,7 +722,12 @@ export class DatabaseStorage implements IStorage {
   async createEmployee(insertEmployee: InsertEmployee): Promise<Employee> {
     console.log("Storage: Creating employee with data:", insertEmployee);
     try {
-      const [employee] = await db.insert(employees).values(insertEmployee).returning();
+      const cleanedData = {
+        ...insertEmployee,
+        retirementDate: insertEmployee.retirementDate === '' ? null : insertEmployee.retirementDate,
+        leftOn: (insertEmployee as any).leftOn === '' ? null : (insertEmployee as any).leftOn,
+      };
+      const [employee] = await db.insert(employees).values(cleanedData).returning();
       console.log("Storage: Employee created successfully:", employee);
       return employee;
     } catch (error) {
@@ -734,6 +739,11 @@ export class DatabaseStorage implements IStorage {
   async updateEmployee(passport: string, updateEmployee: UpdateEmployee): Promise<Employee | undefined> {
     // If a retirement date is being set, automatically update status to RETIRED
     let dataToUpdate: any = { ...updateEmployee, updatedAt: new Date() };
+    
+    // Convert empty strings to null for date fields
+    if (dataToUpdate.retirementDate === '') dataToUpdate.retirementDate = null;
+    if (dataToUpdate.leftOn === '') dataToUpdate.leftOn = null;
+    
     if (updateEmployee.retirementDate) {
       dataToUpdate.status = "RETIRED";
       dataToUpdate.isActive = 0; // Also update legacy field
