@@ -2465,7 +2465,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Employee management routes
   app.get("/api/employees", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const employees = await storage.getAllEmployees();
+      const status = req.query.status as string | undefined;
+      let employees;
+      
+      if (status === 'all') {
+        employees = await storage.getAllEmployees();
+      } else if (status === 'former') {
+        employees = await storage.getFormerEmployees();
+      } else if (status === 'retired') {
+        employees = await storage.getRetiredEmployees();
+      } else {
+        // Default to active employees only
+        employees = await storage.getActiveEmployees();
+      }
+      
       console.log("Employees being returned:", JSON.stringify(employees[0], null, 2));
       res.json(employees);
     } catch (error) {

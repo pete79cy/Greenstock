@@ -90,7 +90,8 @@ export default function Payslips() {
   const { toast } = useToast();
 
   const { data: employees = [] } = useQuery<Employee[]>({
-    queryKey: ["/api/employees"],
+    queryKey: ["/api/employees", "active"],
+    queryFn: () => fetch("/api/employees?status=active").then(res => res.json()),
   });
 
   const { data: payslips = [], isLoading } = useQuery<Payslip[]>({

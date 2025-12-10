@@ -31,8 +31,11 @@ export default function Employees() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  const statusQueryParam = employeeFilter === "ALL" ? "all" : employeeFilter === "FORMER" ? "former" : employeeFilter === "RETIRED" ? "retired" : "active";
+  
   const { data: employees = [], isLoading } = useQuery({
-    queryKey: ["/api/employees"],
+    queryKey: ["/api/employees", statusQueryParam],
+    queryFn: () => fetch(`/api/employees?status=${statusQueryParam}`).then(res => res.json()),
   });
 
   const createMutation = useMutation({
