@@ -66,10 +66,10 @@ export default function LeaveManagement({ employeePassport }: LeaveManagementPro
       setStartDate("");
       setEndDate("");
       setReason("");
-      toast({ title: "Success", description: "Leave request submitted successfully" });
+      toast({ title: "Success", description: "Leave recorded successfully" });
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to submit leave request", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to record leave", variant: "destructive" });
     },
   });
 
@@ -90,7 +90,7 @@ export default function LeaveManagement({ employeePassport }: LeaveManagementPro
       endDate,
       days: diffDays,
       reason,
-      status: "PENDING"
+      status: "APPROVED"
     });
   };
 
@@ -165,12 +165,12 @@ export default function LeaveManagement({ employeePassport }: LeaveManagementPro
         </CardContent>
       </Card>
 
-      {/* Leave Requests */}
+      {/* Leave Records */}
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Leave Requests</h3>
+        <h3 className="text-lg font-semibold">Leave Records</h3>
         <Button onClick={() => setIsAddDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Request Leave
+          Record Leave
         </Button>
       </div>
 
@@ -178,9 +178,9 @@ export default function LeaveManagement({ employeePassport }: LeaveManagementPro
         <Card>
           <CardContent className="text-center py-8">
             <Calendar className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No leave requests</h3>
+            <h3 className="text-lg font-semibold mb-2">No leave records</h3>
             <p className="text-muted-foreground">
-              Submit leave requests for annual leave, sick leave, and other types.
+              Record leave for annual leave, sick leave, and other types.
             </p>
           </CardContent>
         </Card>
@@ -217,11 +217,11 @@ export default function LeaveManagement({ employeePassport }: LeaveManagementPro
         </div>
       )}
 
-      {/* Add Leave Request Dialog */}
+      {/* Add Leave Record Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Request Leave</DialogTitle>
+            <DialogTitle>Record Leave</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4">
@@ -281,7 +281,7 @@ export default function LeaveManagement({ employeePassport }: LeaveManagementPro
                 onClick={handleSubmitLeave}
                 disabled={createLeaveMutation.isPending}
               >
-                {createLeaveMutation.isPending ? "Submitting..." : "Submit Request"}
+                {createLeaveMutation.isPending ? "Saving..." : "Save Leave"}
               </Button>
             </div>
           </div>
