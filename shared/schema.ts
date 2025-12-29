@@ -239,7 +239,7 @@ export const payslips = pgTable("payslips", {
 export const insertPayslipSchema = createInsertSchema(payslips, {
   payPeriod: z.string().regex(/^\d{4}-\d{2}$/, "Pay period must be in YYYY-MM format"),
   payDate: z.string().min(1, "Pay date is required"),
-  grossSalary: z.number().int().positive("Gross salary must be positive"),
+  grossSalary: z.number().int().nonnegative("Gross salary must be zero or positive"),
 }).omit({
   id: true,
   socialInsurance: true, // These will be calculated automatically
