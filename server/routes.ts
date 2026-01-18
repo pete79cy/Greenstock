@@ -2917,7 +2917,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         page.drawText('Griva Digeni 39, Avgorou', { x: leftColX, y: infoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
 
         infoY -= 14;
-        page.drawText('5380    FAMAGUSTA', { x: leftColX, y: infoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
+        page.drawText('5510    FAMAGUSTA', { x: leftColX, y: infoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
 
         // Right column - Identification details
         const labelX = rightColX;
@@ -3199,7 +3199,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Postal Code + Region
       infoY -= 14;
-      page.drawText('5380    FAMAGUSTA', { x: leftColX, y: infoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
+      page.drawText('5510    FAMAGUSTA', { x: leftColX, y: infoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
 
       // Right column content - Identification details
       let rightInfoY = currentY - 20;
