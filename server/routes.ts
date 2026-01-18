@@ -2781,10 +2781,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Mass print payslips for a specific month
+  // Mass print payslips for a specific month - Professional two-column design
   app.get("/api/payslips/month/:payPeriod/print", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const { payPeriod } = req.params;
+      const payPeriod = req.params.payPeriod;
       
       // Validate pay period format (YYYY-MM)
       if (!/^\d{4}-\d{2}$/.test(payPeriod)) {
@@ -2792,385 +2792,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get all payslips for the specified month
-      const monthlyPayslips = await storage.getPayslipsByPeriod(payPeriod);
-      
-      if (monthlyPayslips.length === 0) {
+      const periodPayslips = await storage.getPayslipsByPeriod(payPeriod);
+
+      if (periodPayslips.length === 0) {
         return res.status(404).json({ message: "No payslips found for this period" });
       }
 
-      // Get all employees
-      const allEmployees = await storage.getAllEmployees();
-      
-      console.log(`Generating mass print for ${monthlyPayslips.length} payslips in period ${payPeriod}`);
-
-      // Create a combined PDF with all payslips
+      // Initialize PDF Document
       const pdfDoc = await PDFDocument.create();
       
-      // Register fontkit with PDFDocument to enable custom font embedding
-      pdfDoc.registerFontkit(fontkit);
-      
-      // Robust font loading with absolute path and synchronous file operations
-      const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansGreek-Regular.ttf');
-      const boldFontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansGreek-Bold.ttf');
-
-      // Check if regular font exists using synchronous method
-      if (!fs.existsSync(fontPath)) {
-        throw new Error(`Font not found at: ${fontPath}. Please ensure the font file is in the public/fonts directory.`);
-      }
-
-      // Load fonts synchronously for better reliability
-      const fontBytes = fs.readFileSync(fontPath);
-      const font = await pdfDoc.embedFont(fontBytes);
-      
-      // Load bold font if it exists, otherwise use regular font for bold text
-      let boldFont;
-      if (fs.existsSync(boldFontPath)) {
-        const boldFontBytes = fs.readFileSync(boldFontPath);
-        boldFont = await pdfDoc.embedFont(boldFontBytes);
-      } else {
-        // Use regular font for bold text if bold font is not available
-        boldFont = font;
-      }
-
-      for (const payslip of monthlyPayslips) {
-        const employee = allEmployees.find(emp => emp.passport === payslip.employeePassport);
-        if (!employee) continue;
-
-        const grossSalary = payslip.grossSalary / 100;
-        const socialInsurance = payslip.socialInsurance / 100;
-        const gesy = payslip.gesy / 100;
-        const netPay = payslip.netPay / 100;
-
-        // Add a new page for each payslip - match single payslip format exactly
-        const page = pdfDoc.addPage([595, 842]); // A4 size
-        const { width, height } = page.getSize();
-        const margin = 50;
-        let currentY = height - margin;
-        
-        // Company Header with professional styling - same as single payslip
-        page.drawRectangle({
-          x: margin,
-          y: currentY - 60,
-          width: width - 2 * margin,
-          height: 50,
-          color: rgb(0.11, 0.46, 0.28), // Company green color
-        });
-        
-        page.drawText('PAYSLIP', {
-          x: width / 2 - 45,
-          y: currentY - 30,
-          size: 24,
-          font: boldFont,
-          color: rgb(1, 1, 1),
-        });
-        currentY -= 70;
-
-        // Company details
-        page.drawText('Andreas Pakkoutis & Sons Ltd', {
-          x: width / 2 - 100,
-          y: currentY,
-          size: 14,
-          font: boldFont,
-          color: rgb(0.11, 0.46, 0.28),
-        });
-        currentY -= 18;
-        
-        page.drawText('Griva Digeni 39, Avgorou', {
-          x: width / 2 - 70,
-          y: currentY,
-          size: 10,
-          font: font,
-          color: rgb(0.3, 0.3, 0.3),
-        });
-        currentY -= 40;
-
-        // Employee Information Box
-        page.drawRectangle({
-          x: margin,
-          y: currentY - 80,
-          width: width - 2 * margin,
-          height: 75,
-          borderColor: rgb(0.8, 0.8, 0.8),
-          borderWidth: 1,
-        });
-
-        page.drawText('EMPLOYEE INFORMATION', {
-          x: margin + 15,
-          y: currentY - 20,
-          size: 12,
-          font: boldFont,
-          color: rgb(0.11, 0.46, 0.28),
-        });
-
-        page.drawText(`Name: ${employee.name}`, {
-          x: margin + 15,
-          y: currentY - 40,
-          size: 11,
-          font: font,
-        });
-
-        page.drawText(`Designation: ${employee.designation}`, {
-          x: margin + 15,
-          y: currentY - 55,
-          size: 11,
-          font: font,
-        });
-
-        page.drawText(`Pay Period: ${payslip.payPeriod}`, {
-          x: width - margin - 120,
-          y: currentY - 40,
-          size: 11,
-          font: font,
-        });
-        
-        page.drawText(`Pay Date: ${new Date(payslip.payDate).toLocaleDateString("en-GB")}`, {
-          x: width - margin - 120,
-          y: currentY - 55,
-          size: 11,
-          font: font,
-        });
-        currentY -= 100;
-
-        // Identification & Documentation Box
-        page.drawRectangle({
-          x: margin,
-          y: currentY - 100,
-          width: width - 2 * margin,
-          height: 95,
-          borderColor: rgb(0.8, 0.8, 0.8),
-          borderWidth: 1,
-        });
-
-        page.drawText('IDENTIFICATION & DOCUMENTATION', {
-          x: margin + 15,
-          y: currentY - 20,
-          size: 12,
-          font: boldFont,
-          color: rgb(0.11, 0.46, 0.28),
-        });
-
-        page.drawText(`Passport No.: ${employee.passport ?? "—"}`, {
-          x: margin + 15,
-          y: currentY - 40,
-          size: 11,
-          font: font,
-        });
-
-        page.drawText(`ARC No.: ${employee.arc ?? "—"}`, {
-          x: margin + 15,
-          y: currentY - 55,
-          size: 11,
-          font: font,
-        });
-
-        page.drawText(`Social Insurance: ${employee.socialInsurance ?? "—"}`, {
-          x: width - margin - 200,
-          y: currentY - 40,
-          size: 11,
-          font: font,
-        });
-
-        page.drawText(`Tax ID: ${employee.taxId ?? "—"}`, {
-          x: width - margin - 200,
-          y: currentY - 55,
-          size: 11,
-          font: font,
-        });
-        currentY -= 120;
-
-        // Salary Breakdown Box
-        page.drawRectangle({
-          x: margin,
-          y: currentY - 140,
-          width: width - 2 * margin,
-          height: 135,
-          borderColor: rgb(0.8, 0.8, 0.8),
-          borderWidth: 1,
-        });
-
-        page.drawText('SALARY BREAKDOWN', {
-          x: margin + 15,
-          y: currentY - 20,
-          size: 12,
-          font: boldFont,
-          color: rgb(0.11, 0.46, 0.28),
-        });
-
-        // Table headers background
-        page.drawRectangle({
-          x: margin + 10,
-          y: currentY - 50,
-          width: width - 2 * margin - 20,
-          height: 20,
-          color: rgb(0.95, 0.95, 0.95),
-        });
-
-        page.drawText('Description', {
-          x: margin + 20,
-          y: currentY - 45,
-          size: 10,
-          font: boldFont,
-        });
-
-        page.drawText('Amount (€)', {
-          x: width - margin - 100,
-          y: currentY - 45,
-          size: 10,
-          font: boldFont,
-        });
-
-        // Gross Salary
-        page.drawText('Gross Salary', {
-          x: margin + 20,
-          y: currentY - 70,
-          size: 11,
-          font: font,
-        });
-        page.drawText(`${grossSalary.toFixed(2)}`, {
-          x: width - margin - 80,
-          y: currentY - 70,
-          size: 11,
-          font: font,
-        });
-
-        // Social Insurance
-        page.drawText('Social Insurance (8.3%)', {
-          x: margin + 20,
-          y: currentY - 90,
-          size: 11,
-          font: font,
-          color: rgb(0.8, 0.2, 0.2),
-        });
-        page.drawText(`-${socialInsurance.toFixed(2)}`, {
-          x: width - margin - 80,
-          y: currentY - 90,
-          size: 11,
-          font: font,
-          color: rgb(0.8, 0.2, 0.2),
-        });
-
-        // GESY
-        page.drawText('GESY (2.65%)', {
-          x: margin + 20,
-          y: currentY - 110,
-          size: 11,
-          font: font,
-          color: rgb(0.8, 0.2, 0.2),
-        });
-        page.drawText(`-${gesy.toFixed(2)}`, {
-          x: width - margin - 80,
-          y: currentY - 110,
-          size: 11,
-          font: font,
-          color: rgb(0.8, 0.2, 0.2),
-        });
-        currentY -= 160;
-
-        // Net Pay Box
-        page.drawRectangle({
-          x: margin,
-          y: currentY - 40,
-          width: width - 2 * margin,
-          height: 35,
-          color: rgb(0.11, 0.46, 0.28),
-        });
-
-        page.drawText('NET PAY', {
-          x: margin + 20,
-          y: currentY - 25,
-          size: 14,
-          font: boldFont,
-          color: rgb(1, 1, 1),
-        });
-
-        page.drawText(`€${netPay.toFixed(2)}`, {
-          x: width - margin - 80,
-          y: currentY - 25,
-          size: 14,
-          font: boldFont,
-          color: rgb(1, 1, 1),
-        });
-        currentY -= 60;
-
-        // Notes section if present
-        if (payslip.notes) {
-          page.drawText('Notes:', {
-            x: margin,
-            y: currentY,
-            size: 11,
-            font: boldFont,
-          });
-          currentY -= 20;
-          page.drawText(payslip.notes, {
-            x: margin,
-            y: currentY,
-            size: 10,
-            font: font,
-            color: rgb(0.4, 0.4, 0.4),
-          });
-          currentY -= 30;
-        }
-
-        // Footer
-        currentY = 80;
-        page.drawText('This is a system-generated payslip.', {
-          x: width / 2 - 90,
-          y: currentY,
-          size: 9,
-          font: font,
-          color: rgb(0.5, 0.5, 0.5),
-        });
-        
-        page.drawText('Employee Signature: _____________________', {
-          x: width / 2 - 100,
-          y: currentY - 20,
-          size: 10,
-          font: font,
-        });
-      }
-
-      const pdfBytes = await pdfDoc.save();
-
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="payslips-${payPeriod}.pdf"`);
-      res.send(Buffer.from(pdfBytes));
-
-    } catch (error) {
-      console.error("Error generating mass print PDF:", error);
-      res.status(500).json({ message: "Failed to generate mass print PDF" });
-    }
-  });
-
-  // Generate payslip PDF with enhanced professional design
-  app.get("/api/payslips/:id/pdf", isAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const id = parseInt(req.params.id);
-      const payslip = await storage.getPayslip(id);
-      
-      if (!payslip) {
-        return res.status(404).json({ message: "Payslip not found" });
-      }
-
-      const employee = await storage.getEmployee(payslip.employeePassport);
-      if (!employee) {
-        return res.status(404).json({ message: "Employee not found" });
-      }
-
-      console.log("Employee data for PDF:", JSON.stringify(employee, null, 2));
-
-      const grossSalary = payslip.grossSalary / 100;
-      const socialInsurance = payslip.socialInsurance / 100;
-      const gesy = payslip.gesy / 100;
-      const netPay = payslip.netPay / 100;
-
-      const pdfDoc = await PDFDocument.create();
-      const page = pdfDoc.addPage([595, 842]);
-      const { width, height } = page.getSize();
-
-      // Try to load a Unicode-compatible font, fallback to Helvetica for ASCII-only content
+      // Load Fonts (Once for the whole document)
       let font, boldFont;
       try {
-        // First try to embed a system font that supports Greek characters
         const fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
         const boldFontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
         
@@ -3184,361 +2817,434 @@ export async function registerRoutes(app: Express): Promise<Server> {
           throw new Error('DejaVu fonts not found');
         }
       } catch (error: any) {
-        console.log('Using fallback fonts due to:', error.message);
-        // Fallback to standard fonts and clean the text
         font = await pdfDoc.embedFont(StandardFonts.Helvetica);
         boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
       }
 
-      // Track if we're using fallback fonts
       const usingFallbackFonts = font.constructor.name === 'StandardFontEmbedder';
-
-      // Helper function to clean text for fonts that don't support Greek characters
       const cleanTextForFont = (text: string) => {
         if (!text) return text;
-        // If using fallback fonts, transliterate Greek characters
         if (usingFallbackFonts) {
           return text
-            .replace(/Π/g, 'P')
-            .replace(/π/g, 'p')
-            .replace(/Α/g, 'A')
-            .replace(/α/g, 'a')
-            .replace(/Β/g, 'B')
-            .replace(/β/g, 'b')
-            .replace(/Γ/g, 'G')
-            .replace(/γ/g, 'g')
-            .replace(/Δ/g, 'D')
-            .replace(/δ/g, 'd')
-            .replace(/Ε/g, 'E')
-            .replace(/ε/g, 'e')
-            .replace(/Ζ/g, 'Z')
-            .replace(/ζ/g, 'z')
-            .replace(/Η/g, 'H')
-            .replace(/η/g, 'h')
-            .replace(/Θ/g, 'Th')
-            .replace(/θ/g, 'th')
-            .replace(/Ι/g, 'I')
-            .replace(/ι/g, 'i')
-            .replace(/Κ/g, 'K')
-            .replace(/κ/g, 'k')
-            .replace(/Λ/g, 'L')
-            .replace(/λ/g, 'l')
-            .replace(/Μ/g, 'M')
-            .replace(/μ/g, 'm')
-            .replace(/Ν/g, 'N')
-            .replace(/ν/g, 'n')
-            .replace(/Ξ/g, 'X')
-            .replace(/ξ/g, 'x')
-            .replace(/Ο/g, 'O')
-            .replace(/ο/g, 'o')
-            .replace(/Ρ/g, 'R')
-            .replace(/ρ/g, 'r')
-            .replace(/Σ/g, 'S')
-            .replace(/σ/g, 's')
-            .replace(/ς/g, 's')
-            .replace(/Τ/g, 'T')
-            .replace(/τ/g, 't')
-            .replace(/Υ/g, 'Y')
-            .replace(/υ/g, 'y')
-            .replace(/Φ/g, 'F')
-            .replace(/φ/g, 'f')
-            .replace(/Χ/g, 'Ch')
-            .replace(/χ/g, 'ch')
-            .replace(/Ψ/g, 'Ps')
-            .replace(/ψ/g, 'ps')
-            .replace(/Ω/g, 'O')
-            .replace(/ω/g, 'o');
+            .replace(/Π/g, 'P').replace(/π/g, 'p')
+            .replace(/Α/g, 'A').replace(/α/g, 'a')
+            .replace(/Β/g, 'B').replace(/β/g, 'b')
+            .replace(/Γ/g, 'G').replace(/γ/g, 'g')
+            .replace(/Δ/g, 'D').replace(/δ/g, 'd')
+            .replace(/Ε/g, 'E').replace(/ε/g, 'e')
+            .replace(/Ζ/g, 'Z').replace(/ζ/g, 'z')
+            .replace(/Η/g, 'H').replace(/η/g, 'h')
+            .replace(/Θ/g, 'Th').replace(/θ/g, 'th')
+            .replace(/Ι/g, 'I').replace(/ι/g, 'i')
+            .replace(/Κ/g, 'K').replace(/κ/g, 'k')
+            .replace(/Λ/g, 'L').replace(/λ/g, 'l')
+            .replace(/Μ/g, 'M').replace(/μ/g, 'm')
+            .replace(/Ν/g, 'N').replace(/ν/g, 'n')
+            .replace(/Ξ/g, 'X').replace(/ξ/g, 'x')
+            .replace(/Ο/g, 'O').replace(/ο/g, 'o')
+            .replace(/Ρ/g, 'R').replace(/ρ/g, 'r')
+            .replace(/Σ/g, 'S').replace(/σ/g, 's').replace(/ς/g, 's')
+            .replace(/Τ/g, 'T').replace(/τ/g, 't')
+            .replace(/Υ/g, 'Y').replace(/υ/g, 'y')
+            .replace(/Φ/g, 'F').replace(/φ/g, 'f')
+            .replace(/Χ/g, 'Ch').replace(/χ/g, 'ch')
+            .replace(/Ψ/g, 'Ps').replace(/ψ/g, 'ps')
+            .replace(/Ω/g, 'O').replace(/ω/g, 'o');
         }
         return text;
       };
-      
-      const margin = 50;
-      let currentY = height - margin;
-      
-      // Company Header with professional styling
-      page.drawRectangle({
-        x: margin,
-        y: currentY - 60,
-        width: width - 2 * margin,
-        height: 50,
-        color: rgb(0.11, 0.46, 0.28), // Company green color
-      });
-      
-      page.drawText('PAYSLIP', {
-        x: width / 2 - 45,
-        y: currentY - 30,
-        size: 24,
-        font: boldFont,
-        color: rgb(1, 1, 1),
-      });
-      currentY -= 70;
 
-      // Company details
-      page.drawText('Andreas Pakkoutis & Sons Ltd', {
-        x: width / 2 - 100,
-        y: currentY,
-        size: 14,
-        font: boldFont,
-        color: rgb(0.11, 0.46, 0.28),
-      });
-      currentY -= 18;
-      
-      page.drawText('Griva Digeni 39, Avgorou', {
-        x: width / 2 - 70,
-        y: currentY,
-        size: 10,
-        font: font,
-        color: rgb(0.3, 0.3, 0.3),
-      });
-      currentY -= 40;
+      // Loop through every payslip and create a page
+      for (const payslip of periodPayslips) {
+        const employee = await storage.getEmployee(payslip.employeePassport);
+        if (!employee) continue;
 
-      // Employee Information Box
-      page.drawRectangle({
-        x: margin,
-        y: currentY - 80,
-        width: width - 2 * margin,
-        height: 75,
-        borderColor: rgb(0.8, 0.8, 0.8),
-        borderWidth: 1,
-      });
+        // Add a new page for this employee
+        const page = pdfDoc.addPage([595, 842]); // A4
+        const { width, height } = page.getSize();
+        const margin = 50;
+        let currentY = height - margin;
 
-      page.drawText('EMPLOYEE INFORMATION', {
-        x: margin + 15,
-        y: currentY - 20,
-        size: 12,
-        font: boldFont,
-        color: rgb(0.11, 0.46, 0.28),
-      });
+        // Calculations
+        const grossSalary = payslip.grossSalary / 100;
+        const socialInsurance = payslip.socialInsurance / 100;
+        const gesy = payslip.gesy / 100;
+        const totalDeductions = socialInsurance + gesy;
+        const netPay = payslip.netPay / 100;
 
-      page.drawText(`Name: ${cleanTextForFont(employee.name)}`, {
-        x: margin + 15,
-        y: currentY - 40,
-        size: 11,
-        font: font,
-      });
-
-      page.drawText(`Designation: ${cleanTextForFont(employee.designation)}`, {
-        x: margin + 15,
-        y: currentY - 55,
-        size: 11,
-        font: font,
-      });
-
-      page.drawText(`Pay Period: ${cleanTextForFont(payslip.payPeriod)}`, {
-        x: width - margin - 120,
-        y: currentY - 40,
-        size: 11,
-        font: font,
-      });
-      
-      page.drawText(`Pay Date: ${new Date(payslip.payDate).toLocaleDateString("en-GB")}`, {
-        x: width - margin - 120,
-        y: currentY - 55,
-        size: 11,
-        font: font,
-      });
-      currentY -= 100;
-
-      // Identification & Documentation Box
-      page.drawRectangle({
-        x: margin,
-        y: currentY - 100,
-        width: width - 2 * margin,
-        height: 95,
-        borderColor: rgb(0.8, 0.8, 0.8),
-        borderWidth: 1,
-      });
-
-      page.drawText('IDENTIFICATION & DOCUMENTATION', {
-        x: margin + 15,
-        y: currentY - 20,
-        size: 12,
-        font: boldFont,
-        color: rgb(0.11, 0.46, 0.28),
-      });
-
-      page.drawText(`Passport No.: ${cleanTextForFont(employee.passport ?? "—")}`, {
-        x: margin + 15,
-        y: currentY - 40,
-        size: 11,
-        font: font,
-      });
-
-      page.drawText(`ARC No.: ${cleanTextForFont(employee.arc ?? "—")}`, {
-        x: margin + 15,
-        y: currentY - 55,
-        size: 11,
-        font: font,
-      });
-
-      page.drawText(`Social Insurance: ${cleanTextForFont(employee.socialInsurance ?? "—")}`, {
-        x: width - margin - 200,
-        y: currentY - 40,
-        size: 11,
-        font: font,
-      });
-
-      page.drawText(`Tax ID: ${cleanTextForFont(employee.taxId ?? "—")}`, {
-        x: width - margin - 200,
-        y: currentY - 55,
-        size: 11,
-        font: font,
-      });
-      currentY -= 120;
-
-      // Salary Breakdown Box
-      page.drawRectangle({
-        x: margin,
-        y: currentY - 140,
-        width: width - 2 * margin,
-        height: 135,
-        borderColor: rgb(0.8, 0.8, 0.8),
-        borderWidth: 1,
-      });
-
-      page.drawText('SALARY BREAKDOWN', {
-        x: margin + 15,
-        y: currentY - 20,
-        size: 12,
-        font: boldFont,
-        color: rgb(0.11, 0.46, 0.28),
-      });
-
-      // Table headers background
-      page.drawRectangle({
-        x: margin + 10,
-        y: currentY - 50,
-        width: width - 2 * margin - 20,
-        height: 20,
-        color: rgb(0.95, 0.95, 0.95),
-      });
-
-      page.drawText('Description', {
-        x: margin + 20,
-        y: currentY - 45,
-        size: 10,
-        font: boldFont,
-      });
-
-      page.drawText('Amount (€)', {
-        x: width - margin - 80,
-        y: currentY - 45,
-        size: 10,
-        font: boldFont,
-      });
-
-      // Salary rows
-      currentY -= 65;
-      
-      page.drawText('Gross Salary', {
-        x: margin + 20,
-        y: currentY,
-        size: 11,
-        font: font,
-      });
-      page.drawText(`${grossSalary.toFixed(2)}`, {
-        x: width - margin - 80,
-        y: currentY,
-        size: 11,
-        font: font,
-      });
-      currentY -= 18;
-
-      page.drawText('Social Insurance (8.3%)', {
-        x: margin + 20,
-        y: currentY,
-        size: 11,
-        font: font,
-        color: rgb(0.6, 0.1, 0.1),
-      });
-      page.drawText(`-${socialInsurance.toFixed(2)}`, {
-        x: width - margin - 80,
-        y: currentY,
-        size: 11,
-        font: font,
-        color: rgb(0.6, 0.1, 0.1),
-      });
-      currentY -= 18;
-
-      page.drawText('GESY (2.65%)', {
-        x: margin + 20,
-        y: currentY,
-        size: 11,
-        font: font,
-        color: rgb(0.6, 0.1, 0.1),
-      });
-      page.drawText(`-${gesy.toFixed(2)}`, {
-        x: width - margin - 80,
-        y: currentY,
-        size: 11,
-        font: font,
-        color: rgb(0.6, 0.1, 0.1),
-      });
-      currentY -= 25;
-
-      // Net pay with emphasis
-      page.drawRectangle({
-        x: margin + 10,
-        y: currentY - 25,
-        width: width - 2 * margin - 20,
-        height: 20,
-        color: rgb(0.11, 0.46, 0.28),
-      });
-
-      page.drawText('NET PAY', {
-        x: margin + 20,
-        y: currentY - 20,
-        size: 12,
-        font: boldFont,
-        color: rgb(1, 1, 1),
-      });
-      page.drawText(`€${netPay.toFixed(2)}`, {
-        x: width - margin - 80,
-        y: currentY - 20,
-        size: 12,
-        font: boldFont,
-        color: rgb(1, 1, 1),
-      });
-      currentY -= 50;
-
-      // Notes section if present
-      if (payslip.notes) {
-        page.drawText('Notes:', {
-          x: margin,
-          y: currentY,
-          size: 11,
-          font: boldFont,
+        // Company Header
+        page.drawText('Andreas Pakkoutis & Sons Ltd', {
+          x: margin, y: currentY, size: 16, font: boldFont, color: rgb(0, 0, 0),
         });
+
+        const companyDetails = ['Griva Digeni 39', 'Avgorou', 'Famagusta, Cyprus', 'Tel: +357 00 000 000'];
+        let addressY = currentY;
+        companyDetails.forEach(line => {
+          const textWidth = font.widthOfTextAtSize(line, 9);
+          page.drawText(line, {
+            x: width - margin - textWidth, y: addressY, size: 9, font: font, color: rgb(0.4, 0.4, 0.4),
+          });
+          addressY -= 12;
+        });
+        currentY -= 60;
+
+        // Employee Details
+        const empInfoY = currentY;
+        page.drawText('Employee Details:', { x: margin, y: empInfoY, size: 10, font: boldFont });
+        page.drawText(cleanTextForFont(employee.name), { x: margin, y: empInfoY - 15, size: 12, font: font });
+        page.drawText(`ID: ${cleanTextForFont(employee.passport)}`, { x: margin, y: empInfoY - 30, size: 10, font: font, color: rgb(0.3, 0.3, 0.3) });
+        
+        const rightColX = width / 2 + 20;
+        page.drawText(`Social Ins. No: ${cleanTextForFont(employee.socialInsurance || '-')}`, { x: rightColX, y: empInfoY - 15, size: 10, font: font });
+        page.drawText(`Tax ID / ARC:   ${cleanTextForFont(employee.taxId || employee.arc || '-')}`, { x: rightColX, y: empInfoY - 30, size: 10, font: font });
+        currentY -= 60;
+
+        // Payslip Title Strip
+        page.drawRectangle({
+          x: margin, y: currentY - 20, width: width - (2 * margin), height: 25, color: rgb(0.95, 0.95, 0.95),
+        });
+        const titleText = `PAYSLIP FOR ${payslip.payPeriod}`;
+        const titleWidth = boldFont.widthOfTextAtSize(titleText, 12);
+        page.drawText(titleText, {
+          x: (width - titleWidth) / 2, y: currentY - 13, size: 12, font: boldFont, color: rgb(0, 0, 0),
+        });
+        currentY -= 50;
+
+        // Financial Tables Setup
+        const col1X = margin;
+        const col2X = width / 2 + 10;
+        const colWidth = (width - (2 * margin)) / 2 - 10;
+        const headerSize = 10;
+        const rowSize = 10;
+
+        page.drawText('INCOME', { x: col1X, y: currentY, size: headerSize, font: boldFont });
+        page.drawText('Amount (€)', { x: col1X + colWidth - 60, y: currentY, size: headerSize, font: boldFont });
+        page.drawText('DEDUCTIONS', { x: col2X, y: currentY, size: headerSize, font: boldFont });
+        page.drawText('Amount (€)', { x: col2X + colWidth - 60, y: currentY, size: headerSize, font: boldFont });
+
+        currentY -= 5;
+        page.drawLine({ start: { x: col1X, y: currentY }, end: { x: col1X + colWidth, y: currentY }, thickness: 1, color: rgb(0.7, 0.7, 0.7) });
+        page.drawLine({ start: { x: col2X, y: currentY }, end: { x: col2X + colWidth, y: currentY }, thickness: 1, color: rgb(0.7, 0.7, 0.7) });
+        
         currentY -= 20;
-        page.drawText(cleanTextForFont(payslip.notes), {
-          x: margin,
-          y: currentY,
-          size: 10,
+        const startTableY = currentY;
+
+        // Income Column
+        page.drawText('Basic Salary', { x: col1X, y: currentY, size: rowSize, font: font });
+        page.drawText(grossSalary.toFixed(2), { x: col1X + colWidth - 60, y: currentY, size: rowSize, font: font });
+
+        // Deductions Column
+        page.drawText('Social Insurance (8.3%)', { x: col2X, y: currentY, size: rowSize, font: font });
+        page.drawText(socialInsurance.toFixed(2), { x: col2X + colWidth - 60, y: currentY, size: rowSize, font: font });
+        
+        currentY -= 20;
+        page.drawText('GESY (2.65%)', { x: col2X, y: currentY, size: rowSize, font: font });
+        page.drawText(gesy.toFixed(2), { x: col2X + colWidth - 60, y: currentY, size: rowSize, font: font });
+
+        // Totals
+        currentY = startTableY - 100;
+        page.drawLine({ start: { x: col1X, y: currentY + 15 }, end: { x: col1X + colWidth, y: currentY + 15 }, thickness: 1, color: rgb(0, 0, 0) });
+        page.drawLine({ start: { x: col2X, y: currentY + 15 }, end: { x: col2X + colWidth, y: currentY + 15 }, thickness: 1, color: rgb(0, 0, 0) });
+
+        page.drawText('Gross Income', { x: col1X, y: currentY, size: rowSize, font: boldFont });
+        page.drawText(grossSalary.toFixed(2), { x: col1X + colWidth - 60, y: currentY, size: rowSize, font: boldFont });
+
+        page.drawText('Total Deductions', { x: col2X, y: currentY, size: rowSize, font: boldFont });
+        page.drawText(totalDeductions.toFixed(2), { x: col2X + colWidth - 60, y: currentY, size: rowSize, font: boldFont });
+
+        currentY -= 40;
+
+        // Net Pay
+        page.drawRectangle({
+          x: margin, y: currentY - 30, width: width - (2 * margin), height: 40, borderColor: rgb(0, 0, 0), borderWidth: 1,
+        });
+
+        page.drawText('NET SALARY', { x: margin + 20, y: currentY - 10, size: 12, font: boldFont });
+        const netPayText = `€ ${netPay.toFixed(2)}`;
+        const netPayWidth = boldFont.widthOfTextAtSize(netPayText, 14);
+        page.drawText(netPayText, { x: width - margin - netPayWidth - 20, y: currentY - 12, size: 14, font: boldFont });
+
+        currentY -= 80;
+
+        // Footer
+        page.drawText('Payment Method:', { x: margin, y: currentY, size: 10, font: boldFont });
+        page.drawText('Bank Transfer', { x: margin + 100, y: currentY, size: 10, font: font });
+        
+        currentY -= 15;
+        const accountStr = (employee as any).iban ? `IBAN: ${(employee as any).iban}` : 'Bank Account: ------------------';
+        page.drawText(accountStr, { x: margin + 100, y: currentY, size: 10, font: font });
+
+        page.drawText('This is a computer-generated document and needs no signature.', {
+          x: margin, y: 30, size: 8, font: font, color: rgb(0.5, 0.5, 0.5),
+        });
+      }
+
+      const pdfBytes = await pdfDoc.save();
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="mass-payslips-${payPeriod}.pdf"`);
+      res.setHeader('Content-Length', pdfBytes.length.toString());
+      res.send(Buffer.from(pdfBytes));
+
+    } catch (error) {
+      console.error("Error generating mass payslips PDF:", error);
+      res.status(500).json({ message: "Failed to generate mass PDF" });
+    }
+  });
+
+  // Generate payslip PDF with professional two-column design
+  app.get("/api/payslips/:id/pdf", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const payslip = await storage.getPayslip(id);
+
+      if (!payslip) {
+        return res.status(404).json({ message: "Payslip not found" });
+      }
+
+      const employee = await storage.getEmployee(payslip.employeePassport);
+      if (!employee) {
+        return res.status(404).json({ message: "Employee not found" });
+      }
+
+      // Calculations
+      const grossSalary = payslip.grossSalary / 100;
+      const socialInsurance = payslip.socialInsurance / 100;
+      const gesy = payslip.gesy / 100;
+      const totalDeductions = socialInsurance + gesy;
+      const netPay = payslip.netPay / 100;
+
+      // PDF Setup
+      const pdfDoc = await PDFDocument.create();
+      const page = pdfDoc.addPage([595, 842]); // A4 size
+      const { width, height } = page.getSize();
+      const margin = 50;
+
+      // Font Loading
+      let font, boldFont;
+      try {
+        const fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
+        const boldFontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
+        
+        if (fs.existsSync(fontPath) && fs.existsSync(boldFontPath)) {
+          pdfDoc.registerFontkit(fontkit);
+          const fontBytes = fs.readFileSync(fontPath);
+          const boldFontBytes = fs.readFileSync(boldFontPath);
+          font = await pdfDoc.embedFont(fontBytes);
+          boldFont = await pdfDoc.embedFont(boldFontBytes);
+        } else {
+          throw new Error('DejaVu fonts not found');
+        }
+      } catch (error: any) {
+        font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      }
+
+      // Text Cleaning Helper
+      const usingFallbackFonts = font.constructor.name === 'StandardFontEmbedder';
+      const cleanTextForFont = (text: string) => {
+        if (!text) return text;
+        if (usingFallbackFonts) {
+          return text
+            .replace(/Π/g, 'P').replace(/π/g, 'p')
+            .replace(/Α/g, 'A').replace(/α/g, 'a')
+            .replace(/Β/g, 'B').replace(/β/g, 'b')
+            .replace(/Γ/g, 'G').replace(/γ/g, 'g')
+            .replace(/Δ/g, 'D').replace(/δ/g, 'd')
+            .replace(/Ε/g, 'E').replace(/ε/g, 'e')
+            .replace(/Ζ/g, 'Z').replace(/ζ/g, 'z')
+            .replace(/Η/g, 'H').replace(/η/g, 'h')
+            .replace(/Θ/g, 'Th').replace(/θ/g, 'th')
+            .replace(/Ι/g, 'I').replace(/ι/g, 'i')
+            .replace(/Κ/g, 'K').replace(/κ/g, 'k')
+            .replace(/Λ/g, 'L').replace(/λ/g, 'l')
+            .replace(/Μ/g, 'M').replace(/μ/g, 'm')
+            .replace(/Ν/g, 'N').replace(/ν/g, 'n')
+            .replace(/Ξ/g, 'X').replace(/ξ/g, 'x')
+            .replace(/Ο/g, 'O').replace(/ο/g, 'o')
+            .replace(/Ρ/g, 'R').replace(/ρ/g, 'r')
+            .replace(/Σ/g, 'S').replace(/σ/g, 's').replace(/ς/g, 's')
+            .replace(/Τ/g, 'T').replace(/τ/g, 't')
+            .replace(/Υ/g, 'Y').replace(/υ/g, 'y')
+            .replace(/Φ/g, 'F').replace(/φ/g, 'f')
+            .replace(/Χ/g, 'Ch').replace(/χ/g, 'ch')
+            .replace(/Ψ/g, 'Ps').replace(/ψ/g, 'ps')
+            .replace(/Ω/g, 'O').replace(/ω/g, 'o');
+        }
+        return text;
+      };
+
+      // --- DRAWING LOGIC STARTS HERE ---
+      let currentY = height - margin;
+
+      // 1. COMPANY HEADER (Left: Name, Right: Details)
+      page.drawText('Andreas Pakkoutis & Sons Ltd', {
+        x: margin,
+        y: currentY,
+        size: 16,
+        font: boldFont,
+        color: rgb(0, 0, 0),
+      });
+
+      // Company Address (Top Right - Aligned to right margin)
+      const companyDetails = [
+        'Griva Digeni 39',
+        'Avgorou',
+        'Famagusta, Cyprus',
+        'Tel: +357 00 000 000'
+      ];
+      
+      let addressY = currentY;
+      companyDetails.forEach(line => {
+        const textWidth = font.widthOfTextAtSize(line, 9);
+        page.drawText(line, {
+          x: width - margin - textWidth,
+          y: addressY,
+          size: 9,
           font: font,
           color: rgb(0.4, 0.4, 0.4),
         });
-        currentY -= 30;
-      }
+        addressY -= 12;
+      });
 
-      // Footer
-      currentY = 80;
-      page.drawText('This is a system-generated payslip.', {
-        x: width / 2 - 90,
-        y: currentY,
-        size: 9,
+      currentY -= 60;
+
+      // 2. EMPLOYEE DETAILS SECTION
+      const empInfoY = currentY;
+      
+      // Left side: Name and ID
+      page.drawText('Employee Details:', { x: margin, y: empInfoY, size: 10, font: boldFont });
+      page.drawText(cleanTextForFont(employee.name), { x: margin, y: empInfoY - 15, size: 12, font: font });
+      page.drawText(`ID: ${cleanTextForFont(employee.passport)}`, { x: margin, y: empInfoY - 30, size: 10, font: font, color: rgb(0.3, 0.3, 0.3) });
+      
+      // Right side: Tax/Social details
+      const rightColX = width / 2 + 20;
+      page.drawText(`Social Ins. No: ${cleanTextForFont(employee.socialInsurance || '-')}`, { x: rightColX, y: empInfoY - 15, size: 10, font: font });
+      page.drawText(`Tax ID / ARC:   ${cleanTextForFont(employee.taxId || employee.arc || '-')}`, { x: rightColX, y: empInfoY - 30, size: 10, font: font });
+      
+      currentY -= 60;
+
+      // 3. PAYSLIP TITLE STRIP
+      page.drawRectangle({
+        x: margin,
+        y: currentY - 20,
+        width: width - (2 * margin),
+        height: 25,
+        color: rgb(0.95, 0.95, 0.95),
+      });
+      
+      const titleText = `PAYSLIP FOR ${payslip.payPeriod}`;
+      const titleWidth = boldFont.widthOfTextAtSize(titleText, 12);
+      page.drawText(titleText, {
+        x: (width - titleWidth) / 2,
+        y: currentY - 13,
+        size: 12,
+        font: boldFont,
+        color: rgb(0, 0, 0),
+      });
+      
+      currentY -= 50;
+
+      // 4. FINANCIAL TABLES (Income vs Deductions)
+      const col1X = margin;
+      const col2X = width / 2 + 10;
+      const colWidth = (width - (2 * margin)) / 2 - 10;
+      const headerSize = 10;
+      const rowSize = 10;
+
+      // Column Headers
+      page.drawText('INCOME', { x: col1X, y: currentY, size: headerSize, font: boldFont });
+      page.drawText('Amount (€)', { x: col1X + colWidth - 60, y: currentY, size: headerSize, font: boldFont });
+
+      page.drawText('DEDUCTIONS', { x: col2X, y: currentY, size: headerSize, font: boldFont });
+      page.drawText('Amount (€)', { x: col2X + colWidth - 60, y: currentY, size: headerSize, font: boldFont });
+
+      // Draw lines under headers
+      currentY -= 5;
+      page.drawLine({ start: { x: col1X, y: currentY }, end: { x: col1X + colWidth, y: currentY }, thickness: 1, color: rgb(0.7, 0.7, 0.7) });
+      page.drawLine({ start: { x: col2X, y: currentY }, end: { x: col2X + colWidth, y: currentY }, thickness: 1, color: rgb(0.7, 0.7, 0.7) });
+      
+      currentY -= 20;
+      const startTableY = currentY;
+
+      // -- INCOME COLUMN --
+      page.drawText('Basic Salary', { x: col1X, y: currentY, size: rowSize, font: font });
+      page.drawText(grossSalary.toFixed(2), { x: col1X + colWidth - 60, y: currentY, size: rowSize, font: font });
+
+      // -- DEDUCTIONS COLUMN --
+      page.drawText('Social Insurance (8.3%)', { x: col2X, y: currentY, size: rowSize, font: font });
+      page.drawText(socialInsurance.toFixed(2), { x: col2X + colWidth - 60, y: currentY, size: rowSize, font: font });
+      
+      currentY -= 20;
+      
+      page.drawText('GESY (2.65%)', { x: col2X, y: currentY, size: rowSize, font: font });
+      page.drawText(gesy.toFixed(2), { x: col2X + colWidth - 60, y: currentY, size: rowSize, font: font });
+
+      // 5. TOTALS SECTION
+      currentY = startTableY - 100;
+
+      // Draw lines above totals
+      page.drawLine({ start: { x: col1X, y: currentY + 15 }, end: { x: col1X + colWidth, y: currentY + 15 }, thickness: 1, color: rgb(0, 0, 0) });
+      page.drawLine({ start: { x: col2X, y: currentY + 15 }, end: { x: col2X + colWidth, y: currentY + 15 }, thickness: 1, color: rgb(0, 0, 0) });
+
+      // Total Income
+      page.drawText('Gross Income', { x: col1X, y: currentY, size: rowSize, font: boldFont });
+      page.drawText(grossSalary.toFixed(2), { x: col1X + colWidth - 60, y: currentY, size: rowSize, font: boldFont });
+
+      // Total Deductions
+      page.drawText('Total Deductions', { x: col2X, y: currentY, size: rowSize, font: boldFont });
+      page.drawText(totalDeductions.toFixed(2), { x: col2X + colWidth - 60, y: currentY, size: rowSize, font: boldFont });
+
+      currentY -= 40;
+
+      // 6. NET PAY BOX
+      page.drawRectangle({
+        x: margin,
+        y: currentY - 30,
+        width: width - (2 * margin),
+        height: 40,
+        borderColor: rgb(0, 0, 0),
+        borderWidth: 1,
+      });
+
+      page.drawText('NET SALARY', {
+        x: margin + 20,
+        y: currentY - 10,
+        size: 12,
+        font: boldFont,
+      });
+
+      const netPayText = `€ ${netPay.toFixed(2)}`;
+      const netPayWidth = boldFont.widthOfTextAtSize(netPayText, 14);
+      
+      page.drawText(netPayText, {
+        x: width - margin - netPayWidth - 20,
+        y: currentY - 12,
+        size: 14,
+        font: boldFont,
+      });
+
+      currentY -= 80;
+
+      // 7. FOOTER / PAYMENT METHOD
+      page.drawText('Payment Method:', { x: margin, y: currentY, size: 10, font: boldFont });
+      page.drawText('Bank Transfer', { x: margin + 100, y: currentY, size: 10, font: font });
+      
+      currentY -= 15;
+      const accountStr = (employee as any).iban ? `IBAN: ${(employee as any).iban}` : 'Bank Account: ------------------';
+      page.drawText(accountStr, { x: margin + 100, y: currentY, size: 10, font: font });
+
+      // Bottom "System Generated" note
+      page.drawText('This is a computer-generated document and needs no signature.', {
+        x: margin,
+        y: 30,
+        size: 8,
         font: font,
         color: rgb(0.5, 0.5, 0.5),
       });
-      
-      page.drawText('Employee Signature: _____________________', {
-        x: width / 2 - 100,
-        y: currentY - 20,
-        size: 10,
-        font: font,
-      });
 
       const pdfBytes = await pdfDoc.save();
-      
+
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `inline; filename="payslip-${cleanTextForFont(employee.name).replace(/\s+/g, '-')}-${payslip.payPeriod}.pdf"`);
       res.setHeader('Content-Length', pdfBytes.length.toString());
