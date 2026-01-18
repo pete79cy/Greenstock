@@ -2872,12 +2872,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const totalDeductions = socialInsurance + gesy;
         const netPay = payslip.netPay / 100;
 
-        // Company Header
+        // 1. COMPANY HEADER
         page.drawText('Andreas Pakkoutis & Sons Ltd', {
           x: margin, y: currentY, size: 16, font: boldFont, color: rgb(0, 0, 0),
         });
 
-        const companyDetails = ['Griva Digeni 39', 'Avgorou', 'Famagusta, Cyprus', 'Tel: +357 00 000 000'];
+        const companyDetails = ['Griva Digeni 39', 'Avgorou', 'Famagusta, Cyprus', 'Tel: +357 23922394'];
         let addressY = currentY;
         companyDetails.forEach(line => {
           const textWidth = font.widthOfTextAtSize(line, 9);
@@ -2886,29 +2886,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           addressY -= 12;
         });
-        currentY -= 60;
+        currentY -= 70;
 
-        // Employee Details
-        const empInfoY = currentY;
-        page.drawText('Employee Details:', { x: margin, y: empInfoY, size: 10, font: boldFont });
-        page.drawText(cleanTextForFont(employee.name), { x: margin, y: empInfoY - 15, size: 12, font: font });
-        page.drawText(`ID: ${cleanTextForFont(employee.passport)}`, { x: margin, y: empInfoY - 30, size: 10, font: font, color: rgb(0.3, 0.3, 0.3) });
+        // 2. EMPLOYEE DETAILS BOX (Bordered like reference)
+        const boxHeight = 120;
+        const boxY = currentY - boxHeight;
         
-        const rightColX = width / 2 + 20;
-        page.drawText(`Social Ins. No: ${cleanTextForFont(employee.socialInsurance || '-')}`, { x: rightColX, y: empInfoY - 15, size: 10, font: font });
-        page.drawText(`Tax ID / ARC:   ${cleanTextForFont(employee.taxId || employee.arc || '-')}`, { x: rightColX, y: empInfoY - 30, size: 10, font: font });
-        currentY -= 60;
-
-        // Payslip Title Strip
         page.drawRectangle({
-          x: margin, y: currentY - 20, width: width - (2 * margin), height: 25, color: rgb(0.95, 0.95, 0.95),
+          x: margin, y: boxY, width: width - (2 * margin), height: boxHeight,
+          borderColor: rgb(0.7, 0.7, 0.7), borderWidth: 1,
         });
+
+        const leftColX = margin + 15;
+        const rightColX = width / 2 + 30;
+        let infoY = currentY - 20;
+
+        // Left column - Employee info
+        page.drawText(cleanTextForFont(employee.passport || ''), { x: leftColX, y: infoY, size: 10, font: font, color: rgb(0.3, 0.3, 0.3) });
+        
+        infoY -= 18;
+        page.drawText(cleanTextForFont(employee.name).toUpperCase(), { x: leftColX, y: infoY, size: 11, font: boldFont });
+
+        infoY -= 16;
+        page.drawText('Andreas Pakkoutis & Sons Ltd', { x: leftColX, y: infoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
+
+        infoY -= 14;
+        page.drawText(cleanTextForFont(employee.designation || ''), { x: leftColX, y: infoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
+
+        infoY -= 16;
+        page.drawText('Griva Digeni 39, Avgorou', { x: leftColX, y: infoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
+
+        infoY -= 14;
+        page.drawText('5380    FAMAGUSTA', { x: leftColX, y: infoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
+
+        // Right column - Identification details
+        let rightInfoY = currentY - 20;
+        const labelX = rightColX;
+        const valueX = rightColX + 110;
+
+        page.drawText('Identification No.', { x: labelX, y: rightInfoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
+        page.drawText(cleanTextForFont(employee.passport || '-'), { x: valueX, y: rightInfoY, size: 9, font: font });
+
+        rightInfoY -= 14;
+        page.drawText('Alien Book No', { x: labelX, y: rightInfoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
+        page.drawText(cleanTextForFont(employee.arc || '-'), { x: valueX, y: rightInfoY, size: 9, font: font });
+
+        rightInfoY -= 14;
+        page.drawText('Income Tax No.', { x: labelX, y: rightInfoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
+        page.drawText(cleanTextForFont(employee.taxId || '-'), { x: valueX, y: rightInfoY, size: 9, font: font });
+
+        rightInfoY -= 14;
+        page.drawText('Social Insurance No.', { x: labelX, y: rightInfoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
+        page.drawText(cleanTextForFont(employee.socialInsurance || '-'), { x: valueX, y: rightInfoY, size: 9, font: font });
+
+        rightInfoY -= 14;
+        page.drawText('Employment Date', { x: labelX, y: rightInfoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
+        const empDate = (employee as any).employmentDate ? new Date((employee as any).employmentDate).toLocaleDateString('en-GB') : '-';
+        page.drawText(empDate, { x: valueX, y: rightInfoY, size: 9, font: font });
+
+        rightInfoY -= 14;
+        page.drawText('Termination Date', { x: labelX, y: rightInfoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
+        const termDate = (employee as any).terminationDate ? new Date((employee as any).terminationDate).toLocaleDateString('en-GB') : '';
+        page.drawText(termDate, { x: valueX, y: rightInfoY, size: 9, font: font });
+
+        currentY = boxY - 30;
+
+        // 3. PAYSLIP TITLE (Centered, underlined)
         const titleText = `PAYSLIP FOR ${payslip.payPeriod}`;
         const titleWidth = boldFont.widthOfTextAtSize(titleText, 12);
         page.drawText(titleText, {
-          x: (width - titleWidth) / 2, y: currentY - 13, size: 12, font: boldFont, color: rgb(0, 0, 0),
+          x: (width - titleWidth) / 2, y: currentY, size: 12, font: boldFont, color: rgb(0, 0, 0),
         });
-        currentY -= 50;
+        page.drawLine({
+          start: { x: (width - titleWidth) / 2, y: currentY - 3 },
+          end: { x: (width + titleWidth) / 2, y: currentY - 3 },
+          thickness: 1, color: rgb(0, 0, 0),
+        });
+        currentY -= 40;
 
         // Financial Tables Setup
         const col1X = margin;
@@ -3091,7 +3145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'Griva Digeni 39',
         'Avgorou',
         'Famagusta, Cyprus',
-        'Tel: +357 00 000 000'
+        'Tel: +357 23922394'
       ];
       
       let addressY = currentY;
@@ -3107,43 +3161,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
         addressY -= 12;
       });
 
-      currentY -= 60;
+      currentY -= 70;
 
-      // 2. EMPLOYEE DETAILS SECTION
-      const empInfoY = currentY;
+      // 2. EMPLOYEE DETAILS BOX (Bordered like reference)
+      const boxHeight = 120;
+      const boxY = currentY - boxHeight;
       
-      // Left side: Name and ID
-      page.drawText('Employee Details:', { x: margin, y: empInfoY, size: 10, font: boldFont });
-      page.drawText(cleanTextForFont(employee.name), { x: margin, y: empInfoY - 15, size: 12, font: font });
-      page.drawText(`ID: ${cleanTextForFont(employee.passport)}`, { x: margin, y: empInfoY - 30, size: 10, font: font, color: rgb(0.3, 0.3, 0.3) });
-      
-      // Right side: Tax/Social details
-      const rightColX = width / 2 + 20;
-      page.drawText(`Social Ins. No: ${cleanTextForFont(employee.socialInsurance || '-')}`, { x: rightColX, y: empInfoY - 15, size: 10, font: font });
-      page.drawText(`Tax ID / ARC:   ${cleanTextForFont(employee.taxId || employee.arc || '-')}`, { x: rightColX, y: empInfoY - 30, size: 10, font: font });
-      
-      currentY -= 60;
-
-      // 3. PAYSLIP TITLE STRIP
+      // Draw the border
       page.drawRectangle({
         x: margin,
-        y: currentY - 20,
+        y: boxY,
         width: width - (2 * margin),
-        height: 25,
-        color: rgb(0.95, 0.95, 0.95),
+        height: boxHeight,
+        borderColor: rgb(0.7, 0.7, 0.7),
+        borderWidth: 1,
       });
+
+      // Left column content (inside box)
+      const leftColX = margin + 15;
+      const rightColX = width / 2 + 30;
+      let infoY = currentY - 20;
+
+      // Employee ID / Passport at top left
+      page.drawText(cleanTextForFont(employee.passport || ''), { x: leftColX, y: infoY, size: 10, font: font, color: rgb(0.3, 0.3, 0.3) });
       
+      // Employee name (bold, uppercase)
+      infoY -= 18;
+      page.drawText(cleanTextForFont(employee.name).toUpperCase(), { x: leftColX, y: infoY, size: 11, font: boldFont });
+
+      // Company name
+      infoY -= 16;
+      page.drawText('Andreas Pakkoutis & Sons Ltd', { x: leftColX, y: infoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
+
+      // Position / Designation
+      infoY -= 14;
+      page.drawText(cleanTextForFont(employee.designation || ''), { x: leftColX, y: infoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
+
+      // Company Location
+      infoY -= 16;
+      page.drawText('Griva Digeni 39, Avgorou', { x: leftColX, y: infoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
+
+      // Postal Code + Region
+      infoY -= 14;
+      page.drawText('5380    FAMAGUSTA', { x: leftColX, y: infoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
+
+      // Right column content - Identification details
+      let rightInfoY = currentY - 20;
+      const labelX = rightColX;
+      const valueX = rightColX + 110;
+
+      page.drawText('Identification No.', { x: labelX, y: rightInfoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
+      page.drawText(cleanTextForFont(employee.passport || '-'), { x: valueX, y: rightInfoY, size: 9, font: font });
+
+      rightInfoY -= 14;
+      page.drawText('Alien Book No', { x: labelX, y: rightInfoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
+      page.drawText(cleanTextForFont(employee.arc || '-'), { x: valueX, y: rightInfoY, size: 9, font: font });
+
+      rightInfoY -= 14;
+      page.drawText('Income Tax No.', { x: labelX, y: rightInfoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
+      page.drawText(cleanTextForFont(employee.taxId || '-'), { x: valueX, y: rightInfoY, size: 9, font: font });
+
+      rightInfoY -= 14;
+      page.drawText('Social Insurance No.', { x: labelX, y: rightInfoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
+      page.drawText(cleanTextForFont(employee.socialInsurance || '-'), { x: valueX, y: rightInfoY, size: 9, font: font });
+
+      rightInfoY -= 14;
+      page.drawText('Employment Date', { x: labelX, y: rightInfoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
+      const empDate = (employee as any).employmentDate ? new Date((employee as any).employmentDate).toLocaleDateString('en-GB') : '-';
+      page.drawText(empDate, { x: valueX, y: rightInfoY, size: 9, font: font });
+
+      rightInfoY -= 14;
+      page.drawText('Termination Date', { x: labelX, y: rightInfoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
+      const termDate = (employee as any).terminationDate ? new Date((employee as any).terminationDate).toLocaleDateString('en-GB') : '';
+      page.drawText(termDate, { x: valueX, y: rightInfoY, size: 9, font: font });
+
+      currentY = boxY - 30;
+
+      // 3. PAYSLIP TITLE (Centered, underlined style)
       const titleText = `PAYSLIP FOR ${payslip.payPeriod}`;
       const titleWidth = boldFont.widthOfTextAtSize(titleText, 12);
       page.drawText(titleText, {
         x: (width - titleWidth) / 2,
-        y: currentY - 13,
+        y: currentY,
         size: 12,
         font: boldFont,
         color: rgb(0, 0, 0),
       });
+
+      // Underline the title
+      page.drawLine({
+        start: { x: (width - titleWidth) / 2, y: currentY - 3 },
+        end: { x: (width + titleWidth) / 2, y: currentY - 3 },
+        thickness: 1,
+        color: rgb(0, 0, 0),
+      });
       
-      currentY -= 50;
+      currentY -= 40;
 
       // 4. FINANCIAL TABLES (Income vs Deductions)
       const col1X = margin;
