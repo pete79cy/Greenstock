@@ -2920,9 +2920,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         page.drawText('5380    FAMAGUSTA', { x: leftColX, y: infoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
 
         // Right column - Identification details
-        let rightInfoY = currentY - 20;
         const labelX = rightColX;
         const valueX = rightColX + 110;
+        let rightInfoY = currentY - 20;
 
         page.drawText('Identification No.', { x: labelX, y: rightInfoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
         page.drawText(cleanTextForFont(employee.passport || '-'), { x: valueX, y: rightInfoY, size: 9, font: font });
@@ -3022,11 +3022,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Footer
         page.drawText('Payment Method:', { x: margin, y: currentY, size: 10, font: boldFont });
-        page.drawText('Bank Transfer', { x: margin + 100, y: currentY, size: 10, font: font });
-        
-        currentY -= 15;
-        const accountStr = (employee as any).iban ? `IBAN: ${(employee as any).iban}` : 'Bank Account: ------------------';
-        page.drawText(accountStr, { x: margin + 100, y: currentY, size: 10, font: font });
+        page.drawText('Cash', { x: margin + 100, y: currentY, size: 10, font: font });
 
         page.drawText('This is a computer-generated document and needs no signature.', {
           x: margin, y: 30, size: 8, font: font, color: rgb(0.5, 0.5, 0.5),
@@ -3197,7 +3193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       infoY -= 14;
       page.drawText(cleanTextForFont(employee.designation || ''), { x: leftColX, y: infoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
 
-      // Company Location
+      // Company Location (no duplicate designation)
       infoY -= 16;
       page.drawText('Griva Digeni 39, Avgorou', { x: leftColX, y: infoY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
 
@@ -3341,11 +3337,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // 7. FOOTER / PAYMENT METHOD
       page.drawText('Payment Method:', { x: margin, y: currentY, size: 10, font: boldFont });
-      page.drawText('Bank Transfer', { x: margin + 100, y: currentY, size: 10, font: font });
-      
-      currentY -= 15;
-      const accountStr = (employee as any).iban ? `IBAN: ${(employee as any).iban}` : 'Bank Account: ------------------';
-      page.drawText(accountStr, { x: margin + 100, y: currentY, size: 10, font: font });
+      page.drawText('Cash', { x: margin + 100, y: currentY, size: 10, font: font });
 
       // Bottom "System Generated" note
       page.drawText('This is a computer-generated document and needs no signature.', {
