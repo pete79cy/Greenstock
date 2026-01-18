@@ -1,0 +1,210 @@
+Here is the updated code for the **Mass Print** endpoint.
+
+This implementation mirrors the "Professional" design we just created (two-column layout, clean headers) but wraps the logic in a loop to generate a single PDF containing all payslips for the selected month.
+
+### Updated Mass Print Endpoint
+
+Replace your existing `/api/payslips/month/:payPeriod/print` route with this code:
+
+```typescript
+// GET /api/payslips/month/:payPeriod/print
+app.get("/api/payslips/month/:payPeriod/print", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const payPeriod = req.params.payPeriod;
+    
+    // 1. Fetch all payslips for the requested period
+    // (Assuming you have a method for this, otherwise filter all payslips)
+    const allPayslips = await storage.getPayslips(); // Or storage.getPayslipsByPeriod(payPeriod) if available
+    const periodPayslips = allPayslips.filter(p => p.payPeriod === payPeriod);
+
+    if (periodPayslips.length === 0) {
+      return res.status(404).json({ message: "No payslips found for this period" });
+    }
+
+    // 2. Initialize PDF Document
+    const pdfDoc = await PDFDocument.create();
+    
+    // 3. Load Fonts (Once for the whole document)
+    // We use the same font logic as the single endpoint for consistency
+    let font, boldFont;
+    try {
+      const fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
+      const boldFontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
+      
+      if (fs.existsSync(fontPath) && fs.existsSync(boldFontPath)) {
+        pdfDoc.registerFontkit(fontkit);
+        const fontBytes = fs.readFileSync(fontPath);
+        const boldFontBytes = fs.readFileSync(boldFontPath);
+        font = await pdfDoc.embedFont(fontBytes);
+        boldFont = await pdfDoc.embedFont(boldFontBytes);
+      } else {
+        throw new Error('DejaVu fonts not found');
+      }
+    } catch (error: any) {
+      // Fallback
+      font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    }
+
+    const usingFallbackFonts = font.constructor.name === 'StandardFontEmbedder';
+    const cleanTextForFont = (text: string) => {
+      if (!text) return text;
+      if (usingFallbackFonts) {
+        return text
+          .replace(/Π/g, 'P').replace(/π/g, 'p')
+          .replace(/Α/g, 'A').replace(/α/g, 'a');
+      }
+      return text;
+    };
+
+    // 4. Loop through every payslip and create a page
+    for (const payslip of periodPayslips) {
+      const employee = await storage.getEmployee(payslip.employeePassport);
+      if (!employee) continue; // Skip if employee data is missing
+
+      // Add a new page for this employee
+      const page = pdfDoc.addPage([595, 842]); // A4
+      const { width, height } = page.getSize();
+      const margin = 50;
+      let currentY = height - margin;
+
+      // -- CALCULATIONS --
+      const grossSalary = payslip.grossSalary / 100;
+      const socialInsurance = payslip.socialInsurance / 100;
+      const gesy = payslip.gesy / 100;
+      const totalDeductions = socialInsurance + gesy;
+      const netPay = payslip.netPay / 100;
+
+      // -- DRAWING LOGIC (Identical to Single Endpoint) --
+
+      // Company Header
+      page.drawText('Andreas Pakkoutis & Sons Ltd', {
+        x: margin, y: currentY, size: 16, font: boldFont, color: rgb(0, 0, 0),
+      });
+
+      const companyDetails = ['Griva Digeni 39', 'Avgorou', 'Famagusta, Cyprus', 'Tel: +357 00 000 000'];
+      let addressY = currentY;
+      companyDetails.forEach(line => {
+        const textWidth = font.widthOfTextAtSize(line, 9);
+        page.drawText(line, {
+          x: width - margin - textWidth, y: addressY, size: 9, font: font, color: rgb(0.4, 0.4, 0.4),
+        });
+        addressY -= 12;
+      });
+      currentY -= 60;
+
+      // Employee Details
+      const empInfoY = currentY;
+      page.drawText('Employee Details:', { x: margin, y: empInfoY, size: 10, font: boldFont });
+      page.drawText(cleanTextForFont(employee.name), { x: margin, y: empInfoY - 15, size: 12, font: font });
+      page.drawText(`ID: ${cleanTextForFont(employee.passport)}`, { x: margin, y: empInfoY - 30, size: 10, font: font, color: rgb(0.3, 0.3, 0.3) });
+      
+      const rightColX = width / 2 + 20;
+      page.drawText(`Social Ins. No: ${cleanTextForFont(employee.socialInsurance || '-')}`, { x: rightColX, y: empInfoY - 15, size: 10, font: font });
+      page.drawText(`Tax ID / ARC:   ${cleanTextForFont(employee.taxId || employee.arc || '-')}`, { x: rightColX, y: empInfoY - 30, size: 10, font: font });
+      currentY -= 60;
+
+      // Payslip Title Strip
+      page.drawRectangle({
+        x: margin, y: currentY - 20, width: width - (2 * margin), height: 25, color: rgb(0.95, 0.95, 0.95),
+      });
+      const titleText = `PAYSLIP FOR ${payslip.payPeriod}`;
+      const titleWidth = boldFont.widthOfTextAtSize(titleText, 12);
+      page.drawText(titleText, {
+        x: (width - titleWidth) / 2, y: currentY - 13, size: 12, font: boldFont, color: rgb(0, 0, 0),
+      });
+      currentY -= 50;
+
+      // Financial Tables Setup
+      const col1X = margin;
+      const col2X = width / 2 + 10;
+      const colWidth = (width - (2 * margin)) / 2 - 10;
+      const headerSize = 10;
+      const rowSize = 10;
+
+      page.drawText('INCOME', { x: col1X, y: currentY, size: headerSize, font: boldFont });
+      page.drawText('Amount (€)', { x: col1X + colWidth - 60, y: currentY, size: headerSize, font: boldFont });
+      page.drawText('DEDUCTIONS', { x: col2X, y: currentY, size: headerSize, font: boldFont });
+      page.drawText('Amount (€)', { x: col2X + colWidth - 60, y: currentY, size: headerSize, font: boldFont });
+
+      currentY -= 5;
+      page.drawLine({ start: { x: col1X, y: currentY }, end: { x: col1X + colWidth, y: currentY }, thickness: 1, color: rgb(0.7, 0.7, 0.7) });
+      page.drawLine({ start: { x: col2X, y: currentY }, end: { x: col2X + colWidth, y: currentY }, thickness: 1, color: rgb(0.7, 0.7, 0.7) });
+      
+      currentY -= 20;
+      const startTableY = currentY;
+
+      // Income Column
+      page.drawText('Basic Salary', { x: col1X, y: currentY, size: rowSize, font: font });
+      page.drawText(grossSalary.toFixed(2), { x: col1X + colWidth - 60, y: currentY, size: rowSize, font: font });
+
+      // Deductions Column
+      page.drawText('Social Insurance (8.3%)', { x: col2X, y: currentY, size: rowSize, font: font });
+      page.drawText(socialInsurance.toFixed(2), { x: col2X + colWidth - 60, y: currentY, size: rowSize, font: font });
+      
+      currentY -= 20;
+      page.drawText('GESY (2.65%)', { x: col2X, y: currentY, size: rowSize, font: font });
+      page.drawText(gesy.toFixed(2), { x: col2X + colWidth - 60, y: currentY, size: rowSize, font: font });
+
+      // Totals
+      currentY = startTableY - 100;
+      page.drawLine({ start: { x: col1X, y: currentY + 15 }, end: { x: col1X + colWidth, y: currentY + 15 }, thickness: 1, color: rgb(0, 0, 0) });
+      page.drawLine({ start: { x: col2X, y: currentY + 15 }, end: { x: col2X + colWidth, y: currentY + 15 }, thickness: 1, color: rgb(0, 0, 0) });
+
+      page.drawText('Gross Income', { x: col1X, y: currentY, size: rowSize, font: boldFont });
+      page.drawText(grossSalary.toFixed(2), { x: col1X + colWidth - 60, y: currentY, size: rowSize, font: boldFont });
+
+      page.drawText('Total Deductions', { x: col2X, y: currentY, size: rowSize, font: boldFont });
+      page.drawText(totalDeductions.toFixed(2), { x: col2X + colWidth - 60, y: currentY, size: rowSize, font: boldFont });
+
+      currentY -= 40;
+
+      // Net Pay
+      page.drawRectangle({
+        x: margin, y: currentY - 30, width: width - (2 * margin), height: 40, borderColor: rgb(0, 0, 0), borderWidth: 1,
+      });
+
+      page.drawText('NET SALARY', { x: margin + 20, y: currentY - 10, size: 12, font: boldFont });
+      const netPayText = `€ ${netPay.toFixed(2)}`;
+      const netPayWidth = boldFont.widthOfTextAtSize(netPayText, 14);
+      page.drawText(netPayText, { x: width - margin - netPayWidth - 20, y: currentY - 12, size: 14, font: boldFont });
+
+      currentY -= 80;
+
+      // Footer
+      page.drawText('Payment Method:', { x: margin, y: currentY, size: 10, font: boldFont });
+      page.drawText('Bank Transfer', { x: margin + 100, y: currentY, size: 10, font: font });
+      
+      currentY -= 15;
+      const accountStr = employee.iban ? `IBAN: ${employee.iban}` : 'Bank Account: ------------------';
+      page.drawText(accountStr, { x: margin + 100, y: currentY, size: 10, font: font });
+
+      page.drawText('This is a computer-generated document and needs no signature.', {
+        x: margin, y: 30, size: 8, font: font, color: rgb(0.5, 0.5, 0.5),
+      });
+    }
+
+    const pdfBytes = await pdfDoc.save();
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="mass-payslips-${payPeriod}.pdf"`);
+    res.setHeader('Content-Length', pdfBytes.length.toString());
+    res.send(Buffer.from(pdfBytes));
+
+  } catch (error) {
+    console.error("Error generating mass payslips PDF:", error);
+    res.status(500).json({ message: "Failed to generate mass PDF" });
+  }
+});
+
+```
+
+### Implementation Notes
+
+* **Looping:** The code iterates through every payslip found for the specific month.
+* **Fonts:** Fonts are loaded *outside* the loop (lines 18-37) to ensure performance.
+* **Page Adds:** `pdfDoc.addPage` is called *inside* the loop (line 55), ensuring each employee gets their own fresh page within the single PDF file.
+
+### Next Step
+
+Would you like me to create a helper function for the drawing logic so you don't have duplicate code in both the "Single" and "Mass" endpoints?

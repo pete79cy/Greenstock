@@ -1,0 +1,249 @@
+// GET /api/payslips/:id/pdf
+app.get("/api/payslips/:id/pdf", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const payslip = await storage.getPayslip(id);
+
+    if (!payslip) {
+      return res.status(404).json({ message: "Payslip not found" });
+    }
+
+    const employee = await storage.getEmployee(payslip.employeePassport);
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found" });
+    }
+
+    // Calculations
+    const grossSalary = payslip.grossSalary / 100;
+    const socialInsurance = payslip.socialInsurance / 100;
+    const gesy = payslip.gesy / 100;
+    const totalDeductions = socialInsurance + gesy;
+    const netPay = payslip.netPay / 100;
+
+    // PDF Setup
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage([595, 842]); // A4 size
+    const { width, height } = page.getSize();
+    const margin = 50;
+
+    // Font Loading (Keep existing logic)
+    let font, boldFont;
+    try {
+      const fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
+      const boldFontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
+      
+      if (fs.existsSync(fontPath) && fs.existsSync(boldFontPath)) {
+        pdfDoc.registerFontkit(fontkit);
+        const fontBytes = fs.readFileSync(fontPath);
+        const boldFontBytes = fs.readFileSync(boldFontPath);
+        font = await pdfDoc.embedFont(fontBytes);
+        boldFont = await pdfDoc.embedFont(boldFontBytes);
+      } else {
+        throw new Error('DejaVu fonts not found');
+      }
+    } catch (error: any) {
+      font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    }
+
+    // Text Cleaning Helper
+    const usingFallbackFonts = font.constructor.name === 'StandardFontEmbedder';
+    const cleanTextForFont = (text: string) => {
+      if (!text) return text;
+      if (usingFallbackFonts) {
+        return text
+          .replace(/Π/g, 'P').replace(/π/g, 'p')
+          .replace(/Α/g, 'A').replace(/α/g, 'a');
+          // Add other replacements as needed
+      }
+      return text;
+    };
+
+    // --- DRAWING LOGIC STARTS HERE ---
+    let currentY = height - margin;
+
+    // 1. COMPANY HEADER (Left: Name, Right: Details)
+    // Company Name (Top Left)
+    page.drawText('Andreas Pakkoutis & Sons Ltd', {
+      x: margin,
+      y: currentY,
+      size: 16,
+      font: boldFont,
+      color: rgb(0, 0, 0),
+    });
+
+    // Company Address (Top Right - Aligned to right margin)
+    const companyDetails = [
+      'Griva Digeni 39',
+      'Avgorou',
+      'Famagusta, Cyprus',
+      'Tel: +357 00 000 000'
+    ];
+    
+    let addressY = currentY;
+    companyDetails.forEach(line => {
+      const textWidth = font.widthOfTextAtSize(line, 9);
+      page.drawText(line, {
+        x: width - margin - textWidth,
+        y: addressY,
+        size: 9,
+        font: font,
+        color: rgb(0.4, 0.4, 0.4),
+      });
+      addressY -= 12;
+    });
+
+    currentY -= 60;
+
+    // 2. EMPLOYEE DETAILS SECTION
+    const empInfoY = currentY;
+    
+    // Left side: Name and ID
+    page.drawText('Employee Details:', { x: margin, y: empInfoY, size: 10, font: boldFont });
+    page.drawText(cleanTextForFont(employee.name), { x: margin, y: empInfoY - 15, size: 12, font: font });
+    page.drawText(`ID: ${cleanTextForFont(employee.passport)}`, { x: margin, y: empInfoY - 30, size: 10, font: font, color: rgb(0.3, 0.3, 0.3) });
+    
+    // Right side: Tax/Social details
+    const rightColX = width / 2 + 20;
+    page.drawText(`Social Ins. No: ${cleanTextForFont(employee.socialInsurance || '-')}`, { x: rightColX, y: empInfoY - 15, size: 10, font: font });
+    page.drawText(`Tax ID / ARC:   ${cleanTextForFont(employee.taxId || employee.arc || '-')}`, { x: rightColX, y: empInfoY - 30, size: 10, font: font });
+    
+    currentY -= 60;
+
+    // 3. PAYSLIP TITLE STRIP
+    // Gray bar across width
+    page.drawRectangle({
+      x: margin,
+      y: currentY - 20,
+      width: width - (2 * margin),
+      height: 25,
+      color: rgb(0.95, 0.95, 0.95),
+    });
+    
+    // Centered Title
+    const titleText = `PAYSLIP FOR ${payslip.payPeriod}`;
+    const titleWidth = boldFont.widthOfTextAtSize(titleText, 12);
+    page.drawText(titleText, {
+      x: (width - titleWidth) / 2,
+      y: currentY - 13,
+      size: 12,
+      font: boldFont,
+      color: rgb(0, 0, 0),
+    });
+    
+    currentY -= 50;
+
+    // 4. FINANCIAL TABLES (Income vs Deductions)
+    // We will draw two columns side-by-side
+    
+    const col1X = margin;
+    const col2X = width / 2 + 10;
+    const colWidth = (width - (2 * margin)) / 2 - 10;
+    const headerSize = 10;
+    const rowSize = 10;
+
+    // Column Headers
+    page.drawText('INCOME', { x: col1X, y: currentY, size: headerSize, font: boldFont });
+    page.drawText('Amount (€)', { x: col1X + colWidth - 60, y: currentY, size: headerSize, font: boldFont });
+
+    page.drawText('DEDUCTIONS', { x: col2X, y: currentY, size: headerSize, font: boldFont });
+    page.drawText('Amount (€)', { x: col2X + colWidth - 60, y: currentY, size: headerSize, font: boldFont });
+
+    // Draw lines under headers
+    currentY -= 5;
+    page.drawLine({ start: { x: col1X, y: currentY }, end: { x: col1X + colWidth, y: currentY }, thickness: 1, color: rgb(0.7, 0.7, 0.7) });
+    page.drawLine({ start: { x: col2X, y: currentY }, end: { x: col2X + colWidth, y: currentY }, thickness: 1, color: rgb(0.7, 0.7, 0.7) });
+    
+    currentY -= 20;
+    const startTableY = currentY;
+
+    // -- INCOME COLUMN --
+    page.drawText('Basic Salary', { x: col1X, y: currentY, size: rowSize, font: font });
+    page.drawText(grossSalary.toFixed(2), { x: col1X + colWidth - 60, y: currentY, size: rowSize, font: font });
+
+    // -- DEDUCTIONS COLUMN --
+    page.drawText('Social Insurance (8.3%)', { x: col2X, y: currentY, size: rowSize, font: font });
+    page.drawText(socialInsurance.toFixed(2), { x: col2X + colWidth - 60, y: currentY, size: rowSize, font: font });
+    
+    currentY -= 20;
+    
+    page.drawText('GESY (2.65%)', { x: col2X, y: currentY, size: rowSize, font: font });
+    page.drawText(gesy.toFixed(2), { x: col2X + colWidth - 60, y: currentY, size: rowSize, font: font });
+
+    // 5. TOTALS SECTION
+    // Move Y down to create space, or use fixed position if lists are long
+    currentY = startTableY - 100; // Fixed spacing for cleanliness
+
+    // Draw lines above totals
+    page.drawLine({ start: { x: col1X, y: currentY + 15 }, end: { x: col1X + colWidth, y: currentY + 15 }, thickness: 1, color: rgb(0, 0, 0) });
+    page.drawLine({ start: { x: col2X, y: currentY + 15 }, end: { x: col2X + colWidth, y: currentY + 15 }, thickness: 1, color: rgb(0, 0, 0) });
+
+    // Total Income
+    page.drawText('Gross Income', { x: col1X, y: currentY, size: rowSize, font: boldFont });
+    page.drawText(grossSalary.toFixed(2), { x: col1X + colWidth - 60, y: currentY, size: rowSize, font: boldFont });
+
+    // Total Deductions
+    page.drawText('Total Deductions', { x: col2X, y: currentY, size: rowSize, font: boldFont });
+    page.drawText(totalDeductions.toFixed(2), { x: col2X + colWidth - 60, y: currentY, size: rowSize, font: boldFont });
+
+    currentY -= 40;
+
+    // 6. NET PAY BOX
+    // Styled similar to the bottom of the uploaded sample
+    page.drawRectangle({
+      x: margin,
+      y: currentY - 30,
+      width: width - (2 * margin),
+      height: 40,
+      borderColor: rgb(0, 0, 0),
+      borderWidth: 1,
+    });
+
+    page.drawText('NET SALARY', {
+      x: margin + 20,
+      y: currentY - 10,
+      size: 12,
+      font: boldFont,
+    });
+
+    const netPayText = `€ ${netPay.toFixed(2)}`;
+    const netPayWidth = boldFont.widthOfTextAtSize(netPayText, 14);
+    
+    page.drawText(netPayText, {
+      x: width - margin - netPayWidth - 20,
+      y: currentY - 12,
+      size: 14,
+      font: boldFont,
+    });
+
+    currentY -= 80;
+
+    // 7. FOOTER / PAYMENT METHOD
+    page.drawText('Payment Method:', { x: margin, y: currentY, size: 10, font: boldFont });
+    page.drawText('Bank Transfer', { x: margin + 100, y: currentY, size: 10, font: font });
+    
+    currentY -= 15;
+    // You can hardcode this or add it to your Employee/Payslip model later
+    const accountStr = employee.iban ? `IBAN: ${employee.iban}` : 'Bank Account: ------------------';
+    page.drawText(accountStr, { x: margin + 100, y: currentY, size: 10, font: font });
+
+    // Bottom "System Generated" note
+    page.drawText('This is a computer-generated document and needs no signature.', {
+      x: margin,
+      y: 30,
+      size: 8,
+      font: font,
+      color: rgb(0.5, 0.5, 0.5),
+    });
+
+    const pdfBytes = await pdfDoc.save();
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="payslip-${cleanTextForFont(employee.name).replace(/\s+/g, '-')}-${payslip.payPeriod}.pdf"`);
+    res.setHeader('Content-Length', pdfBytes.length.toString());
+    res.send(Buffer.from(pdfBytes));
+  } catch (error) {
+    console.error("Error generating payslip PDF:", error);
+    res.status(500).json({ message: "Failed to generate PDF" });
+  }
+});
