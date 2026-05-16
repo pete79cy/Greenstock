@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { db } from "./db";
+import { db, pool } from "./db";
 import { plants } from "@shared/schema";
 import { sql, eq, desc, ilike, and, gte, lte } from "drizzle-orm";
 import multer from "multer";
@@ -100,235 +100,146 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Backup and Restore Routes - Critical for data protection
   app.get("/api/backup", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      console.log("Starting comprehensive backup with database records and encrypted documents...");
-      
-      // Get all critical data from all tables
-      const employees = await storage.getAllEmployees();
-      const payslips = await storage.getAllPayslips();
-      const plants = await storage.getAllPlants();
-      
-      // Get other data with fallbacks for missing methods
-      let users: any[] = [];
-      let plantBases: any[] = [];
-      let plantInventories: any[] = [];
-      let purchasesPy8: any[] = [];
-      let salesPy9: any[] = [];
-      let documents: any[] = [];
-      let documentCategories: any[] = [];
-      let employeeDocuments: any[] = [];
-      let regulatoryChecks: any[] = [];
-      
-      try {
-        users = await storage.getAllUsers();
-      } catch (e) {
-        console.log("Users method not available");
-      }
-      
-      try {
-        plantBases = await storage.getAllPlantBases();
-      } catch (e) {
-        console.log("Plant bases method not available");
-      }
-      
-      try {
-        plantInventories = await storage.getAllPlantInventories();
-      } catch (e) {
-        console.log("Plant inventories method not available");
-      }
-      
-      try {
-        purchasesPy8 = await storage.getAllPurchasesPy8();
-      } catch (e) {
-        console.log("PY8 purchases method not available");
-      }
-      
-      try {
-        salesPy9 = await storage.getAllSalesPy9();
-      } catch (e) {
-        console.log("PY9 sales method not available");
-      }
+      console.log("Starting comprehensive backup of all database tables...");
 
-      try {
-        documents = await storage.getAllDocuments();
-      } catch (e) {
-        console.log("Documents method not available");
-      }
+      const SKIP_TABLES = new Set(["sessions"]);
 
-      try {
-        documentCategories = await storage.getAllDocumentCategories();
-      } catch (e) {
-        console.log("Document categories method not available");
-      }
+      const tablesResult = await pool.query<{ table_name: string }>(`
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+        ORDER BY table_name
+      `);
+      const tableNames = tablesResult.rows
+        .map(r => r.table_name)
+        .filter(n => !SKIP_TABLES.has(n));
 
-      try {
-        regulatoryChecks = await storage.getAllRegulatoryChecks();
-      } catch (e) {
-        console.log("Regulatory checks method not available");
-      }
-
-      // Get all employee documents for each employee
-      const allEmployeeDocuments: any[] = [];
-      for (const employee of employees) {
+      const data: Record<string, any[]> = {};
+      const exportedTables: Record<string, number> = {};
+      for (const tableName of tableNames) {
         try {
-          const empDocs = await storage.getEmployeeDocuments(employee.passport);
-          allEmployeeDocuments.push(...empDocs);
-        } catch (e) {
-          console.log(`Could not fetch documents for employee ${employee.passport}`);
+          const result = await pool.query(`SELECT * FROM "${tableName}"`);
+          let rows = result.rows;
+          if (tableName === "users") {
+            rows = rows.map((u: any) => ({ ...u, password: "[PROTECTED]" }));
+          }
+          data[tableName] = rows;
+          exportedTables[tableName] = rows.length;
+        } catch (e: any) {
+          console.warn(`Failed to export table ${tableName}:`, e.message);
+          data[tableName] = [];
+          exportedTables[tableName] = 0;
         }
       }
-      employeeDocuments = allEmployeeDocuments;
 
-      // Backup encrypted document files
       console.log("Backing up encrypted document files...");
       const documentFiles: any[] = [];
-      
-      // Backup employee documents (encrypted files)
-      for (const empDoc of employeeDocuments) {
+
+      for (const empDoc of data["employee_documents"] || []) {
         try {
-          const encryptedFilePath = path.join(process.cwd(), empDoc.filePath);
-          if (fs.existsSync(encryptedFilePath)) {
-            const fileBuffer = fs.readFileSync(encryptedFilePath);
+          const p = path.join(process.cwd(), empDoc.file_path);
+          if (fs.existsSync(p)) {
             documentFiles.push({
-              type: 'employee_document',
+              type: "employee_document",
               id: empDoc.id,
-              filePath: empDoc.filePath,
-              fileName: empDoc.fileName,
-              fileSize: empDoc.fileSize,
-              encryptedData: fileBuffer.toString('base64'), // Store as base64
+              filePath: empDoc.file_path,
+              fileName: empDoc.file_name,
+              fileSize: empDoc.file_size,
+              encryptedData: fs.readFileSync(p).toString("base64"),
               metadata: {
-                employeePassport: empDoc.employeePassport,
-                documentType: empDoc.documentType,
-                uploadedAt: empDoc.uploadedAt
-              }
+                employeePassport: empDoc.employee_passport,
+                documentType: empDoc.document_type,
+                uploadedAt: empDoc.uploaded_at,
+              },
             });
           }
-        } catch (error) {
-          console.warn(`Failed to backup employee document file ${empDoc.fileName}:`, error);
+        } catch (e) {
+          console.warn(`Failed to backup employee document ${empDoc.file_name}:`, e);
         }
       }
 
-      // Backup document center files
-      for (const doc of documents) {
+      for (const doc of data["documents"] || []) {
         try {
-          const docFilePath = path.join(process.cwd(), doc.filePath);
-          if (fs.existsSync(docFilePath)) {
-            const fileBuffer = fs.readFileSync(docFilePath);
+          const p = path.join(process.cwd(), doc.file_path);
+          if (fs.existsSync(p)) {
             documentFiles.push({
-              type: 'document_center',
+              type: "document_center",
               id: doc.id,
-              filePath: doc.filePath,
-              fileName: doc.fileName,
-              fileSize: doc.fileSize,
-              encryptedData: fileBuffer.toString('base64'), // Store as base64
+              filePath: doc.file_path,
+              fileName: doc.file_name,
+              fileSize: doc.file_size,
+              encryptedData: fs.readFileSync(p).toString("base64"),
               metadata: {
                 title: doc.title,
-                categoryId: doc.categoryId,
-                producerId: doc.producerId,
-                issueDate: doc.issueDate,
-                expiryDate: doc.expiryDate,
+                categoryId: doc.category_id,
+                producerId: doc.producer_id,
+                issueDate: doc.issue_date,
+                expiryDate: doc.expiry_date,
                 notes: doc.notes,
-                uploadedBy: doc.uploadedBy
-              }
+                uploadedBy: doc.uploaded_by,
+              },
             });
           }
-        } catch (error) {
-          console.warn(`Failed to backup document center file ${doc.fileName}:`, error);
+        } catch (e) {
+          console.warn(`Failed to backup document ${doc.file_name}:`, e);
         }
       }
 
-      // Backup regulatory check documents
-      for (const regCheck of regulatoryChecks) {
+      for (const regCheck of data["regulatory_checks"] || []) {
         try {
-          if (regCheck.documentUrl) {
-            const regDocPath = path.join(process.cwd(), regCheck.documentUrl);
-            if (fs.existsSync(regDocPath)) {
-              const fileBuffer = fs.readFileSync(regDocPath);
+          if (regCheck.document_url) {
+            const p = path.join(process.cwd(), regCheck.document_url);
+            if (fs.existsSync(p)) {
+              const buf = fs.readFileSync(p);
               documentFiles.push({
-                type: 'regulatory_document',
+                type: "regulatory_document",
                 id: regCheck.id,
-                filePath: regCheck.documentUrl,
-                fileName: path.basename(regCheck.documentUrl),
-                fileSize: fileBuffer.length,
-                encryptedData: fileBuffer.toString('base64'),
+                filePath: regCheck.document_url,
+                fileName: path.basename(regCheck.document_url),
+                fileSize: buf.length,
+                encryptedData: buf.toString("base64"),
                 metadata: {
-                  producerId: regCheck.producerId,
+                  producerId: regCheck.producer_id,
                   date: regCheck.date,
-                  formType: regCheck.formType,
+                  formType: regCheck.form_type,
                   notes: regCheck.notes,
-                  isRenewable: regCheck.isRenewable
-                }
+                  isRenewable: regCheck.is_renewable,
+                },
               });
             }
           }
-        } catch (error) {
-          console.warn(`Failed to backup regulatory document ${regCheck.documentUrl}:`, error);
+        } catch (e) {
+          console.warn(`Failed to backup regulatory document ${regCheck.document_url}:`, e);
         }
       }
 
-      // Calculate total records safely
-      const totalRecords = (users?.length || 0) + (employees?.length || 0) + (payslips?.length || 0) + 
-                          (plantBases?.length || 0) + (plantInventories?.length || 0) + (plants?.length || 0) +
-                          (purchasesPy8?.length || 0) + (salesPy9?.length || 0) + (documents?.length || 0) +
-                          (documentCategories?.length || 0) + (employeeDocuments?.length || 0) + 
-                          (regulatoryChecks?.length || 0);
+      const totalRecords = Object.values(exportedTables).reduce((s, n) => s + n, 0);
 
       const backupData = {
-        version: "2.0", // Updated version to include documents
+        version: "3.0",
         timestamp: new Date().toISOString(),
         includesEncryptedFiles: true,
-        data: {
-          users: users?.map((user: any) => ({...user, password: "[PROTECTED]"})) || [], // Don't export passwords
-          employees: employees || [],
-          payslips: payslips || [],
-          plantBases: plantBases || [],
-          plantInventories: plantInventories || [],
-          plants: plants || [],
-          purchasesPy8: purchasesPy8 || [],
-          salesPy9: salesPy9 || [],
-          documents: documents || [],
-          documentCategories: documentCategories || [],
-          employeeDocuments: employeeDocuments || [],
-          regulatoryChecks: regulatoryChecks || []
-        },
-        files: documentFiles, // All encrypted document files as base64
+        data,
+        files: documentFiles,
         metadata: {
           totalRecords,
           totalFiles: documentFiles.length,
           fileTypes: {
-            employee_documents: documentFiles.filter(f => f.type === 'employee_document').length,
-            document_center: documentFiles.filter(f => f.type === 'document_center').length,
-            regulatory_documents: documentFiles.filter(f => f.type === 'regulatory_document').length
+            employee_documents: documentFiles.filter(f => f.type === "employee_document").length,
+            document_center: documentFiles.filter(f => f.type === "document_center").length,
+            regulatory_documents: documentFiles.filter(f => f.type === "regulatory_document").length,
           },
-          tables: ["users", "employees", "payslips", "plant_base", "plant_inventory", "plants", "purchases_py8", "sales_py9", "documents", "document_categories", "employee_documents", "regulatory_checks"],
-          exportedTables: {
-            users: users?.length || 0,
-            employees: employees?.length || 0,
-            payslips: payslips?.length || 0,
-            plantBases: plantBases?.length || 0,
-            plantInventories: plantInventories?.length || 0,
-            plants: plants?.length || 0,
-            purchasesPy8: purchasesPy8?.length || 0,
-            salesPy9: salesPy9?.length || 0,
-            documents: documents?.length || 0,
-            documentCategories: documentCategories?.length || 0,
-            employeeDocuments: employeeDocuments?.length || 0,
-            regulatoryChecks: regulatoryChecks?.length || 0
-          }
-        }
+          tables: tableNames,
+          exportedTables,
+        },
       };
 
-      const filename = `comprehensive_backup_${new Date().toISOString().split('T')[0]}_${Date.now()}.json`;
-      
+      const filename = `comprehensive_backup_${new Date().toISOString().split("T")[0]}_${Date.now()}.json`;
       res.setHeader("Content-Type", "application/json");
       res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
       res.json(backupData);
-      
-      console.log(`Comprehensive backup completed successfully:`);
-      console.log(`- Database records: ${backupData.metadata?.totalRecords || 0}`);
-      console.log(`- Document files: ${documentFiles.length}`);
-      console.log(`- Employee documents: ${documentFiles.filter(f => f.type === 'employee_document').length}`);
-      console.log(`- Document center files: ${documentFiles.filter(f => f.type === 'document_center').length}`);
-      console.log(`- Regulatory documents: ${documentFiles.filter(f => f.type === 'regulatory_document').length}`);
+
+      console.log(`Backup complete: ${totalRecords} records across ${tableNames.length} tables, ${documentFiles.length} files`);
     } catch (error: any) {
       console.error("Backup failed:", error);
       res.status(500).json({ message: "Failed to create backup", error: error.message });
@@ -341,207 +252,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No backup file provided" });
       }
 
-      console.log("Starting comprehensive database and file restoration...");
-      
-      // Parse the backup file
-      const backupContent = req.file.buffer.toString('utf8');
-      const backupData = JSON.parse(backupContent);
-      
-      // Validate backup format
+      const backupData = JSON.parse(req.file.buffer.toString("utf8"));
       if (!backupData.version || !backupData.data) {
         return res.status(400).json({ message: "Invalid backup file format" });
       }
 
-      console.log(`Restoring backup from ${backupData.timestamp}`);
-      console.log(`Backup version: ${backupData.version}`);
-      console.log(`Total records to restore: ${backupData.metadata?.totalRecords || 'unknown'}`);
-      console.log(`Total files to restore: ${backupData.metadata?.totalFiles || 0}`);
-      
-      // Start restoration process
-      let restoredCounts = {
-        employees: 0,
-        payslips: 0,
-        plantBases: 0,
-        plantInventories: 0,
-        plants: 0,
-        purchasesPy8: 0,
-        salesPy9: 0,
-        documents: 0,
-        documentCategories: 0,
-        employeeDocuments: 0,
-        regulatoryChecks: 0
+      console.log(`Restoring backup version ${backupData.version} from ${backupData.timestamp}`);
+
+      // Legacy (v2.0) camelCase keys → snake_case table names
+      const LEGACY_KEY_MAP: Record<string, string> = {
+        plantBases: "plant_base",
+        plantInventories: "plant_inventory",
+        purchasesPy8: "purchases_py8",
+        salesPy9: "sales_py9",
+        documentCategories: "document_categories",
+        employeeDocuments: "employee_documents",
+        regulatoryChecks: "regulatory_checks",
+        employeeLeaves: "employee_leaves",
+        employeeLeaveBalances: "employee_leave_balances",
+        plantVarieties: "plant_varieties",
+        plantPurchases: "plant_purchases",
+        purchaseOrders: "purchase_orders",
+        purchasedPlants: "purchased_plants",
+        savedReports: "saved_reports",
       };
 
-      let restoredFiles = {
+      const normalizedData: Record<string, any[]> = {};
+      for (const [key, rows] of Object.entries(backupData.data)) {
+        const tableName = LEGACY_KEY_MAP[key] || key;
+        normalizedData[tableName] = (rows as any[]) || [];
+      }
+
+      // users/sessions are never overwritten — preserves login + active sessions
+      const SKIP_TABLES = new Set(["sessions", "users"]);
+      const tablesToRestore = Object.keys(normalizedData).filter(t => !SKIP_TABLES.has(t));
+
+      const restoredCounts: Record<string, number> = {};
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        await client.query("SET session_replication_role = 'replica'");
+
+        for (const tableName of tablesToRestore) {
+          const exists = await client.query(
+            "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name=$1",
+            [tableName],
+          );
+          if (exists.rows.length === 0) {
+            console.warn(`Table ${tableName} not in database, skipping`);
+            continue;
+          }
+          await client.query(`TRUNCATE TABLE "${tableName}" RESTART IDENTITY CASCADE`);
+        }
+
+        for (const tableName of tablesToRestore) {
+          const rows = normalizedData[tableName];
+          if (!rows || rows.length === 0) {
+            restoredCounts[tableName] = 0;
+            continue;
+          }
+
+          let inserted = 0;
+          for (const row of rows) {
+            const columns = Object.keys(row);
+            if (columns.length === 0) continue;
+            const placeholders = columns.map((_, i) => `$${i + 1}`).join(", ");
+            const quotedCols = columns.map(c => `"${c}"`).join(", ");
+            const values = columns.map(c => row[c]);
+            try {
+              await client.query(
+                `INSERT INTO "${tableName}" (${quotedCols}) VALUES (${placeholders})`,
+                values,
+              );
+              inserted++;
+            } catch (e: any) {
+              console.warn(`Insert failed in ${tableName}:`, e.message);
+            }
+          }
+          restoredCounts[tableName] = inserted;
+
+          try {
+            const seqRow = await client.query(
+              "SELECT pg_get_serial_sequence($1, 'id') AS seqname",
+              [tableName],
+            );
+            const seqName = seqRow.rows[0]?.seqname;
+            if (seqName) {
+              await client.query(
+                `SELECT setval('${seqName}', COALESCE((SELECT MAX(id) FROM "${tableName}"), 1))`,
+              );
+            }
+          } catch {
+            // table doesn't have an id sequence; that's fine
+          }
+        }
+
+        await client.query("SET session_replication_role = 'origin'");
+        await client.query("COMMIT");
+      } catch (e) {
+        await client.query("ROLLBACK");
+        throw e;
+      } finally {
+        client.release();
+      }
+
+      const restoredFiles: Record<string, number> = {
         employee_documents: 0,
         document_center: 0,
-        regulatory_documents: 0
+        regulatory_documents: 0,
       };
-
-      // Restore document categories first (they're referenced by documents)
-      if (backupData.data.documentCategories) {
-        for (const category of backupData.data.documentCategories) {
-          try {
-            await storage.createDocumentCategory(category);
-            restoredCounts.documentCategories++;
-          } catch (error: any) {
-            console.warn(`Failed to restore document category ${category.code}:`, error.message);
-          }
-        }
-      }
-
-      // Restore employees (critical payroll data)
-      if (backupData.data.employees) {
-        for (const employee of backupData.data.employees) {
-          try {
-            await storage.createEmployee(employee);
-            restoredCounts.employees++;
-          } catch (error: any) {
-            console.warn(`Failed to restore employee ${employee.passport}:`, error.message);
-          }
-        }
-      }
-
-      // Restore payslips (critical financial data)
-      if (backupData.data.payslips) {
-        for (const payslip of backupData.data.payslips) {
-          try {
-            await storage.createPayslip(payslip);
-            restoredCounts.payslips++;
-          } catch (error: any) {
-            console.warn(`Failed to restore payslip ${payslip.id}:`, error.message);
-          }
-        }
-      }
-
-      // Restore plant data
-      if (backupData.data.plantBases) {
-        for (const plantBase of backupData.data.plantBases) {
-          try {
-            await storage.createPlantBase(plantBase);
-            restoredCounts.plantBases++;
-          } catch (error: any) {
-            console.warn(`Failed to restore plant base ${plantBase.id}:`, error.message);
-          }
-        }
-      }
-
-      if (backupData.data.plantInventories) {
-        for (const inventory of backupData.data.plantInventories) {
-          try {
-            await storage.createInventoryEntry(inventory);
-            restoredCounts.plantInventories++;
-          } catch (error: any) {
-            console.warn(`Failed to restore plant inventory ${inventory.id}:`, error.message);
-          }
-        }
-      }
-
-      if (backupData.data.plants) {
-        for (const plant of backupData.data.plants) {
-          try {
-            await storage.createPlant(plant);
-            restoredCounts.plants++;
-          } catch (error: any) {
-            console.warn(`Failed to restore plant ${plant.id}:`, error.message);
-          }
-        }
-      }
-
-      // Restore purchase and sales data
-      if (backupData.data.purchasesPy8) {
-        for (const purchase of backupData.data.purchasesPy8) {
-          try {
-            await storage.createPurchasePy8(purchase);
-            restoredCounts.purchasesPy8++;
-          } catch (error: any) {
-            console.warn(`Failed to restore purchase ${purchase.id}:`, error.message);
-          }
-        }
-      }
-
-      if (backupData.data.salesPy9) {
-        for (const sale of backupData.data.salesPy9) {
-          try {
-            await storage.createSalePy9(sale);
-            restoredCounts.salesPy9++;
-          } catch (error: any) {
-            console.warn(`Failed to restore sale ${sale.id}:`, error.message);
-          }
-        }
-      }
-
-      // Restore documents (Document Center)
-      if (backupData.data.documents) {
-        for (const document of backupData.data.documents) {
-          try {
-            await storage.createDocument(document);
-            restoredCounts.documents++;
-          } catch (error: any) {
-            console.warn(`Failed to restore document ${document.id}:`, error.message);
-          }
-        }
-      }
-
-      // Restore employee documents metadata
-      if (backupData.data.employeeDocuments) {
-        for (const empDoc of backupData.data.employeeDocuments) {
-          try {
-            await storage.createEmployeeDocument(empDoc);
-            restoredCounts.employeeDocuments++;
-          } catch (error: any) {
-            console.warn(`Failed to restore employee document ${empDoc.id}:`, error.message);
-          }
-        }
-      }
-
-      // Restore regulatory checks
-      if (backupData.data.regulatoryChecks) {
-        for (const regCheck of backupData.data.regulatoryChecks) {
-          try {
-            await storage.createRegulatoryCheck(regCheck);
-            restoredCounts.regulatoryChecks++;
-          } catch (error: any) {
-            console.warn(`Failed to restore regulatory check ${regCheck.id}:`, error.message);
-          }
-        }
-      }
-
-      // Restore encrypted files if present (version 2.0+ backups)
       if (backupData.includesEncryptedFiles && backupData.files) {
-        console.log("Restoring encrypted document files...");
-        
         for (const fileData of backupData.files) {
           try {
-            // Decode base64 data back to buffer
-            const fileBuffer = Buffer.from(fileData.encryptedData, 'base64');
-            
-            // Ensure directory exists
+            const fileBuffer = Buffer.from(fileData.encryptedData, "base64");
             const dirPath = path.dirname(path.join(process.cwd(), fileData.filePath));
-            if (!fs.existsSync(dirPath)) {
-              fs.mkdirSync(dirPath, { recursive: true });
+            if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
+            fs.writeFileSync(path.join(process.cwd(), fileData.filePath), fileBuffer);
+            if (restoredFiles[fileData.type] !== undefined) {
+              restoredFiles[fileData.type]++;
             }
-            
-            // Write file back to disk
-            const fullFilePath = path.join(process.cwd(), fileData.filePath);
-            fs.writeFileSync(fullFilePath, fileBuffer);
-            
-            restoredFiles[fileData.type as keyof typeof restoredFiles]++;
-            
-          } catch (error: any) {
-            console.warn(`Failed to restore file ${fileData.fileName}:`, error.message);
+          } catch (e: any) {
+            console.warn(`Failed to restore file ${fileData.fileName}:`, e.message);
           }
         }
       }
 
-      const totalRestored = Object.values(restoredCounts).reduce((sum, count) => sum + count, 0);
-      const totalFilesRestored = Object.values(restoredFiles).reduce((sum, count) => sum + count, 0);
-      
-      console.log("Restoration completed:", restoredCounts);
-      console.log("Files restored:", restoredFiles);
-      console.log(`Total records restored: ${totalRestored}`);
-      console.log(`Total files restored: ${totalFilesRestored}`);
-      
+      const totalRestored = Object.values(restoredCounts).reduce((s, n) => s + n, 0);
+      const totalFilesRestored = Object.values(restoredFiles).reduce((s, n) => s + n, 0);
+
+      console.log("Restoration complete:", restoredCounts);
       res.json({
         message: "Comprehensive restoration completed successfully",
         restoredCounts,
@@ -550,15 +389,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalFilesRestored,
         backupTimestamp: backupData.timestamp,
         backupVersion: backupData.version,
-        includesFiles: backupData.includesEncryptedFiles || false
+        skippedTables: ["users", "sessions"],
       });
-      
     } catch (error: any) {
       console.error("Restoration failed:", error);
-      res.status(500).json({ 
-        message: "Failed to restore data", 
-        error: error.message 
-      });
+      res.status(500).json({ message: "Failed to restore data", error: error.message });
     }
   });
 
@@ -602,139 +437,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
   
   app.use(cors(corsOptions));
-  
-  // Configure session and authentication
-  configureSession(app);
-  registerAuthRoutes(app);
-  // Backup plants as JSON
-  app.get("/api/backup", isAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const plants = await storage.getAllPlants();
-      
-      // Get current timestamp for the filename
-      const timestamp = new Date().toISOString().replace(/:/g, '-').slice(0, 19);
-      const filename = `plant-inventory-backup-${timestamp}.json`;
-      
-      // Set the response headers
-      res.setHeader("Content-Type", "application/json");
-      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-      
-      // Send the JSON data
-      res.json(plants);
-    } catch (error) {
-      console.error("Error creating backup:", error);
-      res.status(500).json({ message: "Failed to create backup" });
-    }
-  });
-  
-  // Restore plants from JSON
-  app.post("/api/restore", isAuthenticated, upload.single("backupFile"), async (req: MulterRequest, res: Response) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ message: "No backup file uploaded" });
-      }
-      
-      // Read the JSON file
-      const backupDataString = req.file.buffer.toString('utf-8');
-      let plantsToRestore;
-      
-      try {
-        plantsToRestore = JSON.parse(backupDataString);
-      } catch (parseError) {
-        return res.status(400).json({ message: "Invalid JSON format in backup file" });
-      }
-      
-      if (!Array.isArray(plantsToRestore)) {
-        return res.status(400).json({ message: "Invalid backup format. Expected an array of plants." });
-      }
-      
-      console.log(`Restoring ${plantsToRestore.length} plants from backup...`);
-      
-      // Validate each plant
-      const restoreResults = {
-        success: 0,
-        failed: 0,
-        errors: [] as string[]
-      };
-      
-      // Clear existing plants and add new ones in a transaction
-      let clearSuccess = false;
-      
-      // First, try to delete all existing plants
-      try {
-        // Get all plants
-        const existingPlants = await storage.getAllPlants();
-        
-        // Delete each plant
-        for (const plant of existingPlants) {
-          await storage.deletePlant(plant.id);
-        }
-        
-        clearSuccess = true;
-      } catch (clearError) {
-        console.error("Error clearing existing plants:", clearError);
-        return res.status(500).json({ 
-          message: "Failed to clear existing plants before restore",
-          error: (clearError as Error).message
-        });
-      }
-      
-      if (clearSuccess) {
-        // Now add plants from the backup
-        for (const plantData of plantsToRestore) {
-          try {
-            // Ensure we have required fields for a plant
-            if (!plantData.name) {
-              restoreResults.failed++;
-              restoreResults.errors.push(`Plant missing name field`);
-              continue;
-            }
-            
-            // Extract relevant fields for insert (omit id and timestamps)
-            const plantToInsert = {
-              name: plantData.name,
-              scientificName: plantData.scientificName || "Unknown",
-              plantingYear: parseInt(plantData.plantingYear) || new Date().getFullYear(),
-              quantity: parseInt(plantData.quantity) || 0
-            };
-            
-            // Validate using the schema
-            const validationResult = insertPlantSchema.safeParse(plantToInsert);
-            
-            if (validationResult.success) {
-              await storage.createPlant(validationResult.data);
-              restoreResults.success++;
-            } else {
-              const validationError = fromZodError(validationResult.error);
-              restoreResults.failed++;
-              restoreResults.errors.push(`Validation error: ${validationError.message}`);
-            }
-          } catch (insertError) {
-            restoreResults.failed++;
-            restoreResults.errors.push(`Error inserting plant: ${(insertError as Error).message}`);
-          }
-        }
-      }
-      
-      // Generate response
-      const message = restoreResults.success > 0 
-        ? `Successfully restored ${restoreResults.success} plants.` 
-        : "No plants were restored.";
-      
-      const detailedErrors = restoreResults.errors.length > 0 
-        ? `There were ${restoreResults.failed} errors.` 
-        : "";
-      
-      res.json({
-        ...restoreResults,
-        message,
-        detailedErrors
-      });
-    } catch (error) {
-      console.error("Error restoring data:", error);
-      res.status(500).json({ message: "Failed to restore plants" });
-    }
-  });
 
   // Get all plants with optional search
   app.get("/api/plants", isAuthenticated, async (req: Request, res: Response) => {
