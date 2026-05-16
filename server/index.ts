@@ -4,6 +4,13 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+const productionOrigins = (process.env.APP_ORIGIN || "https://hr.pakkou.cloud")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const allowedOrigins = new Set(productionOrigins);
+
+app.disable("x-powered-by");
 
 // Trust proxy - required for secure cookies to work behind proxies in production
 app.set('trust proxy', 1);
@@ -11,12 +18,29 @@ app.set('trust proxy', 1);
 // CORS middleware - must come before session setup
 app.use(
   cors({
-    origin: process.env.NODE_ENV === 'development' 
-      ? 'http://localhost:5173'  // Vite dev server
-      : true,                    // Allow same origin in production
-    credentials: true,           // Allow cookies to be sent
+    origin(origin, callback) {
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (process.env.NODE_ENV === "development") {
+        return callback(null, origin === "http://localhost:5173");
+      }
+
+      return callback(null, allowedOrigins.has(origin));
+    },
+    credentials: true,
   })
 );
+
+app.use((_req, res, next) => {
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  next();
+});
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));

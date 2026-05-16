@@ -16,6 +16,7 @@
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DBNAME
 SESSION_SECRET=put-a-long-random-secret-here
 DOCUMENT_ENCRYPTION_KEY=put-a-32-character-secret-here
+APP_ORIGIN=https://hr.pakkou.cloud
 PORT=5000
 NODE_ENV=production
 ```
