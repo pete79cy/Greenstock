@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { apiLimiter } from "./rate-limit";
 
 const app = express();
 const productionOrigins = (process.env.APP_ORIGIN || "https://hr.pakkou.cloud")
@@ -48,6 +49,10 @@ app.use(express.urlencoded({ extended: false }));
 app.get("/api/health", (_req, res) => {
   res.status(200).json({ ok: true });
 });
+
+// Apply global rate-limit to all /api/* routes registered after this point.
+// Login has an additional stricter limiter applied at the route itself.
+app.use("/api", apiLimiter);
 
 app.use((req, res, next) => {
   const start = Date.now();

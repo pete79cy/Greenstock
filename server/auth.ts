@@ -8,6 +8,7 @@ import { db, pool } from "./db";
 import { storage } from "./storage";
 import { User, loginUserSchema, insertUserSchema, InsertUser } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
+import { loginLimiter } from "./rate-limit";
 
 // Constants
 const SESSION_SECRET = process.env.SESSION_SECRET || 'plant-inventory-secret-key-very-long';
@@ -104,7 +105,7 @@ export function registerAuthRoutes(app: any) {
   });
   
   // Login
-  app.post("/api/auth/login", (req: Request, res: Response, next: NextFunction) => {
+  app.post("/api/auth/login", loginLimiter, (req: Request, res: Response, next: NextFunction) => {
     try {
       // Validate login data
       const validatedData = loginUserSchema.safeParse(req.body);
