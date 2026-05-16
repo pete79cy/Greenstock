@@ -482,7 +482,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a new plant
-  app.post("/api/plants", async (req: Request, res: Response) => {
+  app.post("/api/plants", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const validationResult = insertPlantSchema.safeParse(req.body);
       
@@ -521,7 +521,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update plant
-  app.put("/api/plants/:id", async (req: Request, res: Response) => {
+  app.put("/api/plants/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       
@@ -578,7 +578,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete plant
-  app.delete("/api/plants/:id", async (req: Request, res: Response) => {
+  app.delete("/api/plants/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const success = await storage.deletePlant(id);
@@ -595,7 +595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Add stock to plant
-  app.post("/api/plants/:id/add-stock", async (req: Request, res: Response) => {
+  app.post("/api/plants/:id/add-stock", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const { quantityToAdd, plantingYear } = req.body;
@@ -666,7 +666,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Import plants from Excel
-  app.post("/api/plants/import", upload.single("file"), async (req: MulterRequest, res: Response) => {
+  app.post("/api/plants/import", isAuthenticated, upload.single("file"), async (req: MulterRequest, res: Response) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
@@ -777,7 +777,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Export plants to Excel
-  app.get("/api/plants/export/excel", async (req: Request, res: Response) => {
+  app.get("/api/plants/export/excel", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const plants = await storage.getAllPlants();
       
@@ -821,7 +821,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Export plants to PDF
-  app.get("/api/plants/export/pdf", async (req: Request, res: Response) => {
+  app.get("/api/plants/export/pdf", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const plants = await storage.getAllPlants();
       
@@ -914,7 +914,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate catalog of produced plants 2025 report without quantities or production year info
-  app.get("/api/plants/export/plant-catalog-2025", async (req: Request, res: Response) => {
+  app.get("/api/plants/export/plant-catalog-2025", isAuthenticated, async (req: Request, res: Response) => {
     try {
       console.log("Initiating Κατάλογος Παραγώμενων Φυτών 2025 report generation...");
       
@@ -1184,7 +1184,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Generate cultivation declaration report (Greek format)
-  app.get("/api/plants/export/cultivation-declaration", async (req: Request, res: Response) => {
+  app.get("/api/plants/export/cultivation-declaration", isAuthenticated, async (req: Request, res: Response) => {
     try {
       console.log("Initiating Cultivation Declaration Report generation (sorted by name and planting year) with custom font...");
       
