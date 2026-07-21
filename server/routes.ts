@@ -1479,6 +1479,198 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Cultivation Declaration — custom (interactive report maker).
+  // Accepts a user-edited list of entries and a title, returns a PDF matching
+  // the existing declaration format. Backing UI: /cultivation-declaration-maker.
+  app.post("/api/plants/export/cultivation-declaration-custom", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const {
+        title,
+        entries,
+        excludeZero = true,
+        footer,
+      }: {
+        title?: string;
+        entries?: Array<{ name?: string; scientificName?: string; plantingYear?: number | string; quantity?: number | string }>;
+        excludeZero?: boolean;
+        footer?: string;
+      } = req.body || {};
+
+      if (!Array.isArray(entries)) {
+        return res.status(400).json({ message: "entries must be an array" });
+      }
+
+      const cleanTitle = (title || "ΔΗΛΩΣΗ ΚΑΛΛΙΕΡΓΕΙΑΣ").toString().slice(0, 200);
+
+      // Normalise + optionally drop zero-quantity rows
+      let rows = entries
+        .filter(e => e && typeof e.name === "string" && e.name.trim().length > 0)
+        .map(e => ({
+          name: String(e.name).trim(),
+          scientificName: String(e.scientificName || "").trim(),
+          plantingYear: Number(e.plantingYear) || 0,
+          quantity: Number(e.quantity) || 0,
+        }));
+
+      if (excludeZero) {
+        rows = rows.filter(r => r.quantity > 0);
+      }
+
+      // Same sort as the existing declaration: name asc, then planting year asc
+      rows.sort((a, b) => {
+        const nameCmp = a.name.localeCompare(b.name);
+        if (nameCmp === 0) return a.plantingYear - b.plantingYear;
+        return nameCmp;
+      });
+
+      const fontPath = path.join(process.cwd(), "public", "fonts", "NotoSansGreek-Regular.ttf");
+      const customFontBytes = fs.readFileSync(fontPath);
+
+      const pdfDoc = await PDFDocument.create();
+      pdfDoc.registerFontkit(fontkit);
+      const customFont = await pdfDoc.embedFont(customFontBytes);
+
+      const truncateTextForCell = (text: string, maxWidth: number, fontSize: number): string => {
+        if (!text) return "";
+        if (customFont.widthOfTextAtSize(text, fontSize) <= maxWidth) return text;
+        const ellipsis = "...";
+        const ellipsisWidth = customFont.widthOfTextAtSize(ellipsis, fontSize);
+        const availableWidth = maxWidth - ellipsisWidth;
+        for (let i = text.length; i > 0; i--) {
+          const candidate = text.substring(0, i);
+          if (customFont.widthOfTextAtSize(candidate, fontSize) <= availableWidth) {
+            return candidate + ellipsis;
+          }
+        }
+        return ellipsis;
+      };
+
+      let page = pdfDoc.addPage([595, 842]); // A4 portrait
+      const { width, height } = page.getSize();
+      const margin = 40;
+      const startX = margin;
+      const startY = height - margin;
+      const tableWidth = width - 2 * margin;
+      const rowHeight = 25;
+      const colWidths = [40, 170, 170, 60, 60];
+      const headers = ["Α/Α", "Name", "Scientific Name", "Year", "Quantity"];
+
+      // Title, centred
+      const titleWidth = customFont.widthOfTextAtSize(cleanTitle, 16);
+      const titleX = startX + (tableWidth - titleWidth) / 2;
+      const titleY = startY - 30;
+      page.drawText(cleanTitle, {
+        x: titleX,
+        y: titleY,
+        size: 16,
+        font: customFont,
+        color: rgb(0, 0, 0),
+        lineHeight: 1.2,
+      });
+
+      const tableStartY = titleY - 40;
+
+      const drawHeaders = (p: typeof page, y: number) => {
+        p.drawLine({
+          start: { x: startX, y: y + 5 },
+          end: { x: width - margin, y: y + 5 },
+          thickness: 1,
+          color: rgb(0, 0, 0),
+        });
+        let cx = startX;
+        headers.forEach((header, idx) => {
+          p.drawText(header, {
+            x: cx + 5,
+            y: y - 15,
+            size: 11,
+            font: customFont,
+            color: rgb(0, 0, 0),
+          });
+          cx += colWidths[idx];
+        });
+        p.drawLine({
+          start: { x: startX, y: y - rowHeight + 7 },
+          end: { x: width - margin, y: y - rowHeight + 7 },
+          thickness: 1,
+          color: rgb(0, 0, 0),
+        });
+      };
+
+      drawHeaders(page, tableStartY);
+      let currentY = tableStartY - rowHeight;
+
+      rows.forEach((row, index) => {
+        if (currentY < margin + rowHeight) {
+          page = pdfDoc.addPage([595, 842]);
+          currentY = height - margin - rowHeight - 10;
+          drawHeaders(page, currentY);
+          currentY -= rowHeight;
+        }
+
+        const fontSize = 10;
+        const cellPadding = 5;
+        const rowData = [
+          (index + 1).toString(),
+          truncateTextForCell(row.name, colWidths[1] - cellPadding * 2, fontSize),
+          truncateTextForCell(row.scientificName, colWidths[2] - cellPadding * 2, fontSize),
+          truncateTextForCell(row.plantingYear.toString(), colWidths[3] - cellPadding * 2, fontSize),
+          truncateTextForCell(row.quantity.toString(), colWidths[4] - cellPadding * 2, fontSize),
+        ];
+
+        let cx = startX;
+        rowData.forEach((text, cellIndex) => {
+          page.drawText(text, {
+            x: cx + cellPadding,
+            y: currentY - 15,
+            size: fontSize,
+            font: customFont,
+            color: rgb(0, 0, 0),
+          });
+          cx += colWidths[cellIndex];
+        });
+
+        page.drawLine({
+          start: { x: startX, y: currentY - rowHeight + 7 },
+          end: { x: width - margin, y: currentY - rowHeight + 7 },
+          thickness: 0.5,
+          color: rgb(0.7, 0.7, 0.7),
+        });
+
+        currentY -= rowHeight;
+      });
+
+      const footerText = footer
+        || (excludeZero
+          ? "Σημείωση: Κατάσταση Καλλιεργούμενων Φυτών (Αλφαβητικά και ανά έτος φύτευσης, χωρίς τα φυτά με μηδενική ποσότητα)"
+          : "Σημείωση: Κατάσταση Καλλιεργούμενων Φυτών (Αλφαβητικά και ανά έτος φύτευσης)");
+      page.drawText(footerText, {
+        x: 50,
+        y: 30,
+        size: 10,
+        font: customFont,
+        color: rgb(0.5, 0.5, 0.5),
+      });
+
+      const pdfBytes = await pdfDoc.save();
+      const timestamp = new Date().toISOString().replace(/:/g, "-").slice(0, 19);
+      const safeSlug = cleanTitle
+        .replace(/[^a-zA-Z0-9Ͱ-Ͽἀ-῿]+/g, "-")
+        .replace(/-+/g, "-")
+        .slice(0, 60);
+      const filename = `cultivation-declaration-${safeSlug || "custom"}-${timestamp}.pdf`;
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.send(Buffer.from(pdfBytes));
+    } catch (error) {
+      console.error("Error generating custom cultivation declaration:", error);
+      res.status(500).json({
+        message: "Failed to generate custom cultivation declaration",
+        error: (error as Error).message,
+      });
+    }
+  });
+
   // Custom report API endpoint
   app.post("/api/reports/custom", isAuthenticated, async (req: Request, res: Response) => {
     try {

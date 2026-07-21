@@ -18,6 +18,7 @@ import Py9Sales from "@/pages/Py9Sales";
 import Employees from "@/pages/Employees";
 import Payslips from "@/pages/Payslips";
 import BackupRestore from "@/pages/BackupRestore";
+import CultivationDeclarationMaker from "@/pages/CultivationDeclarationMaker";
 import RegulatoryChecks from "@/pages/RegulatoryChecks";
 import DocumentCategoryPage from "@/pages/documents/DocumentCategoryPage";
 import PlantPurchasesSimpleFixed from "@/pages/PlantPurchasesSimpleFixed";
@@ -119,6 +120,7 @@ function Router() {
       <Route path="/plant-purchase-analysis" component={ProtectedWithLayout(PlantPurchaseAnalysisNew)} />
       <Route path="/plant-varieties" component={ProtectedWithLayout(PlantVarietiesManagement)} />
       <Route path="/backup-restore" component={ProtectedWithLayout(BackupRestore)} />
+      <Route path="/cultivation-declaration-maker" component={ProtectedWithLayout(CultivationDeclarationMaker)} />
       <Route path="/settings" component={ProtectedWithLayout(Settings)} />
       
       {/* Catch-all route for 404 */}

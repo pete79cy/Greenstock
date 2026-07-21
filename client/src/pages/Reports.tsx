@@ -3,12 +3,14 @@ import { Helmet } from "react-helmet";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, FileText, BarChart } from "lucide-react";
+import { Download, FileText, BarChart, Pencil } from "lucide-react";
+import { useLocation } from "wouter";
 import CustomReportForm from "@/components/CustomReportForm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BackToMenuButton from "@/components/BackToMenuButton";
 
 export default function Reports() {
+  const [, setLocation] = useLocation();
   const [reportType, setReportType] = useState<string>("");
   const [year, setYear] = useState<string>(new Date().getFullYear().toString());
   const [activeTab, setActiveTab] = useState<string>("standard");
@@ -148,6 +150,25 @@ export default function Reports() {
                   >
                     <Download className="mr-2 h-4 w-4" />
                     Generate Declaration
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Interactive Cultivation Declaration Maker */}
+              <Card className="hover:shadow-md transition-shadow border-primary/40">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Pencil className="h-5 w-5" />
+                    Cultivation Declaration (Report Maker)
+                  </CardTitle>
+                  <CardDescription>
+                    Edit quantities and export a declaration PDF for any period (e.g. 06/2026 - 07/2027).
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button className="w-full" onClick={() => setLocation("/cultivation-declaration-maker")}>
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Open Report Maker
                   </Button>
                 </CardContent>
               </Card>
