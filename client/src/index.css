@@ -56,3 +56,37 @@
     @apply font-sans antialiased bg-background text-foreground;
   }
 }
+
+@layer components {
+  /* Strong ease-out for UI interactions (built-in easings are too weak). */
+  :root {
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  /* Ghost input: reads as plain text, reveals an editable affordance only
+     on hover/focus. Keeps a dense table calm while staying fully editable. */
+  .ghost-input {
+    @apply border-transparent bg-transparent shadow-none;
+    transition: background-color 150ms var(--ease-out),
+      border-color 150ms var(--ease-out);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .ghost-input:hover:not(:focus) {
+      @apply bg-muted/60;
+    }
+  }
+  .ghost-input:focus,
+  .ghost-input:focus-visible {
+    @apply bg-background border-input;
+  }
+
+  /* Drop the fiddly native number spinners; arrow keys still increment. */
+  .no-spinner::-webkit-outer-spin-button,
+  .no-spinner::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .no-spinner {
+    -moz-appearance: textfield;
+  }
+}

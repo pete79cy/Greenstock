@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Helmet } from "react-helmet";
 import { Download, RefreshCw, Plus, Trash2 } from "lucide-react";
@@ -37,6 +37,9 @@ export default function CultivationDeclarationMaker() {
   const [search, setSearch] = useState<string>("");
   const [rows, setRows] = useState<EditableRow[] | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Refs to each quantity input so Enter can jump straight to the next row.
+  const quantityRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   const { data: plants = [], isLoading, refetch, isFetching } = useQuery<Plant[]>({
     queryKey: ["/api/plants"],
@@ -223,11 +226,19 @@ export default function CultivationDeclarationMaker() {
         </Card>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={handleGenerate} disabled={isGenerating || isLoading || workingRows.length === 0}>
+          <Button
+            onClick={handleGenerate}
+            disabled={isGenerating || isLoading || workingRows.length === 0}
+            className="transition-transform duration-100 ease-out active:scale-[0.98]"
+          >
             <Download className="h-4 w-4 mr-2" />
             {isGenerating ? "Generating…" : "Generate PDF"}
           </Button>
-          <Button variant="outline" onClick={addRow}>
+          <Button
+            variant="outline"
+            onClick={addRow}
+            className="transition-transform duration-100 ease-out active:scale-[0.98]"
+          >
             <Plus className="h-4 w-4 mr-2" />
             Add row
           </Button>
@@ -244,7 +255,10 @@ export default function CultivationDeclarationMaker() {
           <CardHeader>
             <CardTitle>Entries</CardTitle>
             <CardDescription>
-              Edit the quantity for each row. Sorting in the PDF is alphabetical, then by planting year.
+              Type the quantity for each plant, then press{" "}
+              <kbd className="px-1.5 py-0.5 text-[11px] font-medium rounded border bg-muted">Enter</kbd>{" "}
+              to jump to the next row. Name, scientific name and year edit on click. Sorting in the PDF
+              is alphabetical, then by planting year.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -270,20 +284,37 @@ export default function CultivationDeclarationMaker() {
                           row.originalQuantity !== null && row.quantity !== row.originalQuantity;
                         const added = row.originalQuantity === null;
                         return (
-                          <TableRow key={row.key} className={changed || added ? "bg-amber-50 dark:bg-amber-950/20" : ""}>
-                            <TableCell className="text-sm text-muted-foreground">{index + 1}</TableCell>
+                          <TableRow
+                            key={row.key}
+                            className={
+                              "group transition-colors " +
+                              (changed || added
+                                ? "bg-amber-50/70 dark:bg-amber-950/20"
+                                : "hover:bg-muted/40")
+                            }
+                          >
+                            <TableCell className="text-sm tabular-nums text-muted-foreground">
+                              <span className="inline-flex items-center gap-1.5">
+                                {index + 1}
+                                {added && (
+                                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" title="Added row" />
+                                )}
+                              </span>
+                            </TableCell>
                             <TableCell>
                               <Input
                                 value={row.name}
                                 onChange={(e) => updateRow(row.key, { name: e.target.value })}
-                                className="h-8"
+                                placeholder="Όνομα φυτού"
+                                className="h-9 px-2 ghost-input"
                               />
                             </TableCell>
                             <TableCell>
                               <Input
                                 value={row.scientificName}
                                 onChange={(e) => updateRow(row.key, { scientificName: e.target.value })}
-                                className="h-8"
+                                placeholder="Scientific name"
+                                className="h-9 px-2 ghost-input italic text-muted-foreground focus:not-italic focus:text-foreground"
                               />
                             </TableCell>
                             <TableCell>
@@ -293,21 +324,35 @@ export default function CultivationDeclarationMaker() {
                                 onChange={(e) =>
                                   updateRow(row.key, { plantingYear: parseInt(e.target.value) || 0 })
                                 }
-                                className="h-8"
+                                onFocus={(e) => e.currentTarget.select()}
+                                className="h-9 w-20 px-2 ghost-input no-spinner tabular-nums"
                               />
                             </TableCell>
                             <TableCell>
                               <Input
+                                ref={(el) => (quantityRefs.current[index] = el)}
                                 type="number"
                                 min={0}
+                                inputMode="numeric"
                                 value={row.quantity}
                                 onChange={(e) =>
                                   updateRow(row.key, { quantity: parseInt(e.target.value) || 0 })
                                 }
-                                className="h-8 text-right"
+                                onFocus={(e) => e.currentTarget.select()}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    const nextEl = quantityRefs.current[index + (e.shiftKey ? -1 : 1)];
+                                    if (nextEl) {
+                                      nextEl.focus();
+                                      nextEl.select();
+                                    }
+                                  }
+                                }}
+                                className="h-9 w-28 ml-auto text-right font-semibold tabular-nums no-spinner"
                               />
                               {changed && row.originalQuantity !== null && (
-                                <div className="text-[10px] text-muted-foreground text-right mt-0.5">
+                                <div className="text-[10px] text-muted-foreground text-right mt-0.5 tabular-nums">
                                   was {row.originalQuantity.toLocaleString()}
                                 </div>
                               )}
@@ -315,11 +360,12 @@ export default function CultivationDeclarationMaker() {
                             <TableCell>
                               <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon"
                                 onClick={() => removeRow(row.key)}
                                 title="Remove row"
+                                className="h-8 w-8 text-muted-foreground transition-transform duration-100 ease-out hover:text-red-500 active:scale-90 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
                               >
-                                <Trash2 className="h-3 w-3 text-red-500" />
+                                <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             </TableCell>
                           </TableRow>
