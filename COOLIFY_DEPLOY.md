@@ -54,3 +54,25 @@ ADMIN_USERNAME=admin ADMIN_PASSWORD='change-this-password' npm run create:admin
 ```
 
 Το password πρέπει να είναι τουλάχιστον 8 χαρακτήρες. Αν ο χρήστης υπάρχει ήδη, το script δεν τον αλλάζει.
+
+## 6. SSO (Authentik) — auto-login χωρίς δεύτερο password
+
+Το `hr.pakkou.cloud` είναι πίσω από το Authentik forward-auth (host nginx). Όταν οι
+παρακάτω μεταβλητές είναι ενεργές, το app διαβάζει την ταυτότητα που περνάει το nginx
+και κάνει **αυτόματο login** τον χρήστη (Passport session) — χωρίς τοπικό password:
+
+```env
+SSO_FORWARD_AUTH_ENABLED=1
+SSO_PROXY_SECRET=<ίδιο με το nginx: /opt/id-panel/.sso-proxy-secret>
+```
+
+- Το nginx (`/etc/nginx/sites-available/hr.pakkou.cloud`) προωθεί
+  `X-Authentik-Email`, `X-Authentik-Username` και `X-SSO-Proxy-Secret` και τα
+  **ξαναγράφει** ώστε ο client να μην μπορεί να τα πλαστογραφήσει.
+- Ο server (`server/auth.ts` → `ssoForwardAuth`) εμπιστεύεται τα headers **μόνο**
+  αν το `X-SSO-Proxy-Secret` ταιριάζει με το `SSO_PROXY_SECRET` (constant-time).
+- Αντιστοίχιση χρήστη: πρώτα με **email** (case-insensitive), μετά με **username**.
+  Αν δεν υπάρχει, δημιουργείται αυτόματα νέος χρήστης με ρόλο `user` (τυχαίο password).
+  Ο admin πρέπει να έχει `email` = το Authentik email του (π.χ. `panayiotis@pakkoutis.com`).
+- Το τοπικό password login (`/api/auth/login`) παραμένει ως fallback.
+- Rollback: `SSO_FORWARD_AUTH_ENABLED=0` (redeploy) — το app γυρνάει σε password login.

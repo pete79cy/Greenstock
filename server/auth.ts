@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import crypto from "crypto";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import session from "express-session";
@@ -13,6 +14,34 @@ import { loginLimiter } from "./rate-limit";
 // Constants
 const SESSION_SECRET = process.env.SESSION_SECRET || 'plant-inventory-secret-key-very-long';
 const SESSION_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+// ── SSO forward-auth (Authentik) ────────────────────────────────────────────
+// When enabled, the trusted reverse proxy (nginx) has already authenticated the
+// visitor against Authentik and injects the identity headers below plus a shared
+// secret. We turn that into a real Passport session automatically, so each user
+// signs in ONCE at Authentik and never sees a second password prompt here.
+const SSO_FORWARD_AUTH_ENABLED = process.env.SSO_FORWARD_AUTH_ENABLED === "1";
+const SSO_PROXY_SECRET = process.env.SSO_PROXY_SECRET || "";
+
+function secretMatches(provided: string): boolean {
+  if (!SSO_PROXY_SECRET || !provided) return false;
+  const a = Buffer.from(provided);
+  const b = Buffer.from(SSO_PROXY_SECRET);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+// Derive a unique username from a preferred base (Authentik username / email
+// local-part), appending a numeric suffix only on collision.
+async function uniqueUsername(base: string): Promise<string> {
+  const cleaned = (base || "user").trim().replace(/\s+/g, "_").slice(0, 40) || "user";
+  if (!(await storage.getUserByUsername(cleaned))) return cleaned;
+  for (let i = 2; i < 1000; i++) {
+    const candidate = `${cleaned}_${i}`;
+    if (!(await storage.getUserByUsername(candidate))) return candidate;
+  }
+  return `${cleaned}_${crypto.randomBytes(3).toString("hex")}`;
+}
 
 // Setup passport local strategy
 passport.use(
@@ -78,6 +107,48 @@ export function configureSession(app: any) {
   
   app.use(passport.initialize());
   app.use(passport.session());
+}
+
+// SSO auto-login middleware. Register AFTER configureSession (so req.logIn and
+// req.isAuthenticated exist) and BEFORE the protected routes. No-op unless
+// SSO_FORWARD_AUTH_ENABLED=1; on any error it falls through so the local
+// password login keeps working as a fallback.
+export function ssoForwardAuth(app: any) {
+  if (!SSO_FORWARD_AUTH_ENABLED) return;
+  app.use(async (req: Request, _res: Response, next: NextFunction) => {
+    try {
+      if (req.isAuthenticated && req.isAuthenticated()) return next();
+
+      // Only trust identity headers when the shared secret (set ONLY by nginx,
+      // which overwrites any client-supplied copy) matches. Defence-in-depth
+      // even though the app should be reachable only via the proxy.
+      if (!secretMatches(req.get("x-sso-proxy-secret") || "")) return next();
+
+      const email = (req.get("x-authentik-email") || "").trim().toLowerCase();
+      const username = (req.get("x-authentik-username") || "").trim();
+      if (!email && !username) return next();
+
+      let user: User | undefined;
+      if (email) user = await storage.getUserByEmail(email);
+      if (!user && username) user = await storage.getUserByUsername(username);
+
+      if (!user) {
+        // First time this Authentik identity reaches HR → provision a regular
+        // user. They passed the Authentik gate, so this is a trusted identity.
+        const base = username || (email ? email.split("@")[0] : "user");
+        const randomPassword = await hashPassword(crypto.randomBytes(24).toString("hex"));
+        user = await storage.createUser({
+          username: await uniqueUsername(base),
+          password: randomPassword,
+          email: email || null,
+        } as InsertUser);
+      }
+
+      req.logIn(user, (err) => (err ? next(err) : next()));
+    } catch {
+      next();
+    }
+  });
 }
 
 // Hash password utility

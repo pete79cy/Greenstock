@@ -17,7 +17,7 @@ import fontkit from "@pdf-lib/fontkit";
 import puppeteer from "puppeteer";
 import Handlebars from "handlebars";
 import { allowInsecurePrototypeAccess } from "@handlebars/allow-prototype-access";
-import { configureSession, registerAuthRoutes, isAuthenticated } from "./auth";
+import { configureSession, registerAuthRoutes, ssoForwardAuth, isAuthenticated } from "./auth";
 import cors from "cors";
 import { encryptFile, decryptFile, generateSecureFilename, secureDeleteFile, validateEncryptionSetup } from "./encryption";
 import plantVarietiesRouter from "./routes/plantVarieties";
@@ -39,6 +39,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Configure session middleware first
   configureSession(app);
   registerAuthRoutes(app);
+  // Auto-login from Authentik forward-auth headers (no-op unless enabled).
+  // Must run after passport is initialised and before the protected routes.
+  ssoForwardAuth(app);
 
   // Dashboard Statistics API
   app.get("/api/dashboard/stats", isAuthenticated, async (req: Request, res: Response) => {
