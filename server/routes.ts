@@ -38,10 +38,12 @@ const upload = multer({
 export async function registerRoutes(app: Express): Promise<Server> {
   // Configure session middleware first
   configureSession(app);
-  registerAuthRoutes(app);
   // Auto-login from Authentik forward-auth headers (no-op unless enabled).
-  // Must run after passport is initialised and before the protected routes.
+  // Must run AFTER passport is initialised (configureSession) and BEFORE any
+  // route handlers — including /api/auth/user — so the session is established
+  // before those handlers check req.isAuthenticated().
   ssoForwardAuth(app);
+  registerAuthRoutes(app);
 
   // Dashboard Statistics API
   app.get("/api/dashboard/stats", isAuthenticated, async (req: Request, res: Response) => {
